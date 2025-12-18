@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Portable Node.js (downloaded by rwl portable)
+node/
+
 # Database
 data/*.db
 data/*.db-wal

@@ -209,26 +209,43 @@ async function start() {
 }
 
 // Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('Shutting down...');
+function shutdown(signal) {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+
+  // Stop file watcher
   stopWatcher();
+
+  // Close all socket connections
+  io.close();
+
+  // Close database
   const { closeDatabase } = require('./cache/database');
   closeDatabase();
+
+  // Close HTTP server with timeout
   server.close(() => {
     console.log('Server closed');
     process.exit(0);
   });
+
+  // Force exit after 5 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('Graceful shutdown timed out, forcing exit...');
+    process.exit(1);
+  }, 5000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Handle uncaught errors gracefully
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  shutdown('uncaughtException');
 });
 
-process.on('SIGINT', () => {
-  console.log('Shutting down...');
-  stopWatcher();
-  const { closeDatabase } = require('./cache/database');
-  closeDatabase();
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
 });
 
 // Start the server

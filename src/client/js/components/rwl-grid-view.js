@@ -76,7 +76,7 @@ class RwlGridView extends HTMLElement {
         this._games = [...this._games, ...(response.games || [])];
       }
 
-      this._totalPages = response.pagination?.totalPages || 1;
+      this._totalPages = response.totalPages || response.pagination?.totalPages || 1;
       this._renderGames();
     } catch (error) {
       console.error('Failed to load games:', error);

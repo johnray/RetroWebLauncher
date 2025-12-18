@@ -8,6 +8,61 @@ const cache = require('../cache');
 const launcher = require('../retrobat/launcher');
 
 /**
+ * GET /api/games/list/favorites
+ * Get favorite games
+ * NOTE: This route MUST come before /:id to avoid 'list' being matched as an id
+ */
+router.get('/list/favorites', (req, res) => {
+  try {
+    const games = cache.getFavorites();
+    res.json({
+      games,
+      totalCount: games.length
+    });
+  } catch (error) {
+    console.error('Error getting favorites:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/games/list/recent
+ * Get recently played games
+ */
+router.get('/list/recent', (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const games = cache.getRecentlyPlayed(days);
+    res.json({
+      games,
+      totalCount: games.length
+    });
+  } catch (error) {
+    console.error('Error getting recent games:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/games/list/random
+ * Get random game(s)
+ */
+router.get('/list/random', (req, res) => {
+  try {
+    const systemId = req.query.system || null;
+    const count = Math.min(parseInt(req.query.count) || 1, 10);
+    const games = cache.getRandomGames(systemId, count);
+    res.json({
+      games,
+      totalCount: games.length
+    });
+  } catch (error) {
+    console.error('Error getting random games:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/games/:id
  * Get a single game by ID
  */
@@ -55,63 +110,15 @@ router.post('/:id/launch', async (req, res) => {
 
     const result = await launcher.launchGame(game, options);
 
+    // Emit via Socket.io if available
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('game:launched', { gameId: game.id, gameName: game.name });
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Error launching game:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * GET /api/games/favorites
- * Get favorite games
- */
-router.get('/list/favorites', (req, res) => {
-  try {
-    const games = cache.getFavorites();
-    res.json({
-      games,
-      totalCount: games.length
-    });
-  } catch (error) {
-    console.error('Error getting favorites:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * GET /api/games/recent
- * Get recently played games
- */
-router.get('/list/recent', (req, res) => {
-  try {
-    const days = parseInt(req.query.days) || 30;
-    const games = cache.getRecentlyPlayed(days);
-    res.json({
-      games,
-      totalCount: games.length
-    });
-  } catch (error) {
-    console.error('Error getting recent games:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * GET /api/games/random
- * Get random game(s)
- */
-router.get('/list/random', (req, res) => {
-  try {
-    const systemId = req.query.system || null;
-    const count = Math.min(parseInt(req.query.count) || 1, 10);
-    const games = cache.getRandomGames(systemId, count);
-    res.json({
-      games,
-      totalCount: games.length
-    });
-  } catch (error) {
-    console.error('Error getting random games:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -129,7 +136,6 @@ router.post('/:id/favorite', (req, res) => {
     }
 
     // Toggle favorite status in database
-    const { gameOps } = require('../cache/database');
     const db = require('../cache/database').getDb();
 
     const newStatus = game.favorite ? 0 : 1;

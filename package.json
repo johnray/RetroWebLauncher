@@ -1,0 +1,34 @@
+{
+  "name": "retroweblauncher",
+  "version": "1.0.0",
+  "description": "A modern web-based frontend for Retrobat",
+  "main": "src/server/index.js",
+  "scripts": {
+    "start": "node src/server/index.js",
+    "dev": "node --watch src/server/index.js"
+  },
+  "keywords": [
+    "retrobat",
+    "emulation",
+    "frontend",
+    "gaming"
+  ],
+  "author": "John Ray <johnray@mac.com>",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "fast-xml-parser": "^4.3.2",
+    "better-sqlite3": "^9.2.2",
+    "chokidar": "^3.5.3",
+    "qrcode": "^1.5.3",
+    "bcrypt": "^5.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

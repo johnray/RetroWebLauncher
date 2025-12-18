@@ -1,150 +1,103 @@
 /**
  * RetroWebLauncher - AI Theme Generator
- * Generates pixel-perfect CSS themes from natural language descriptions
+ * Generates user-friendly JSON theme configs from natural language descriptions
+ * Uses theme-compiler to convert configs to pixel-perfect CSS
  */
 
 const fs = require('fs');
 const path = require('path');
+const { compileTheme, saveCompiledTheme, getPresets, COLOR_PRESETS, FONT_PRESETS, EFFECT_PRESETS } = require('../themes/theme-compiler');
 
 /**
- * Theme generation prompt template for pixel-perfect output
+ * Theme generation prompt - asks AI to return JSON config
  */
-const THEME_PROMPT = `You are an expert CSS theme designer. Generate a complete, pixel-perfect CSS theme based on the user's description.
+const THEME_PROMPT = `You are an expert retro gaming theme designer. Generate a JSON theme configuration based on the user's description.
 
-CRITICAL REQUIREMENTS:
-1. All colors must use exact hex codes (e.g., #ff0066, not "hot pink")
-2. All sizes must use exact rem or px values
-3. All transitions must specify exact milliseconds and easing
-4. Output must be valid, production-ready CSS
-5. Theme must be complete - include ALL variables listed below
+AVAILABLE COLOR PRESETS (use these names, not hex codes):
+${Object.keys(COLOR_PRESETS).join(', ')}
 
-The theme must define these CSS custom properties within a [data-theme="THEME_NAME"] selector:
+AVAILABLE FONT PRESETS:
+${Object.keys(FONT_PRESETS).join(', ')}
 
-REQUIRED COLOR VARIABLES:
---color-primary: (main brand color)
---color-primary-hover: (hover state)
---color-secondary: (secondary accent)
---color-accent: (highlight color)
---color-background: (page background)
---color-surface: (card/panel background)
---color-surface-elevated: (elevated panels)
---color-text: (primary text)
---color-text-muted: (secondary text)
---color-text-secondary: (tertiary text)
---color-success: (success indicators)
---color-warning: (warning indicators)
---color-error: (error indicators)
+AVAILABLE EFFECT PRESETS (these add animations and visual flair):
+${Object.keys(EFFECT_PRESETS).join(', ')}
 
-REQUIRED GRADIENT VARIABLES:
---gradient-primary: (primary gradient)
---gradient-surface: (surface gradient)
+GLOW INTENSITY OPTIONS: subtle, medium, intense, extreme
+ANIMATION SPEED OPTIONS: slow, normal, fast, instant
+BORDER STYLE OPTIONS: sharp, subtle, rounded, very-rounded, pill
 
-REQUIRED TYPOGRAPHY:
---font-display: (display/heading font with fallbacks)
---font-body: (body text font with fallbacks)
---font-size-xs: (extra small, e.g., 0.625rem)
---font-size-sm: (small, e.g., 0.75rem)
---font-size-base: (base, e.g., 0.875rem)
---font-size-lg: (large, e.g., 1rem)
---font-size-xl: (extra large, e.g., 1.25rem)
---font-size-2xl: (2x large, e.g., 1.5rem)
---font-size-3xl: (3x large, e.g., 2rem)
+OUTPUT A VALID JSON OBJECT with this exact structure:
+{
+  "name": "theme-name-here",
+  "displayName": "Theme Name Here",
+  "description": "Brief description of the theme",
+  "colors": {
+    "primary": "COLOR_PRESET_NAME or #hexcode",
+    "primaryHover": "COLOR_PRESET_NAME or #hexcode",
+    "secondary": "COLOR_PRESET_NAME or #hexcode",
+    "accent": "COLOR_PRESET_NAME or #hexcode",
+    "background": "COLOR_PRESET_NAME or #hexcode",
+    "surface": "COLOR_PRESET_NAME or #hexcode",
+    "surfaceElevated": "COLOR_PRESET_NAME or #hexcode",
+    "text": "COLOR_PRESET_NAME or #hexcode",
+    "textMuted": "COLOR_PRESET_NAME or #hexcode",
+    "success": "COLOR_PRESET_NAME or #hexcode",
+    "warning": "COLOR_PRESET_NAME or #hexcode",
+    "error": "COLOR_PRESET_NAME or #hexcode"
+  },
+  "fonts": {
+    "display": "FONT_PRESET_NAME",
+    "body": "FONT_PRESET_NAME"
+  },
+  "effects": ["EFFECT_NAME", "EFFECT_NAME"],
+  "glowIntensity": "subtle|medium|intense|extreme",
+  "animationSpeed": "slow|normal|fast|instant",
+  "borderStyle": "sharp|subtle|rounded|very-rounded|pill"
+}
 
-REQUIRED SPACING:
---spacing-xs: 0.25rem
---spacing-sm: 0.5rem
---spacing-md: 1rem
---spacing-lg: 1.5rem
---spacing-xl: 2rem
---spacing-2xl: 3rem
-
-REQUIRED BORDER RADIUS:
---radius-sm: (small, e.g., 4px)
---radius-md: (medium, e.g., 8px)
---radius-lg: (large, e.g., 12px)
---radius-xl: (extra large, e.g., 16px)
---radius-full: 9999px
-
-REQUIRED SHADOWS:
---shadow-sm: (subtle shadow)
---shadow-md: (medium shadow)
---shadow-lg: (large shadow)
---shadow-glow: (colored glow effect using primary color)
-
-REQUIRED TRANSITIONS:
---transition-fast: (e.g., 150ms ease)
---transition-normal: (e.g., 250ms ease)
---transition-slow: (e.g., 400ms ease)
-
-REQUIRED FOCUS:
---focus-ring-color: (should match or complement primary)
---focus-ring-width: (e.g., 3px)
-
-REQUIRED LAYOUT:
---header-height: (e.g., 64px)
---sidebar-width: (e.g., 280px)
-
-REQUIRED Z-INDEX:
---z-sidebar: 100
---z-header: 200
---z-modal: 500
---z-toast: 600
---z-screensaver: 9999
-
-After the variables block, include theme-specific styles:
-1. Body background (can include gradients, images)
-2. At least 2 utility classes for the theme's special effects
-3. Any unique visual treatments
+GUIDELINES:
+1. Choose effects that match the mood (e.g., "scanlines" + "crt-flicker" for retro CRT feel)
+2. Use "intense" or "extreme" glow for vibrant neon themes
+3. Pick fonts that match the era (pixel for 8-bit, futuristic for sci-fi)
+4. Combine multiple effects for maximum visual impact (3-5 effects recommended)
+5. For dark themes, use "pitch-black" or "near-black" backgrounds
+6. Match warning/error colors to the theme's palette
 
 USER'S THEME DESCRIPTION:
 {DESCRIPTION}
 
-THEME NAME (for CSS selector):
-{THEME_NAME}
-
-OUTPUT ONLY VALID CSS - no explanations, no markdown code blocks, just pure CSS:`;
+OUTPUT ONLY VALID JSON - no explanations, no markdown, just the JSON object:`;
 
 /**
  * Generate a theme from natural language description
  * @param {string} description - Natural language description of desired theme
- * @param {string} themeName - Name for the theme (used in CSS selector)
+ * @param {string} themeName - Name for the theme
  * @param {Object} provider - AI provider (ollama or openai)
- * @returns {Object} Generated theme object with CSS and metadata
+ * @returns {Object} Generated theme object with config and CSS
  */
 async function generateTheme(description, themeName, provider) {
-  // Sanitize theme name for CSS selector
-  const cssThemeName = themeName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  const prompt = THEME_PROMPT
-    .replace('{DESCRIPTION}', description)
-    .replace('{THEME_NAME}', cssThemeName);
+  const prompt = THEME_PROMPT.replace('{DESCRIPTION}', description);
 
   try {
-    // Generate CSS using AI
-    const css = await provider.generate(prompt, {
-      temperature: 0.3, // Low temperature for precise output
-      maxTokens: 2500
+    // Generate JSON config using AI
+    const jsonResponse = await provider.generate(prompt, {
+      temperature: 0.4, // Balanced creativity with structure
+      maxTokens: 1500
     });
 
-    // Validate the generated CSS
-    const validation = validateThemeCSS(css, cssThemeName);
+    // Parse and validate JSON
+    const config = parseThemeConfig(jsonResponse, themeName);
 
-    if (!validation.valid) {
-      throw new Error(`Generated theme is missing required properties: ${validation.missing.join(', ')}`);
-    }
-
-    // Clean up CSS (remove any markdown artifacts)
-    const cleanCSS = cleanGeneratedCSS(css);
+    // Compile to CSS using theme-compiler
+    const css = compileTheme(config);
 
     return {
       success: true,
-      themeName: cssThemeName,
-      displayName: themeName,
-      css: cleanCSS,
-      description: description,
+      config: config,
+      css: css,
+      themeName: config.name,
+      displayName: config.displayName,
+      description: config.description,
       generatedAt: new Date().toISOString()
     };
   } catch (error) {
@@ -154,92 +107,123 @@ async function generateTheme(description, themeName, provider) {
 }
 
 /**
- * Validate that generated CSS contains all required properties
+ * Parse and validate theme config from AI response
  */
-function validateThemeCSS(css, themeName) {
-  const requiredProperties = [
-    '--color-primary',
-    '--color-background',
-    '--color-surface',
-    '--color-text',
-    '--font-display',
-    '--font-body',
-    '--spacing-md',
-    '--radius-md',
-    '--shadow-md',
-    '--transition-fast'
-  ];
+function parseThemeConfig(response, fallbackName) {
+  let cleaned = response;
 
-  const missing = [];
+  // Remove markdown code blocks if present
+  cleaned = cleaned.replace(/```json\n?/g, '');
+  cleaned = cleaned.replace(/```\n?/g, '');
+  cleaned = cleaned.trim();
 
-  for (const prop of requiredProperties) {
-    if (!css.includes(prop)) {
-      missing.push(prop);
+  // Find JSON object in response
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('No valid JSON found in AI response');
+  }
+
+  let config;
+  try {
+    config = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    throw new Error('Failed to parse JSON: ' + e.message);
+  }
+
+  // Ensure required fields
+  config.name = config.name || fallbackName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  config.displayName = config.displayName || fallbackName;
+  config.description = config.description || 'AI-generated theme';
+
+  // Validate colors - ensure they're preset names or hex codes
+  if (config.colors) {
+    for (const [key, value] of Object.entries(config.colors)) {
+      if (value && !value.startsWith('#') && !COLOR_PRESETS[value]) {
+        // Try to find closest match
+        const closest = findClosestPreset(value, Object.keys(COLOR_PRESETS));
+        if (closest) {
+          config.colors[key] = closest;
+        }
+      }
     }
   }
 
-  // Check for theme selector
-  if (!css.includes(`[data-theme="${themeName}"]`)) {
-    missing.push(`[data-theme="${themeName}"] selector`);
+  // Validate fonts
+  if (config.fonts) {
+    for (const [key, value] of Object.entries(config.fonts)) {
+      if (value && !FONT_PRESETS[value]) {
+        const closest = findClosestPreset(value, Object.keys(FONT_PRESETS));
+        config.fonts[key] = closest || 'modern';
+      }
+    }
   }
 
-  return {
-    valid: missing.length === 0,
-    missing
-  };
+  // Validate effects
+  if (config.effects) {
+    config.effects = config.effects.filter(e => EFFECT_PRESETS[e]);
+    if (config.effects.length === 0) {
+      config.effects = ['pulse-glow', 'floating']; // Default effects
+    }
+  } else {
+    config.effects = ['pulse-glow', 'floating'];
+  }
+
+  // Validate other options
+  const validGlow = ['subtle', 'medium', 'intense', 'extreme'];
+  const validSpeed = ['slow', 'normal', 'fast', 'instant'];
+  const validBorder = ['sharp', 'subtle', 'rounded', 'very-rounded', 'pill'];
+
+  if (!validGlow.includes(config.glowIntensity)) {
+    config.glowIntensity = 'medium';
+  }
+  if (!validSpeed.includes(config.animationSpeed)) {
+    config.animationSpeed = 'normal';
+  }
+  if (!validBorder.includes(config.borderStyle)) {
+    config.borderStyle = 'rounded';
+  }
+
+  return config;
 }
 
 /**
- * Clean up generated CSS
+ * Find closest matching preset name
  */
-function cleanGeneratedCSS(css) {
-  let cleaned = css;
+function findClosestPreset(input, presets) {
+  const lower = input.toLowerCase();
 
-  // Remove markdown code block markers
-  cleaned = cleaned.replace(/```css\n?/g, '');
-  cleaned = cleaned.replace(/```\n?/g, '');
+  // Exact match
+  if (presets.includes(lower)) return lower;
 
-  // Remove any leading/trailing explanation text
-  const selectorMatch = cleaned.match(/\[data-theme=/);
-  if (selectorMatch) {
-    cleaned = cleaned.substring(selectorMatch.index);
+  // Partial match
+  for (const preset of presets) {
+    if (preset.includes(lower) || lower.includes(preset)) {
+      return preset;
+    }
   }
 
-  // Trim whitespace
-  cleaned = cleaned.trim();
+  // Word match
+  const words = lower.split(/[-_\s]+/);
+  for (const preset of presets) {
+    for (const word of words) {
+      if (preset.includes(word)) {
+        return preset;
+      }
+    }
+  }
 
-  return cleaned;
+  return null;
 }
 
 /**
- * Save generated theme to file
+ * Save generated theme
  */
 async function saveTheme(themeData) {
-  const themesDir = path.join(__dirname, '..', '..', 'client', 'css', 'themes');
-  const filePath = path.join(themesDir, `${themeData.themeName}.css`);
-
-  // Ensure themes directory exists
-  if (!fs.existsSync(themesDir)) {
-    fs.mkdirSync(themesDir, { recursive: true });
-  }
-
-  // Add header comment
-  const cssContent = `/**
- * RetroWebLauncher - ${themeData.displayName} Theme
- * AI-Generated Theme
- *
- * Description: ${themeData.description}
- * Generated: ${themeData.generatedAt}
- */
-
-${themeData.css}
-`;
-
-  fs.writeFileSync(filePath, cssContent, 'utf-8');
-
+  const result = saveCompiledTheme(themeData.config);
   return {
-    filePath,
-    fileName: `${themeData.themeName}.css`
+    ...result,
+    displayName: themeData.displayName,
+    description: themeData.description
   };
 }
 
@@ -248,6 +232,7 @@ ${themeData.css}
  */
 function getAvailableThemes() {
   const themesDir = path.join(__dirname, '..', '..', 'client', 'css', 'themes');
+  const configDir = path.join(__dirname, '..', '..', '..', 'themes');
 
   if (!fs.existsSync(themesDir)) {
     return [];
@@ -259,22 +244,38 @@ function getAvailableThemes() {
   for (const file of files) {
     if (file.endsWith('.css')) {
       const themeName = file.replace('.css', '');
-      const filePath = path.join(themesDir, file);
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const cssPath = path.join(themesDir, file);
+      const configPath = path.join(configDir, `${themeName}.json`);
+
+      const cssContent = fs.readFileSync(cssPath, 'utf-8');
 
       // Extract display name from comment if present
-      const displayNameMatch = content.match(/RetroWebLauncher - (.+) Theme/);
+      const displayNameMatch = cssContent.match(/RetroWebLauncher - (.+) Theme/);
       const displayName = displayNameMatch ? displayNameMatch[1] : themeName;
 
-      // Check if AI-generated
-      const isAiGenerated = content.includes('AI-Generated Theme');
+      // Check if has JSON config (meaning it's editable)
+      const hasConfig = fs.existsSync(configPath);
+
+      // Check if AI-generated or built-in
+      const isAiGenerated = cssContent.includes('Generated by Theme Compiler') ||
+                           cssContent.includes('AI-Generated Theme');
+      const isBuiltIn = ['classic-arcade', 'dark-modern'].includes(themeName);
+
+      let config = null;
+      if (hasConfig) {
+        try {
+          config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        } catch (e) {}
+      }
 
       themes.push({
         id: themeName,
         name: displayName,
         fileName: file,
         isAiGenerated,
-        isBuiltIn: ['classic-arcade', 'dark-modern'].includes(themeName)
+        isBuiltIn,
+        hasConfig,
+        config
       });
     }
   }
@@ -293,14 +294,23 @@ function deleteTheme(themeName) {
   }
 
   const themesDir = path.join(__dirname, '..', '..', 'client', 'css', 'themes');
-  const filePath = path.join(themesDir, `${themeName}.css`);
+  const configDir = path.join(__dirname, '..', '..', '..', 'themes');
 
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    return true;
+  const cssPath = path.join(themesDir, `${themeName}.css`);
+  const configPath = path.join(configDir, `${themeName}.json`);
+
+  let deleted = false;
+
+  if (fs.existsSync(cssPath)) {
+    fs.unlinkSync(cssPath);
+    deleted = true;
   }
 
-  return false;
+  if (fs.existsSync(configPath)) {
+    fs.unlinkSync(configPath);
+  }
+
+  return deleted;
 }
 
 /**
@@ -308,7 +318,37 @@ function deleteTheme(themeName) {
  */
 async function previewTheme(description, themeName, provider) {
   const theme = await generateTheme(description, themeName, provider);
-  return theme.css;
+  return {
+    css: theme.css,
+    config: theme.config
+  };
+}
+
+/**
+ * Create theme from JSON config directly (no AI needed)
+ */
+function createThemeFromConfig(config) {
+  const css = compileTheme(config);
+  return {
+    success: true,
+    config: config,
+    css: css,
+    themeName: config.name,
+    displayName: config.displayName || config.name,
+    description: config.description || 'Custom theme'
+  };
+}
+
+/**
+ * Update an existing theme's config
+ */
+function updateTheme(themeName, newConfig) {
+  newConfig.name = themeName; // Ensure name stays the same
+  const result = saveCompiledTheme(newConfig);
+  return {
+    ...result,
+    config: newConfig
+  };
 }
 
 module.exports = {
@@ -316,5 +356,8 @@ module.exports = {
   saveTheme,
   getAvailableThemes,
   deleteTheme,
-  previewTheme
+  previewTheme,
+  createThemeFromConfig,
+  updateTheme,
+  getPresets
 };

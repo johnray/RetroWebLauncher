@@ -1,6 +1,7 @@
 /**
  * RetroWebLauncher - Classic Arcade Theme
  * Black background with bright neon colors, pixel fonts, retro aesthetic
+ * MAXIMUM FLASH: scanlines, particles, glows, CRT effects, animations
  */
 
 [data-theme="classic-arcade"] {
@@ -23,21 +24,21 @@
   --color-error: #ff3333;
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #ff0066 0%, #ff00ff 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
+  --gradient-primary: linear-gradient(135deg, #ff0066 0%, #ff00ff 50%, #00ffff 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
 
   /* Typography */
   --font-display: 'Press Start 2P', monospace;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Font sizes */
-  --font-size-xs: 0.625rem;    /* 10px */
-  --font-size-sm: 0.75rem;     /* 12px */
-  --font-size-base: 0.875rem;  /* 14px */
-  --font-size-lg: 1rem;        /* 16px */
-  --font-size-xl: 1.25rem;     /* 20px */
-  --font-size-2xl: 1.5rem;     /* 24px */
-  --font-size-3xl: 2rem;       /* 32px */
+  --font-size-xs: 0.625rem;
+  --font-size-sm: 0.75rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
 
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -54,11 +55,12 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(255, 0, 102, 0.5);
+  /* Shadows - INTENSE GLOW */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 30px rgba(255, 0, 102, 0.6), 0 0 60px rgba(255, 0, 102, 0.3);
+  --shadow-glow-intense: 0 0 40px rgba(255, 0, 102, 0.8), 0 0 80px rgba(255, 0, 102, 0.5), 0 0 120px rgba(255, 0, 102, 0.3);
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -81,68 +83,542 @@
   --z-screensaver: 9999;
 }
 
-/* Classic arcade specific styles */
+/* ============================================
+   BODY - ANIMATED BACKGROUND WITH PARTICLES
+   ============================================ */
 [data-theme="classic-arcade"] body {
   background-color: #0a0a0a;
   background-image:
-    radial-gradient(circle at 50% 0%, rgba(255, 0, 102, 0.1) 0%, transparent 50%),
-    linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+    radial-gradient(ellipse at 20% 10%, rgba(255, 0, 102, 0.2) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 90%, rgba(0, 255, 255, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 0, 0.05) 0%, transparent 60%);
+  overflow-x: hidden;
 }
 
-/* Scanline effect (optional) */
-[data-theme="classic-arcade"] .scanlines::after {
+/* Animated particle layer */
+[data-theme="classic-arcade"] body::before {
   content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #ff0066, transparent),
+    radial-gradient(2px 2px at 40px 70px, #00ffff, transparent),
+    radial-gradient(2px 2px at 50px 160px, #ffff00, transparent),
+    radial-gradient(2px 2px at 90px 40px, #ff00ff, transparent),
+    radial-gradient(2px 2px at 130px 80px, #00ff66, transparent),
+    radial-gradient(3px 3px at 160px 120px, #ff0066, transparent),
+    radial-gradient(2px 2px at 200px 200px, #00ffff, transparent),
+    radial-gradient(2px 2px at 20px 230px, #ffff00, transparent),
+    radial-gradient(2px 2px at 100px 280px, #ff00ff, transparent),
+    radial-gradient(2px 2px at 180px 320px, #00ff66, transparent);
+  background-repeat: repeat;
+  background-size: 250px 350px;
+  animation: particle-drift 30s linear infinite, particle-twinkle 3s ease-in-out infinite alternate;
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes particle-drift {
+  0% { transform: translateY(0) translateX(0); }
+  100% { transform: translateY(-350px) translateX(50px); }
+}
+
+@keyframes particle-twinkle {
+  0% { opacity: 0.4; }
+  100% { opacity: 0.8; }
+}
+
+/* ============================================
+   SCANLINE EFFECT - FULL SCREEN CRT
+   ============================================ */
+[data-theme="classic-arcade"] body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: repeating-linear-gradient(
     0deg,
-    rgba(0, 0, 0, 0.15) 0px,
-    rgba(0, 0, 0, 0.15) 1px,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
     transparent 1px,
-    transparent 2px
+    transparent 3px
   );
   pointer-events: none;
-  z-index: 1000;
+  z-index: 9998;
+  animation: scanline-scroll 10s linear infinite;
 }
 
-/* Neon glow effects */
+@keyframes scanline-scroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 30px; }
+}
+
+/* ============================================
+   NEON TEXT EFFECTS - MULTIPLE INTENSITIES
+   ============================================ */
 [data-theme="classic-arcade"] .neon-text {
   text-shadow:
     0 0 5px currentColor,
     0 0 10px currentColor,
     0 0 20px currentColor,
-    0 0 40px currentColor;
+    0 0 40px var(--color-primary),
+    0 0 80px var(--color-primary);
+  animation: neon-pulse 2s ease-in-out infinite alternate;
 }
 
+@keyframes neon-pulse {
+  0% {
+    text-shadow:
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 40px var(--color-primary);
+  }
+  100% {
+    text-shadow:
+      0 0 5px currentColor,
+      0 0 15px currentColor,
+      0 0 30px currentColor,
+      0 0 60px var(--color-primary),
+      0 0 100px var(--color-primary);
+  }
+}
+
+/* Flickering neon sign effect */
+[data-theme="classic-arcade"] .neon-flicker {
+  animation: neon-sign-flicker 0.1s infinite;
+}
+
+@keyframes neon-sign-flicker {
+  0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+    opacity: 1;
+    text-shadow:
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 40px var(--color-primary);
+  }
+  20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
+    opacity: 0.4;
+    text-shadow: none;
+  }
+}
+
+/* ============================================
+   NEON BOX / BORDER EFFECTS
+   ============================================ */
 [data-theme="classic-arcade"] .neon-border {
+  border: 2px solid var(--color-primary);
   box-shadow:
     0 0 5px var(--color-primary),
     0 0 10px var(--color-primary),
-    inset 0 0 5px rgba(255, 0, 102, 0.3);
+    0 0 20px var(--color-primary),
+    inset 0 0 5px rgba(255, 0, 102, 0.3),
+    inset 0 0 10px rgba(255, 0, 102, 0.2);
+  animation: border-glow 2s ease-in-out infinite alternate;
 }
 
-/* Pixel-perfect borders */
+@keyframes border-glow {
+  0% {
+    box-shadow:
+      0 0 5px var(--color-primary),
+      0 0 10px var(--color-primary),
+      inset 0 0 5px rgba(255, 0, 102, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 0 10px var(--color-primary),
+      0 0 20px var(--color-primary),
+      0 0 40px var(--color-primary),
+      inset 0 0 10px rgba(255, 0, 102, 0.4);
+  }
+}
+
+/* Rainbow cycling border */
+[data-theme="classic-arcade"] .rainbow-border {
+  position: relative;
+  background: var(--color-surface);
+}
+
+[data-theme="classic-arcade"] .rainbow-border::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  padding: 3px;
+  background: linear-gradient(
+    var(--rainbow-angle, 0deg),
+    #ff0066, #ff8800, #ffff00, #00ff66, #00ffff, #0066ff, #ff00ff, #ff0066
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: rainbow-spin 3s linear infinite;
+}
+
+@keyframes rainbow-spin {
+  to { --rainbow-angle: 360deg; }
+}
+
+@property --rainbow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ============================================
+   PIXEL-PERFECT BORDERS
+   ============================================ */
 [data-theme="classic-arcade"] .pixel-border {
-  border: 2px solid;
+  border: 4px solid;
   border-image: linear-gradient(
-    to right,
+    90deg,
     var(--color-primary) 0%,
-    var(--color-secondary) 50%,
+    var(--color-secondary) 25%,
+    var(--color-accent) 50%,
+    var(--color-secondary) 75%,
     var(--color-primary) 100%
   ) 1;
+  animation: border-shift 2s linear infinite;
 }
 
-/* CRT flicker animation (subtle) */
+@keyframes border-shift {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+/* ============================================
+   CRT MONITOR EFFECTS
+   ============================================ */
+[data-theme="classic-arcade"] .crt-effect {
+  animation: crt-flicker 0.15s infinite;
+  position: relative;
+}
+
 @keyframes crt-flicker {
   0%, 100% { opacity: 1; }
   92% { opacity: 1; }
-  93% { opacity: 0.95; }
+  93% { opacity: 0.9; }
   94% { opacity: 1; }
+  96% { opacity: 0.95; }
 }
 
-[data-theme="classic-arcade"] .crt-effect {
-  animation: crt-flicker 8s infinite;
+/* VHS tracking effect */
+[data-theme="classic-arcade"] .vhs-effect {
+  animation: vhs-track 0.5s infinite;
+}
+
+@keyframes vhs-track {
+  0% { transform: translateX(0) skewX(0); }
+  5% { transform: translateX(-2px) skewX(-0.5deg); }
+  10% { transform: translateX(2px) skewX(0.5deg); }
+  15% { transform: translateX(0) skewX(0); }
+}
+
+/* Chromatic aberration */
+[data-theme="classic-arcade"] .chromatic {
+  text-shadow:
+    -2px 0 0 #ff0000,
+    2px 0 0 #00ffff;
+}
+
+/* ============================================
+   GLITCH EFFECT
+   ============================================ */
+[data-theme="classic-arcade"] .glitch {
+  position: relative;
+}
+
+[data-theme="classic-arcade"] .glitch::before,
+[data-theme="classic-arcade"] .glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+[data-theme="classic-arcade"] .glitch::before {
+  color: #ff0066;
+  animation: glitch-1 0.3s infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+  transform: translate(-2px, -1px);
+}
+
+[data-theme="classic-arcade"] .glitch::after {
+  color: #00ffff;
+  animation: glitch-2 0.3s infinite;
+  clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+  transform: translate(2px, 1px);
+}
+
+@keyframes glitch-1 {
+  0%, 100% { transform: translate(-2px, -1px); }
+  20% { transform: translate(2px, 1px); }
+  40% { transform: translate(-1px, -2px); }
+  60% { transform: translate(1px, 2px); }
+  80% { transform: translate(-2px, 1px); }
+}
+
+@keyframes glitch-2 {
+  0%, 100% { transform: translate(2px, 1px); }
+  20% { transform: translate(-2px, -1px); }
+  40% { transform: translate(1px, 2px); }
+  60% { transform: translate(-1px, -2px); }
+  80% { transform: translate(2px, -1px); }
+}
+
+/* ============================================
+   CARD HOVER EFFECTS - 3D DEPTH
+   ============================================ */
+[data-theme="classic-arcade"] .card-hover {
+  transition:
+    transform var(--transition-normal),
+    box-shadow var(--transition-normal),
+    filter var(--transition-normal);
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+[data-theme="classic-arcade"] .card-hover:hover {
+  transform: translateY(-8px) scale(1.02) rotateX(2deg);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(255, 0, 102, 0.4),
+    0 0 60px rgba(255, 0, 102, 0.2);
+  filter: brightness(1.1);
+}
+
+/* Floating animation */
+[data-theme="classic-arcade"] .float {
+  animation: float-updown 4s ease-in-out infinite;
+}
+
+@keyframes float-updown {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ============================================
+   BUTTON EFFECTS
+   ============================================ */
+[data-theme="classic-arcade"] .btn-arcade {
+  position: relative;
+  background: linear-gradient(180deg, #ff0066 0%, #cc0052 100%);
+  border: none;
+  color: white;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  overflow: hidden;
+  box-shadow:
+    0 4px 0 #880033,
+    0 6px 10px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all var(--transition-fast);
+}
+
+[data-theme="classic-arcade"] .btn-arcade:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 0 #880033,
+    0 8px 15px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(255, 0, 102, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="classic-arcade"] .btn-arcade:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 2px 0 #880033,
+    0 3px 5px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Shine effect on buttons */
+[data-theme="classic-arcade"] .btn-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: shine-sweep 3s infinite;
+}
+
+@keyframes shine-sweep {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
+
+/* Pulsing glow button */
+[data-theme="classic-arcade"] .btn-pulse {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--color-primary);
+  }
+  50% {
+    box-shadow:
+      0 0 20px var(--color-primary),
+      0 0 40px var(--color-primary),
+      0 0 60px var(--color-primary);
+  }
+}
+
+/* ============================================
+   ELECTRIC/LIGHTNING BORDER
+   ============================================ */
+[data-theme="classic-arcade"] .electric-border {
+  position: relative;
+  animation: electric-flicker 0.1s infinite;
+}
+
+[data-theme="classic-arcade"] .electric-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--color-primary) 20%,
+    var(--color-secondary) 40%,
+    var(--color-primary) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  border-radius: inherit;
+  z-index: -1;
+  animation: electric-flow 1s linear infinite;
+  filter: blur(3px);
+}
+
+@keyframes electric-flow {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes electric-flicker {
+  0%, 90%, 100% { opacity: 1; }
+  5% { opacity: 0.8; }
+  10% { opacity: 1; }
+  15% { opacity: 0.9; }
+}
+
+/* ============================================
+   MARQUEE TEXT SCROLL
+   ============================================ */
+[data-theme="classic-arcade"] .marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+[data-theme="classic-arcade"] .marquee span {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee-scroll 15s linear infinite;
+}
+
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* ============================================
+   STARFIELD BACKGROUND LAYER
+   ============================================ */
+[data-theme="classic-arcade"] .starfield::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, white, transparent),
+    radial-gradient(1.5px 1.5px at 30% 50%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 50% 70%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(2px 2px at 70% 30%, white, transparent),
+    radial-gradient(1px 1px at 90% 80%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 15% 90%, white, transparent),
+    radial-gradient(1px 1px at 85% 10%, rgba(255,255,255,0.6), transparent);
+  background-size: 200px 200px;
+  animation: stars-twinkle 4s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: -2;
+}
+
+@keyframes stars-twinkle {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* ============================================
+   RETRO GRID FLOOR EFFECT
+   ============================================ */
+[data-theme="classic-arcade"] .retro-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="classic-arcade"] .retro-grid::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background:
+    linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.8) 100%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 40px,
+      rgba(255, 0, 102, 0.3) 40px,
+      rgba(255, 0, 102, 0.3) 41px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 40px,
+      rgba(255, 0, 102, 0.3) 40px,
+      rgba(255, 0, 102, 0.3) 41px
+    );
+  transform: perspective(200px) rotateX(60deg);
+  transform-origin: bottom;
+  animation: grid-move 2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes grid-move {
+  0% { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 0 0, 40px 0, 0 40px; }
+}
+
+/* ============================================
+   LOADING SPINNER - ARCADE STYLE
+   ============================================ */
+[data-theme="classic-arcade"] .spinner-arcade {
+  width: 60px;
+  height: 60px;
+  border: 4px solid transparent;
+  border-top-color: var(--color-primary);
+  border-right-color: var(--color-secondary);
+  border-bottom-color: var(--color-accent);
+  border-left-color: var(--color-success);
+  border-radius: 50%;
+  animation: arcade-spin 1s linear infinite;
+  box-shadow:
+    0 0 20px var(--color-primary),
+    inset 0 0 20px rgba(255, 0, 102, 0.2);
+}
+
+@keyframes arcade-spin {
+  to { transform: rotate(360deg); }
 }

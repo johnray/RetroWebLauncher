@@ -128,11 +128,11 @@ class ApiClient {
   }
 
   async getQRCode() {
-    return this.get('/api/qrcode', false);
+    return this.get('/api/config/qrcode', false);
   }
 
   async rescanLibrary() {
-    return this.post('/api/library/rescan');
+    return this.post('/api/config/library/rescan');
   }
 
   async toggleFavorite(gameId) {

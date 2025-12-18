@@ -63,9 +63,9 @@ class RwlGridView extends HTMLElement {
     try {
       let response;
       if (this._systemId) {
-        response = await api.getGames(this._systemId, this._page, 100);
+        response = await api.getGames(this._systemId, { page: this._page, limit: 100 });
       } else if (this._collectionId) {
-        response = await api.getCollectionGames(this._collectionId, this._page, 100);
+        response = await api.getCollection(this._collectionId);
       } else {
         return;
       }

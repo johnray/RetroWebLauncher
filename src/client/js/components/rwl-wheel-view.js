@@ -53,7 +53,7 @@ class RwlWheelView extends HTMLElement {
     this._showLoading();
 
     try {
-      const response = await api.getGames(this._systemId, 1, 500);
+      const response = await api.getGames(this._systemId, { page: 1, limit: 500 });
       this._games = response.games || [];
       this._renderSlides();
     } catch (error) {

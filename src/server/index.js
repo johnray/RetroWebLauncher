@@ -22,6 +22,9 @@ const themesRouter = require('./api/themes');
 // AI Module
 const ai = require('./ai');
 
+// File Watcher
+const { initWatcher, stopWatcher } = require('./watcher');
+
 // Load configuration
 const config = loadConfig();
 const validation = validateConfig(config);
@@ -166,6 +169,17 @@ async function start() {
       });
     }
 
+    // Initialize file watcher
+    initWatcher(async (change) => {
+      console.log('File change detected:', change);
+      try {
+        await cache.fullScan();
+        io.emit('library:updated', { reason: 'file_change', change });
+      } catch (err) {
+        console.error('Rescan after file change failed:', err);
+      }
+    });
+
     const PORT = config.port || 3000;
     server.listen(PORT, '0.0.0.0', () => {
       console.log('');
@@ -197,6 +211,7 @@ async function start() {
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
   console.log('Shutting down...');
+  stopWatcher();
   const { closeDatabase } = require('./cache/database');
   closeDatabase();
   server.close(() => {
@@ -207,6 +222,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('Shutting down...');
+  stopWatcher();
   const { closeDatabase } = require('./cache/database');
   closeDatabase();
   server.close(() => {

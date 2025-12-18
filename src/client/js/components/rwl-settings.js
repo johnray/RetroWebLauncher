@@ -28,11 +28,55 @@ class RwlSettings extends HTMLElement {
       this._config = response.config || {};
       this._renderSettings();
 
-      // Load custom themes after settings render
+      // Load themes into dropdown and custom themes grid
+      await this._loadThemesDropdown();
       setTimeout(() => this._loadCustomThemes(), 100);
     } catch (error) {
       console.error('Failed to load config:', error);
       this._showError('Failed to load settings');
+    }
+  }
+
+  async _loadThemesDropdown() {
+    try {
+      const response = await fetch('/api/themes');
+      const data = await response.json();
+
+      const select = this.shadowRoot.querySelector('#theme');
+      if (!select) return;
+
+      // Clear existing options
+      select.innerHTML = '';
+
+      // Add built-in themes first
+      const builtIn = data.themes.filter(t => t.isBuiltIn);
+      const custom = data.themes.filter(t => !t.isBuiltIn);
+
+      builtIn.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme.id;
+        option.textContent = theme.name;
+        if (this._config.theme === theme.id) option.selected = true;
+        select.appendChild(option);
+      });
+
+      // Add custom themes if any
+      if (custom.length > 0) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = 'Custom Themes';
+
+        custom.forEach(theme => {
+          const option = document.createElement('option');
+          option.value = theme.id;
+          option.textContent = `${theme.name}${theme.isAiGenerated ? ' (AI)' : ''}`;
+          if (this._config.theme === theme.id) option.selected = true;
+          optgroup.appendChild(option);
+        });
+
+        select.appendChild(optgroup);
+      }
+    } catch (error) {
+      console.error('Failed to load themes dropdown:', error);
     }
   }
 
@@ -901,6 +945,7 @@ class RwlSettings extends HTMLElement {
         }
 
         .theme-card {
+          position: relative;
           padding: var(--spacing-sm, 0.5rem);
           background: rgba(255,255,255,0.05);
           border-radius: var(--radius-md, 8px);

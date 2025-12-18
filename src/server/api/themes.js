@@ -116,11 +116,12 @@ router.post('/preview', async (req, res) => {
       provider = require('../ai/providers/ollama');
     }
 
-    const css = await themeGenerator.previewTheme(description, name, provider);
+    const preview = await themeGenerator.previewTheme(description, name, provider);
 
     res.json({
       success: true,
-      css,
+      css: preview.css,
+      config: preview.config,
       themeName: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     });
   } catch (error) {
@@ -155,6 +156,83 @@ router.delete('/:id', (req, res) => {
       return res.status(403).json({ error: error.message });
     }
 
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/themes/presets
+ * Get available presets for building themes without AI
+ */
+router.get('/presets', (req, res) => {
+  try {
+    const presets = themeGenerator.getPresets();
+    res.json(presets);
+  } catch (error) {
+    console.error('Error getting presets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/themes/create
+ * Create a theme from JSON config (no AI required)
+ */
+router.post('/create', (req, res) => {
+  try {
+    const { config: themeConfig } = req.body;
+
+    if (!themeConfig || !themeConfig.name) {
+      return res.status(400).json({
+        error: 'Theme config with name is required'
+      });
+    }
+
+    const { createThemeFromConfig, saveTheme } = themeGenerator;
+    const theme = createThemeFromConfig(themeConfig);
+    const saved = saveTheme(theme);
+
+    res.json({
+      success: true,
+      theme: {
+        id: theme.themeName,
+        name: theme.displayName,
+        fileName: `${theme.themeName}.css`
+      },
+      message: `Theme "${theme.displayName}" created successfully`
+    });
+  } catch (error) {
+    console.error('Error creating theme:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/themes/:id
+ * Update an existing theme's config
+ */
+router.put('/:id', (req, res) => {
+  try {
+    const themeName = req.params.id;
+    const { config: newConfig } = req.body;
+
+    if (!newConfig) {
+      return res.status(400).json({ error: 'Theme config is required' });
+    }
+
+    const { updateTheme } = themeGenerator;
+    const result = updateTheme(themeName, newConfig);
+
+    res.json({
+      success: true,
+      theme: {
+        id: themeName,
+        ...result
+      },
+      message: `Theme "${themeName}" updated successfully`
+    });
+  } catch (error) {
+    console.error('Error updating theme:', error);
     res.status(500).json({ error: error.message });
   }
 });

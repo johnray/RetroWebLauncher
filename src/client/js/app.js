@@ -105,13 +105,15 @@ class App {
       './components/rwl-sidebar.js',
       './components/rwl-game-card.js',
       './components/rwl-grid-view.js',
+      './components/rwl-list-view.js',
       './components/rwl-wheel-view.js',
       './components/rwl-game-detail.js',
       './components/rwl-video-player.js',
       './components/rwl-pdf-viewer.js',
       './components/rwl-search.js',
       './components/rwl-settings.js',
-      './components/rwl-screensaver.js'
+      './components/rwl-screensaver.js',
+      './components/rwl-qr-code.js'
     ];
 
     // Load components in parallel for speed
@@ -154,6 +156,18 @@ class App {
       statusEl.style.color = '#ff3333';
     }
   }
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered:', registration.scope);
+    } catch (error) {
+      console.warn('Service Worker registration failed:', error);
+    }
+  });
 }
 
 // Initialize app when DOM is ready

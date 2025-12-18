@@ -183,6 +183,7 @@ Year: ${game.releasedate?.substring(0, 4) || 'Unknown'}`;
 
 module.exports = {
   init,
+  generate,
   parseSearchQuery,
   suggestCollections,
   findSimilarGames,

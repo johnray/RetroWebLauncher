@@ -203,6 +203,7 @@ Write the description:`;
 
 module.exports = {
   init,
+  generate,
   parseSearchQuery,
   suggestCollections,
   findSimilarGames,

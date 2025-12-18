@@ -17,6 +17,10 @@ const searchRouter = require('./api/search');
 const collectionsRouter = require('./api/collections');
 const mediaRouter = require('./api/media');
 const configRouter = require('./api/config');
+const themesRouter = require('./api/themes');
+
+// AI Module
+const ai = require('./ai');
 
 // Load configuration
 const config = loadConfig();
@@ -66,6 +70,7 @@ app.use('/api/search', searchRouter);
 app.use('/api/collections', collectionsRouter);
 app.use('/api/media', mediaRouter);
 app.use('/api/config', configRouter);
+app.use('/api/themes', themesRouter);
 
 // Status endpoint
 app.get('/api/status', (req, res) => {
@@ -152,6 +157,14 @@ async function start() {
   try {
     console.log('Initializing cache...');
     await cache.initCache();
+
+    // Initialize AI if enabled
+    if (config.ai?.enabled) {
+      console.log('Initializing AI...');
+      await ai.init().catch(err => {
+        console.warn('AI initialization failed:', err.message);
+      });
+    }
 
     const PORT = config.port || 3000;
     server.listen(PORT, '0.0.0.0', () => {

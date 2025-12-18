@@ -10,6 +10,7 @@ class RwlHeader extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    this._isFullscreen = false;
   }
 
   connectedCallback() {
@@ -18,6 +19,10 @@ class RwlHeader extends HTMLElement {
 
     // Listen for config changes
     state.subscribe('config', () => this._updateArcadeName());
+
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', () => this._updateFullscreenButton());
+    document.addEventListener('webkitfullscreenchange', () => this._updateFullscreenButton());
   }
 
   _updateArcadeName() {
@@ -43,6 +48,51 @@ class RwlHeader extends HTMLElement {
     this.shadowRoot.querySelector('.settings-btn')?.addEventListener('click', () => {
       router.navigate('/settings');
     });
+
+    // Fullscreen button
+    this.shadowRoot.querySelector('.fullscreen-btn')?.addEventListener('click', () => {
+      this._toggleFullscreen();
+    });
+  }
+
+  _toggleFullscreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      // Enter fullscreen
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        // Safari
+        elem.webkitRequestFullscreen();
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        // Safari
+        document.webkitExitFullscreen();
+      }
+    }
+  }
+
+  _updateFullscreenButton() {
+    this._isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    const btn = this.shadowRoot.querySelector('.fullscreen-btn');
+    if (btn) {
+      btn.innerHTML = this._isFullscreen ? `
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+        </svg>
+        <span>Exit Fullscreen</span>
+      ` : `
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+        </svg>
+        <span>Fullscreen</span>
+      `;
+      btn.title = this._isFullscreen ? 'Exit Fullscreen (F11)' : 'Fullscreen (F11)';
+    }
   }
 
   _render() {
@@ -209,6 +259,13 @@ class RwlHeader extends HTMLElement {
               <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
             <span>Search</span>
+          </button>
+
+          <button class="header-btn fullscreen-btn" title="Fullscreen (F11)">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+            <span>Fullscreen</span>
           </button>
 
           <button class="header-btn settings-btn" title="Settings">

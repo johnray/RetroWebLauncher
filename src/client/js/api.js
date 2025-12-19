@@ -137,7 +137,8 @@ class ApiClient {
   async getGames(systemId, params = {}) {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = `/api/systems/${systemId}/games${queryString ? '?' + queryString : ''}`;
-    return this.get(endpoint);
+    // Don't cache game lists - they should always be fresh
+    return this.get(endpoint, false);
   }
 
   async getGame(gameId) {

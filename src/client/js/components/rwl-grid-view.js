@@ -87,7 +87,8 @@ class RwlGridView extends HTMLElement {
       this._renderGames();
     } catch (error) {
       console.error('Failed to load games:', error);
-      this._showError('Failed to load games');
+      console.error('System ID:', this._systemId, 'Collection ID:', this._collectionId);
+      this._showError(`Failed to load games: ${error.message || 'Unknown error'}`);
     } finally {
       this._loading = false;
     }

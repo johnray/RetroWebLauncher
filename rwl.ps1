@@ -1352,8 +1352,7 @@ function Invoke-Install {
     # Step 5: Verify
     Write-Step "Verifying Installation"
 
-    $requiredModules = @("express", "socket.io", "fast-xml-parser")
-    $optionalModules = @("better-sqlite3", "chokidar", "qrcode")
+    $requiredModules = @("express", "socket.io", "fast-xml-parser", "chokidar")
     $allGood = $true
 
     foreach ($mod in $requiredModules) {
@@ -1364,16 +1363,6 @@ function Invoke-Install {
         else {
             Write-Error2 "$mod NOT installed!"
             $allGood = $false
-        }
-    }
-
-    foreach ($mod in $optionalModules) {
-        $modPath = Join-Path $nodeModulesPath $mod
-        if (Test-Path $modPath) {
-            Write-Success "$mod installed"
-        }
-        else {
-            Write-Warning2 "$mod not installed (optional)"
         }
     }
 

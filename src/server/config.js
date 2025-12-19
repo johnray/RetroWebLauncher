@@ -50,7 +50,11 @@ function loadConfig() {
 
   try {
     if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      let data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      // Strip UTF-8 BOM if present
+      if (data.charCodeAt(0) === 0xFEFF) {
+        data = data.slice(1);
+      }
       const userConfig = JSON.parse(data);
       cachedConfig = mergeConfig(DEFAULT_CONFIG, userConfig);
     } else {
@@ -159,7 +163,7 @@ function getRetrobatPaths() {
     systemsConfig: path.join(retrobatPath, 'emulationstation', '.emulationstation', 'es_systems.cfg'),
     collections: path.join(retrobatPath, 'emulationstation', '.emulationstation', 'collections'),
     roms: path.join(retrobatPath, 'roms'),
-    emulatorLauncher: path.join(retrobatPath, 'emulatorLauncher.exe')
+    emulatorLauncher: path.join(retrobatPath, 'emulationstation', 'emulatorLauncher.exe')
   };
 }
 

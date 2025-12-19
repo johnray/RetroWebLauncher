@@ -9,6 +9,30 @@ const fs = require('fs');
 
 const DB_PATH = path.join(__dirname, '..', '..', '..', 'data', 'rwl.db');
 
+/**
+ * Safely convert a value to a SQLite-compatible type
+ * @param {*} value - Value to convert
+ * @param {*} defaultValue - Default if value is undefined/null
+ * @returns {string|number|null} SQLite-safe value
+ */
+function toSqliteValue(value, defaultValue = '') {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (typeof value === 'object') {
+    // Handle XML parser objects that have #text property
+    if (value['#text'] !== undefined) {
+      return String(value['#text']);
+    }
+    // Convert other objects to JSON string
+    return JSON.stringify(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 1 : 0;
+  }
+  return value;
+}
+
 let db = null;
 
 /**
@@ -226,17 +250,17 @@ const systemOps = {
     `);
 
     return stmt.run({
-      id: system.id,
-      name: system.name,
-      fullname: system.fullname || '',
-      manufacturer: system.manufacturer || '',
-      release: system.release || '',
-      hardware: system.hardware || 'console',
-      path: system.path || '',
-      resolved_path: system.resolvedPath || '',
+      id: toSqliteValue(system.id),
+      name: toSqliteValue(system.name),
+      fullname: toSqliteValue(system.fullname, ''),
+      manufacturer: toSqliteValue(system.manufacturer, ''),
+      release: toSqliteValue(system.release, ''),
+      hardware: toSqliteValue(system.hardware, 'console'),
+      path: toSqliteValue(system.path, ''),
+      resolved_path: toSqliteValue(system.resolvedPath, ''),
       extensions: JSON.stringify(system.extensions || []),
       platform: JSON.stringify(system.platform || []),
-      theme: system.theme || '',
+      theme: toSqliteValue(system.theme, ''),
       accessible: system.accessible ? 1 : 0,
       game_count: system.gameCount || 0,
       last_scanned: Math.floor(Date.now() / 1000)
@@ -316,20 +340,20 @@ const gameOps = {
     `);
 
     return stmt.run({
-      id: game.id,
-      system_id: game.systemId,
-      path: game.path || '',
-      full_path: game.fullPath || '',
-      name: game.name || '',
-      description: game.description || '',
-      developer: game.developer || '',
-      publisher: game.publisher || '',
+      id: toSqliteValue(game.id),
+      system_id: toSqliteValue(game.systemId),
+      path: toSqliteValue(game.path, ''),
+      full_path: toSqliteValue(game.fullPath, ''),
+      name: toSqliteValue(game.name, ''),
+      description: toSqliteValue(game.description, ''),
+      developer: toSqliteValue(game.developer, ''),
+      publisher: toSqliteValue(game.publisher, ''),
       release_date: game.releaseDate ? game.releaseDate.toISOString() : null,
       release_year: game.releaseYear || null,
-      genre: game.genre || '',
+      genre: toSqliteValue(game.genre, ''),
       players_min: game.players?.min || 1,
       players_max: game.players?.max || 1,
-      players_string: game.playersString || '',
+      players_string: toSqliteValue(game.playersString, ''),
       rating: game.rating || 0,
       play_count: game.playCount || 0,
       last_played: game.lastPlayed ? Math.floor(game.lastPlayed.getTime() / 1000) : null,
@@ -337,14 +361,14 @@ const gameOps = {
       hidden: game.hidden ? 1 : 0,
       favorite: game.favorite ? 1 : 0,
       kid_game: game.kidGame ? 1 : 0,
-      lang: game.lang || '',
-      hash: game.hash || '',
-      image: game.image || '',
-      thumbnail: game.thumbnail || '',
-      video: game.video || '',
-      marquee: game.marquee || '',
-      fanart: game.fanart || '',
-      manual: game.manual || '',
+      lang: toSqliteValue(game.lang, ''),
+      hash: toSqliteValue(game.hash, ''),
+      image: toSqliteValue(game.image, ''),
+      thumbnail: toSqliteValue(game.thumbnail, ''),
+      video: toSqliteValue(game.video, ''),
+      marquee: toSqliteValue(game.marquee, ''),
+      fanart: toSqliteValue(game.fanart, ''),
+      manual: toSqliteValue(game.manual, ''),
       file_exists: game.fileExists ? 1 : 0
     });
   },

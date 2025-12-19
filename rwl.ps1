@@ -924,6 +924,10 @@ function Start-ServerProcess {
         $elapsed = 0
         $started = $false
         $barWidth = 40
+        $progressFile = Join-Path $script:ScriptDir "data\startup-progress.json"
+        $lastMessage = "Initializing..."
+        $lastPercent = 0
+        $gamesFound = 0
 
         while ($elapsed -lt $timeout -and -not $started) {
             Start-Sleep -Milliseconds 500
@@ -941,20 +945,51 @@ function Start-ServerProcess {
             $started = Test-PortInUse -Port $port
 
             if (-not $Silent -and -not $started) {
-                # Calculate progress bar
-                $percent = [math]::Min(($elapsed / $timeout) * 100, 99)
+                # Try to read progress from server's progress file
+                try {
+                    if (Test-Path $progressFile) {
+                        $progressJson = Get-Content $progressFile -Raw -ErrorAction SilentlyContinue
+                        if ($progressJson) {
+                            $progress = $progressJson | ConvertFrom-Json -ErrorAction SilentlyContinue
+                            if ($progress) {
+                                if ($progress.percent -ge 0) { $lastPercent = $progress.percent }
+                                if ($progress.message) { $lastMessage = $progress.message }
+                                if ($progress.gamesFound) { $gamesFound = $progress.gamesFound }
+                            }
+                        }
+                    }
+                } catch {
+                    # Ignore read errors
+                }
+
+                # Calculate progress bar based on actual progress
+                $percent = [math]::Max($lastPercent, 0)
                 $filled = [math]::Floor(($percent / 100) * $barWidth)
                 $empty = $barWidth - $filled
                 $bar = ("=" * $filled) + ("." * $empty)
-                $timeStr = "{0:N0}" -f $elapsed
-                $status = "Scanning library..."
+
+                # Build status message
+                $status = $lastMessage
+                if ($gamesFound -gt 0) {
+                    $status = "$lastMessage ($gamesFound games)"
+                }
+
+                # Truncate long messages
+                if ($status.Length -gt 40) {
+                    $status = $status.Substring(0, 37) + "..."
+                }
 
                 # Build progress line
-                Write-Host "`r  [$bar] $timeStr sec - $status    " -NoNewline
+                Write-Host "`r  [$bar] ${percent}% - $status        " -NoNewline
             }
         }
 
         if (-not $Silent) { Write-Host "" }
+
+        # Clean up progress file
+        if (Test-Path $progressFile) {
+            Remove-Item $progressFile -Force -ErrorAction SilentlyContinue
+        }
 
         if ($started) {
             Write-Log "Server started successfully on port $port" -Level INFO

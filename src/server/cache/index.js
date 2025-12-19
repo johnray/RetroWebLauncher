@@ -4,9 +4,49 @@
  * Data is loaded fresh from RetroBat XML files on each server start
  */
 
+const fs = require('fs');
+const path = require('path');
 const { parseSystems } = require('../retrobat/parser');
 const { parseGamelist, filterGames, sortGames } = require('../retrobat/gamelist');
 const { loadConfig } = require('../config');
+
+// Progress file for external monitoring (PowerShell startup script)
+const PROGRESS_FILE = path.join(__dirname, '..', '..', '..', 'data', 'startup-progress.json');
+
+/**
+ * Write progress to file for external monitoring
+ */
+function writeProgress(percent, message, details = {}) {
+  try {
+    const progressData = {
+      percent,
+      message,
+      timestamp: Date.now(),
+      ...details
+    };
+    // Ensure data directory exists
+    const dataDir = path.dirname(PROGRESS_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progressData), 'utf8');
+  } catch (err) {
+    // Silently ignore - progress file is optional
+  }
+}
+
+/**
+ * Clear progress file
+ */
+function clearProgressFile() {
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      fs.unlinkSync(PROGRESS_FILE);
+    }
+  } catch (err) {
+    // Silently ignore
+  }
+}
 
 // In-memory storage
 let systemsMap = new Map();       // id -> system
@@ -55,12 +95,16 @@ async function fullScan(progressCallback = null) {
   scanInProgress = true;
   const startTime = Date.now();
 
+  // Clear any old progress file
+  clearProgressFile();
+
   try {
-    // Report progress
-    const progress = (message, pct) => {
+    // Report progress - writes to console, callback, and progress file
+    const progress = (message, pct, details = {}) => {
       console.log(`[${pct}%] ${message}`);
+      writeProgress(pct, message, details);
       if (progressCallback) {
-        progressCallback({ message, percent: pct });
+        progressCallback({ message, percent: pct, ...details });
       }
     };
 
@@ -70,7 +114,7 @@ async function fullScan(progressCallback = null) {
     progress('Parsing systems configuration...', 5);
     const systems = await parseSystems();
 
-    progress(`Found ${systems.length} systems`, 10);
+    progress(`Found ${systems.length} systems`, 10, { systemCount: systems.length });
 
     // Clear existing data
     progress('Clearing old cache...', 15);
@@ -84,7 +128,12 @@ async function fullScan(progressCallback = null) {
       const system = accessibleSystems[i];
       const pct = Math.floor(20 + (i / accessibleSystems.length) * 70);
 
-      progress(`Scanning ${system.fullname}...`, pct);
+      progress(`Scanning ${system.fullname}...`, pct, {
+        currentSystem: system.fullname,
+        systemIndex: i + 1,
+        totalSystems: accessibleSystems.length,
+        gamesFound: totalGames
+      });
 
       try {
         // Parse gamelist for this system
@@ -121,14 +170,21 @@ async function fullScan(progressCallback = null) {
       gamesBySystem.set(system.id, []);
     }
 
-    progress('Building search index...', 95);
+    progress('Building search index...', 95, { gamesFound: totalGames });
     // No separate index needed - we search the in-memory array directly
 
     const duration = Date.now() - startTime;
     lastScanTime = new Date();
 
-    progress('Scan complete!', 100);
+    progress('Scan complete!', 100, {
+      gamesFound: totalGames,
+      systemCount: accessibleSystems.length,
+      duration
+    });
     console.log(`Scan complete: ${totalGames} games from ${accessibleSystems.length} systems in ${duration}ms`);
+
+    // Clear progress file after successful completion
+    clearProgressFile();
 
     return {
       success: true,
@@ -139,6 +195,7 @@ async function fullScan(progressCallback = null) {
     };
   } catch (error) {
     console.error('Scan failed:', error);
+    writeProgress(-1, `Error: ${error.message}`, { error: true });
     throw error;
   } finally {
     scanInProgress = false;

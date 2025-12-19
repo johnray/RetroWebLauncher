@@ -9,7 +9,11 @@ const { loadConfig, getRetrobatPaths } = require('./config');
 
 let watcher = null;
 let debounceTimer = null;
+let errorCount = 0;
+let lastErrorTime = 0;
 const DEBOUNCE_MS = 5000; // Wait 5 seconds after last change
+const ERROR_THROTTLE_MS = 60000; // Only log errors once per minute
+const MAX_ERRORS_TO_LOG = 3; // Max errors to log before silencing
 
 /**
  * Initialize the file watcher
@@ -25,29 +29,23 @@ function initWatcher(onChangeCallback) {
     return null;
   }
 
-  // Paths to watch
+  // Paths to watch - only watch the main config, not all ROMs (symlinks cause issues)
   const watchPaths = [
-    // Watch gamelist.xml files
-    path.join(paths.roms, '**/gamelist.xml'),
-    // Watch collections
-    path.join(paths.collections, '*.cfg'),
-    // Watch system config
+    // Watch system config only - most reliable
     paths.systemsConfig
   ].filter(Boolean);
 
   console.log('[Watcher] Initializing file watcher...');
-  console.log('[Watcher] Watching paths:', watchPaths);
+  console.log('[Watcher] Watching:', paths.systemsConfig);
+  console.log('[Watcher] Note: Use "Rescan Library" button or restart server to refresh game lists');
 
   try {
     watcher = chokidar.watch(watchPaths, {
       persistent: true,
       ignoreInitial: true,
-      followSymlinks: true,
-      depth: 5,
-      awaitWriteFinish: {
-        stabilityThreshold: 2000,
-        pollInterval: 100
-      },
+      followSymlinks: false, // Don't follow symlinks - they often point to network drives
+      depth: 0, // Only watch direct paths
+      usePolling: false, // Native watching is more efficient
       // Ignore hidden files and temp files
       ignored: /(^|[\/\\])\../
     });
@@ -66,7 +64,20 @@ function initWatcher(onChangeCallback) {
         debouncedCallback(onChangeCallback, 'remove', filePath);
       })
       .on('error', (error) => {
-        console.error('[Watcher] Error:', error);
+        // Throttle error logging to prevent console spam
+        const now = Date.now();
+        if (now - lastErrorTime > ERROR_THROTTLE_MS) {
+          errorCount = 0;
+        }
+        errorCount++;
+        lastErrorTime = now;
+
+        if (errorCount <= MAX_ERRORS_TO_LOG) {
+          console.warn(`[Watcher] Error (${errorCount}): ${error.message || error}`);
+          if (errorCount === MAX_ERRORS_TO_LOG) {
+            console.warn('[Watcher] Suppressing further errors for 1 minute...');
+          }
+        }
       })
       .on('ready', () => {
         console.log('[Watcher] Ready and watching for changes');
@@ -74,7 +85,7 @@ function initWatcher(onChangeCallback) {
 
     return watcher;
   } catch (error) {
-    console.error('[Watcher] Failed to initialize:', error);
+    console.error('[Watcher] Failed to initialize:', error.message);
     return null;
   }
 }

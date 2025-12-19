@@ -417,6 +417,86 @@ function Invoke-Npm {
     }
 }
 
+function Find-EmulatorLauncher {
+    <#
+    .SYNOPSIS
+        Finds emulatorLauncher.exe within a RetroBat installation directory
+    .PARAMETER RetroBatPath
+        The root RetroBat installation directory
+    .OUTPUTS
+        Full path to emulatorLauncher.exe if found, $null otherwise
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$RetroBatPath
+    )
+
+    if (-not (Test-Path $RetroBatPath)) {
+        return $null
+    }
+
+    # Known locations where emulatorLauncher.exe can be found
+    $possibleLocations = @(
+        "emulationstation\emulatorLauncher.exe",
+        "emulatorLauncher.exe",
+        "emulationstation\.emulationstation\emulatorLauncher.exe",
+        "system\emulatorLauncher.exe"
+    )
+
+    foreach ($location in $possibleLocations) {
+        $fullPath = Join-Path $RetroBatPath $location
+        if (Test-Path $fullPath) {
+            return $fullPath
+        }
+    }
+
+    # Fallback: recursive search (slower but thorough)
+    $found = Get-ChildItem -Path $RetroBatPath -Filter "emulatorLauncher.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) {
+        return $found.FullName
+    }
+
+    return $null
+}
+
+function Test-RetroBatPath {
+    <#
+    .SYNOPSIS
+        Validates a RetroBat installation path
+    .PARAMETER Path
+        The path to validate
+    .OUTPUTS
+        Hashtable with IsValid, EmulatorPath, and Message
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Path
+    )
+
+    $result = @{
+        IsValid = $false
+        EmulatorPath = $null
+        Message = ""
+    }
+
+    if (-not (Test-Path $Path)) {
+        $result.Message = "Path does not exist"
+        return $result
+    }
+
+    $emulatorPath = Find-EmulatorLauncher -RetroBatPath $Path
+    if ($emulatorPath) {
+        $result.IsValid = $true
+        $result.EmulatorPath = $emulatorPath
+        $result.Message = "emulatorLauncher.exe found at: $emulatorPath"
+    }
+    else {
+        $result.Message = "emulatorLauncher.exe not found in RetroBat directory"
+    }
+
+    return $result
+}
+
 function Get-Config {
     <#
     .SYNOPSIS
@@ -1635,7 +1715,7 @@ function Invoke-Setup {
     }
 
     if (-not $retrobatPath) {
-        # Auto-detect
+        # Auto-detect from common installation locations
         $commonPaths = @(
             "C:\RetroBat",
             "D:\RetroBat",
@@ -1643,15 +1723,23 @@ function Invoke-Setup {
             "C:\Games\RetroBat",
             "D:\Games\RetroBat",
             "E:\Games\RetroBat",
-            "$env:USERPROFILE\RetroBat"
+            "E:\Emulators-and-Launchers\RetroBat",
+            "D:\Emulators-and-Launchers\RetroBat",
+            "C:\Emulators-and-Launchers\RetroBat",
+            "$env:USERPROFILE\RetroBat",
+            "$env:USERPROFILE\Games\RetroBat"
         )
 
+        # Find the first path that contains emulatorLauncher.exe
         $foundPath = $commonPaths | Where-Object {
-            Test-Path (Join-Path $_ "emulatorLauncher.exe")
+            $validation = Test-RetroBatPath -Path $_
+            $validation.IsValid
         } | Select-Object -First 1
 
         if ($foundPath) {
+            $validation = Test-RetroBatPath -Path $foundPath
             Write-Success "Found RetroBat at: $foundPath"
+            Write-Info $validation.Message
             if (Confirm-Action -Message "Use this path?" -Default $true) {
                 $retrobatPath = $foundPath
             }
@@ -1677,22 +1765,22 @@ function Invoke-Setup {
 
             $retrobatPath = $retrobatPath -replace '^["'']+|["'']+$', ''
 
-            if (-not (Test-Path $retrobatPath)) {
+            # Validate the provided path
+            $validation = Test-RetroBatPath -Path $retrobatPath
+            if ($validation.IsValid) {
+                Write-Success $validation.Message
+            }
+            elseif (-not (Test-Path $retrobatPath)) {
                 Write-Warning2 "Path does not exist: $retrobatPath"
                 if (-not (Confirm-Action -Message "Continue anyway?" -Default $false)) {
                     return $false
                 }
             }
             else {
-                $emulatorPath = Join-Path $retrobatPath "emulatorLauncher.exe"
-                if (Test-Path $emulatorPath) {
-                    Write-Success "emulatorLauncher.exe found"
-                }
-                else {
-                    Write-Warning2 "emulatorLauncher.exe not found"
-                    if (-not (Confirm-Action -Message "Continue anyway?" -Default $false)) {
-                        return $false
-                    }
+                Write-Warning2 $validation.Message
+                Write-Info "Searched in: emulationstation/, system/, and root directory"
+                if (-not (Confirm-Action -Message "Continue anyway?" -Default $false)) {
+                    return $false
                 }
             }
         }

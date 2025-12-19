@@ -1783,8 +1783,43 @@ function Invoke-Setup {
         }
     }
 
-    # Step 4: Arcade Name
-    Write-Step "Step 4: Arcade Name"
+    # Step 4: Port Configuration
+    Write-Step "Step 4: Server Port"
+
+    $currentPort = Get-ConfigValue -Key "port" -Default $script:DefaultPort
+
+    if ($Silent) {
+        $serverPort = $currentPort
+        Write-Info "Using port: $serverPort"
+    }
+    else {
+        Write-Host "  The web server will listen on this port."
+        Write-Host "  Default is 3000. Use a different port if 3000 is already in use."
+        Write-Host ""
+
+        $portInput = Read-UserInput -Prompt "Server port" -Default $currentPort
+        $serverPort = [int]$portInput
+
+        if ($serverPort -lt 1 -or $serverPort -gt 65535) {
+            Write-Warning2 "Invalid port number. Using default: $script:DefaultPort"
+            $serverPort = $script:DefaultPort
+        }
+
+        # Check if port is already in use
+        if (Test-PortInUse -Port $serverPort) {
+            Write-Warning2 "Port $serverPort is currently in use."
+            if (-not (Confirm-Action -Message "Use this port anyway?" -Default $false)) {
+                $serverPort = $script:DefaultPort
+                Write-Info "Using default port: $serverPort"
+            }
+        }
+        else {
+            Write-Success "Port $serverPort is available"
+        }
+    }
+
+    # Step 5: Arcade Name
+    Write-Step "Step 5: Arcade Name"
 
     $currentName = Get-ConfigValue -Key "arcadeName" -Default "My Arcade"
 
@@ -1797,12 +1832,12 @@ function Invoke-Setup {
         $arcadeName = Read-UserInput -Prompt "Arcade name" -Default $currentName
     }
 
-    # Step 5: Save Configuration
-    Write-Step "Step 5: Save Configuration"
+    # Step 6: Save Configuration
+    Write-Step "Step 6: Save Configuration"
 
     $config = @{
         retrobatPath = $retrobatPath
-        port = Get-ConfigValue -Key "port" -Default $script:DefaultPort
+        port = $serverPort
         arcadeName = $arcadeName
         theme = Get-ConfigValue -Key "theme" -Default "classic-arcade"
         defaultView = Get-ConfigValue -Key "defaultView" -Default "wheel"
@@ -1827,7 +1862,7 @@ function Invoke-Setup {
 
     # Step 6: Shortcuts (skip in silent mode)
     if (-not $Silent) {
-        Write-Step "Step 6: Shortcuts (Optional)"
+        Write-Step "Step 7: Shortcuts (Optional)"
 
         if (Confirm-Action -Message "Create Start Menu shortcut?" -Default $true) {
             try {
@@ -1849,7 +1884,7 @@ function Invoke-Setup {
         }
 
         # Step 7: Windows Startup
-        Write-Step "Step 7: Auto-Start (Optional)"
+        Write-Step "Step 8: Auto-Start (Optional)"
 
         if (Confirm-Action -Message "Start RetroWebLauncher when Windows starts?" -Default $false) {
             try {
@@ -1873,7 +1908,7 @@ function Invoke-Setup {
         }
 
         # Step 8: Firewall
-        Write-Step "Step 8: Firewall (Optional)"
+        Write-Step "Step 9: Firewall (Optional)"
 
         $port = Get-ServerPort
         if (-not (Test-IsAdmin)) {

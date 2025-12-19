@@ -4,7 +4,6 @@
 
 const express = require('express');
 const router = express.Router();
-const QRCode = require('qrcode');
 const os = require('os');
 const { loadConfig, updateConfig, validateConfig } = require('../config');
 const cache = require('../cache');
@@ -63,10 +62,10 @@ router.put('/', (req, res) => {
 });
 
 /**
- * GET /api/qrcode
- * Generate QR code for the current server URL
+ * GET /api/network
+ * Get network info (IP addresses, URLs)
  */
-router.get('/qrcode', async (req, res) => {
+router.get('/network', (req, res) => {
   try {
     const config = loadConfig();
     const port = config.port || 3000;
@@ -87,25 +86,14 @@ router.get('/qrcode', async (req, res) => {
     const ip = addresses[0] || '127.0.0.1';
     const url = `http://${ip}:${port}`;
 
-    // Generate QR code as data URL
-    const qrDataUrl = await QRCode.toDataURL(url, {
-      width: 256,
-      margin: 2,
-      color: {
-        dark: '#ff0066',
-        light: '#0a0a0a'
-      }
-    });
-
     res.json({
       url,
       ip,
       port,
-      qrCode: qrDataUrl,
       allAddresses: addresses
     });
   } catch (error) {
-    console.error('Error generating QR code:', error);
+    console.error('Error getting network info:', error);
     res.status(500).json({ error: error.message });
   }
 });

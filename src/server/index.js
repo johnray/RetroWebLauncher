@@ -218,10 +218,6 @@ function shutdown(signal) {
   // Close all socket connections
   io.close();
 
-  // Close database
-  const { closeDatabase } = require('./cache/database');
-  closeDatabase();
-
   // Close HTTP server with timeout
   server.close(() => {
     console.log('Server closed');

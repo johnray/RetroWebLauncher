@@ -1,36 +1,45 @@
 /**
- * RetroWebLauncher - Cache Manager
- * Orchestrates data scanning, caching, and retrieval
+ * RetroWebLauncher - Memory Cache Manager
+ * In-memory cache for systems and games data
+ * Data is loaded fresh from RetroBat XML files on each server start
  */
 
-const { initDatabase, systemOps, gameOps, getDb } = require('./database');
 const { parseSystems } = require('../retrobat/parser');
-const { parseGamelist } = require('../retrobat/gamelist');
+const { parseGamelist, filterGames, sortGames } = require('../retrobat/gamelist');
 const { loadConfig } = require('../config');
+
+// In-memory storage
+let systemsMap = new Map();       // id -> system
+let gamesMap = new Map();         // id -> game
+let gamesBySystem = new Map();    // systemId -> [game, ...]
+let allGames = [];                // flat array for search/filtering
 
 let initialized = false;
 let scanInProgress = false;
 let lastScanTime = null;
 
 /**
- * Initialize the cache system
+ * Initialize the cache system - performs fresh scan on startup
  */
 async function initCache() {
   if (initialized) return;
 
   console.log('Initializing cache...');
-  initDatabase();
   initialized = true;
 
-  // Check if we need to do initial scan
-  const systems = systemOps.getAll();
-  if (systems.length === 0) {
-    console.log('No cached data found, performing initial scan...');
-    await fullScan();
-  } else {
-    console.log(`Loaded ${systems.length} systems from cache`);
-    lastScanTime = new Date();
-  }
+  // Always do a fresh scan on startup
+  console.log('No cached data found, performing initial scan...');
+  await fullScan();
+}
+
+/**
+ * Clear all in-memory data
+ */
+function clearCache() {
+  systemsMap.clear();
+  gamesMap.clear();
+  gamesBySystem.clear();
+  allGames = [];
 }
 
 /**
@@ -65,8 +74,7 @@ async function fullScan(progressCallback = null) {
 
     // Clear existing data
     progress('Clearing old cache...', 15);
-    gameOps.deleteAll();
-    systemOps.deleteAll();
+    clearCache();
 
     // Process each system
     let totalGames = 0;
@@ -80,23 +88,28 @@ async function fullScan(progressCallback = null) {
 
       try {
         // Parse gamelist for this system
-        const games = await parseGamelist(system.resolvedPath || system.path, system.name);
+        const games = await parseGamelist(system.resolvedPath || system.path, system.id);
 
-        // Store games in database
-        if (games.length > 0) {
-          gameOps.upsertMany(games);
+        // Store games in memory
+        const systemGames = [];
+        for (const game of games) {
+          gamesMap.set(game.id, game);
+          systemGames.push(game);
+          allGames.push(game);
         }
+        gamesBySystem.set(system.id, systemGames);
 
-        // Update system with game count
+        // Update system with game count and store
         system.gameCount = games.length;
-        systemOps.upsert(system);
+        systemsMap.set(system.id, system);
 
         totalGames += games.length;
-        console.log(`  ${system.name}: ${games.length} games`);
+        console.log(`  ${system.id}: ${games.length} games`);
       } catch (error) {
-        console.error(`Error scanning ${system.name}:`, error.message);
+        console.error(`Error scanning ${system.id}:`, error.message);
         system.gameCount = 0;
-        systemOps.upsert(system);
+        systemsMap.set(system.id, system);
+        gamesBySystem.set(system.id, []);
       }
     }
 
@@ -104,21 +117,18 @@ async function fullScan(progressCallback = null) {
     const inaccessibleSystems = systems.filter(s => !s.accessible);
     for (const system of inaccessibleSystems) {
       system.gameCount = 0;
-      systemOps.upsert(system);
+      systemsMap.set(system.id, system);
+      gamesBySystem.set(system.id, []);
     }
 
-    // Rebuild full-text search index
     progress('Building search index...', 95);
-    gameOps.rebuildFTS();
+    // No separate index needed - we search the in-memory array directly
 
     const duration = Date.now() - startTime;
     lastScanTime = new Date();
 
     progress('Scan complete!', 100);
     console.log(`Scan complete: ${totalGames} games from ${accessibleSystems.length} systems in ${duration}ms`);
-
-    // Log scan result
-    logScan('full', null, 'success', duration, totalGames);
 
     return {
       success: true,
@@ -129,7 +139,6 @@ async function fullScan(progressCallback = null) {
     };
   } catch (error) {
     console.error('Scan failed:', error);
-    logScan('full', null, 'error', Date.now() - startTime, 0, error.message);
     throw error;
   } finally {
     scanInProgress = false;
@@ -144,31 +153,36 @@ async function fullScan(progressCallback = null) {
 async function scanSystem(systemId) {
   const startTime = Date.now();
 
-  const system = systemOps.getById(systemId) || systemOps.getByName(systemId);
+  const system = systemsMap.get(systemId);
   if (!system) {
     throw new Error(`System not found: ${systemId}`);
   }
 
   try {
-    // Delete existing games for this system
-    gameOps.deleteBySystem(system.id);
+    // Remove existing games for this system from allGames
+    const oldGames = gamesBySystem.get(systemId) || [];
+    for (const game of oldGames) {
+      gamesMap.delete(game.id);
+    }
+    allGames = allGames.filter(g => g.systemId !== systemId);
 
     // Parse gamelist
-    const games = await parseGamelist(system.resolvedPath || system.path, system.name);
+    const games = await parseGamelist(system.resolvedPath || system.path, system.id);
 
-    // Store games
-    if (games.length > 0) {
-      gameOps.upsertMany(games);
+    // Store new games
+    const systemGames = [];
+    for (const game of games) {
+      gamesMap.set(game.id, game);
+      systemGames.push(game);
+      allGames.push(game);
     }
+    gamesBySystem.set(systemId, systemGames);
 
     // Update system game count
-    systemOps.updateGameCount(system.id, games.length);
-
-    // Rebuild FTS index
-    gameOps.rebuildFTS();
+    system.gameCount = games.length;
+    systemsMap.set(systemId, system);
 
     const duration = Date.now() - startTime;
-    logScan('system', systemId, 'success', duration, games.length);
 
     return {
       success: true,
@@ -176,23 +190,7 @@ async function scanSystem(systemId) {
       gameCount: games.length
     };
   } catch (error) {
-    logScan('system', systemId, 'error', Date.now() - startTime, 0, error.message);
     throw error;
-  }
-}
-
-/**
- * Log a scan operation
- */
-function logScan(type, target, status, duration, gamesFound, errors = null) {
-  try {
-    const stmt = getDb().prepare(`
-      INSERT INTO scan_log (type, target, status, duration_ms, games_found, errors)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(type, target, status, duration, gamesFound, errors);
-  } catch (error) {
-    console.error('Failed to log scan:', error.message);
   }
 }
 
@@ -204,7 +202,11 @@ function logScan(type, target, status, duration, gamesFound, errors = null) {
  * @returns {Array} Systems array
  */
 function getSystems(accessibleOnly = false) {
-  return accessibleOnly ? systemOps.getAccessible() : systemOps.getAll();
+  const systems = Array.from(systemsMap.values());
+  if (accessibleOnly) {
+    return systems.filter(s => s.accessible);
+  }
+  return systems.sort((a, b) => (a.fullname || a.name).localeCompare(b.fullname || b.name));
 }
 
 /**
@@ -213,7 +215,17 @@ function getSystems(accessibleOnly = false) {
  * @returns {Object|null} System object or null
  */
 function getSystem(id) {
-  return systemOps.getById(id) || systemOps.getByName(id);
+  // Try direct lookup first
+  let system = systemsMap.get(id);
+  if (system) return system;
+
+  // Try case-insensitive match
+  for (const [key, sys] of systemsMap) {
+    if (key.toLowerCase() === id.toLowerCase() || sys.name.toLowerCase() === id.toLowerCase()) {
+      return sys;
+    }
+  }
+  return null;
 }
 
 /**
@@ -227,20 +239,24 @@ function getGames(systemId, options = {}) {
   const config = loadConfig();
   const showHidden = config.showHiddenGames || false;
 
-  const offset = (page - 1) * limit;
-  const games = gameOps.getBySystem(systemId, {
-    limit,
-    offset,
-    showHidden,
-    sortBy,
-    order
-  });
+  let games = gamesBySystem.get(systemId) || [];
 
-  const totalCount = gameOps.getCount(systemId, showHidden);
+  // Filter hidden if needed
+  if (!showHidden) {
+    games = games.filter(g => !g.hidden);
+  }
+
+  // Sort
+  games = sortGames(games, sortBy, order);
+
+  // Paginate
+  const totalCount = games.length;
   const totalPages = Math.ceil(totalCount / limit);
+  const offset = (page - 1) * limit;
+  const pagedGames = games.slice(offset, offset + limit);
 
   return {
-    games,
+    games: pagedGames,
     page,
     pageSize: limit,
     totalCount,
@@ -254,7 +270,7 @@ function getGames(systemId, options = {}) {
  * @returns {Object|null} Game object or null
  */
 function getGame(id) {
-  return gameOps.getById(id);
+  return gamesMap.get(id) || null;
 }
 
 /**
@@ -264,11 +280,43 @@ function getGame(id) {
  * @returns {Array} Matching games
  */
 function searchGames(query, options = {}) {
+  const { limit = 50, systemId = null } = options;
   const config = loadConfig();
-  return gameOps.search(query, {
-    ...options,
-    showHidden: config.showHiddenGames || false
+  const showHidden = config.showHiddenGames || false;
+
+  const searchLower = query.toLowerCase();
+
+  let results = allGames.filter(game => {
+    // Filter by system if specified
+    if (systemId && game.systemId !== systemId) {
+      return false;
+    }
+
+    // Filter hidden
+    if (!showHidden && game.hidden) {
+      return false;
+    }
+
+    // Search in name, description, genre, developer, publisher
+    return (
+      game.name.toLowerCase().includes(searchLower) ||
+      (game.description && game.description.toLowerCase().includes(searchLower)) ||
+      (game.genre && game.genre.toLowerCase().includes(searchLower)) ||
+      (game.developer && game.developer.toLowerCase().includes(searchLower)) ||
+      (game.publisher && game.publisher.toLowerCase().includes(searchLower))
+    );
   });
+
+  // Sort by relevance (name match first, then alphabetically)
+  results.sort((a, b) => {
+    const aNameMatch = a.name.toLowerCase().includes(searchLower);
+    const bNameMatch = b.name.toLowerCase().includes(searchLower);
+    if (aNameMatch && !bNameMatch) return -1;
+    if (!aNameMatch && bNameMatch) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return results.slice(0, limit);
 }
 
 /**
@@ -277,7 +325,11 @@ function searchGames(query, options = {}) {
  */
 function getFavorites() {
   const config = loadConfig();
-  return gameOps.getFavorites({ showHidden: config.showHiddenGames || false });
+  const showHidden = config.showHiddenGames || false;
+
+  return allGames
+    .filter(g => g.favorite && (showHidden || !g.hidden))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -286,7 +338,12 @@ function getFavorites() {
  * @returns {Array} Recently played games
  */
 function getRecentlyPlayed(days = 30) {
-  return gameOps.getRecent(days);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+
+  return allGames
+    .filter(g => g.lastPlayed && g.lastPlayed >= cutoff)
+    .sort((a, b) => b.lastPlayed - a.lastPlayed);
 }
 
 /**
@@ -296,7 +353,25 @@ function getRecentlyPlayed(days = 30) {
  * @returns {Array} Random games
  */
 function getRandomGames(systemId = null, count = 1) {
-  return gameOps.getRandom(systemId, count);
+  const config = loadConfig();
+  const showHidden = config.showHiddenGames || false;
+
+  let pool = systemId ? (gamesBySystem.get(systemId) || []) : allGames;
+
+  if (!showHidden) {
+    pool = pool.filter(g => !g.hidden);
+  }
+
+  if (pool.length === 0) return [];
+
+  // Fisher-Yates shuffle for random selection
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
 /**
@@ -315,14 +390,13 @@ function getScanStatus() {
  * @returns {Object} Cache stats
  */
 function getCacheStats() {
-  const systems = systemOps.getAll();
-  const totalGames = gameOps.getCount();
-  const favorites = gameOps.getFavorites().length;
+  const systems = Array.from(systemsMap.values());
+  const favorites = allGames.filter(g => g.favorite).length;
 
   return {
     systemCount: systems.length,
     accessibleSystemCount: systems.filter(s => s.accessible).length,
-    totalGames,
+    totalGames: allGames.length,
     favorites,
     lastScan: lastScanTime,
     scanInProgress

@@ -14,7 +14,7 @@ const DEFAULT_CONFIG = {
   arcadeName: 'My Arcade',
   theme: 'classic-arcade',
   showHiddenGames: false,
-  defaultView: 'wheel',
+  defaultView: 'grid',
   attractMode: {
     enabled: true,
     idleTimeout: 300,

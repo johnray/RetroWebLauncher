@@ -13,7 +13,13 @@ const cache = require('../cache');
 router.get('/', (req, res) => {
   try {
     const accessibleOnly = req.query.accessible !== 'false';
-    const systems = cache.getSystems(accessibleOnly);
+    const showEmpty = req.query.showEmpty === 'true';
+    let systems = cache.getSystems(accessibleOnly);
+
+    // Filter out systems with 0 games unless explicitly requested
+    if (!showEmpty) {
+      systems = systems.filter(s => s.gameCount > 0);
+    }
 
     // Format for response
     const formatted = systems.map(s => ({

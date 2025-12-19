@@ -582,14 +582,37 @@ function Get-ServerPort {
 function Test-PortInUse {
     param([int]$Port)
 
+    # Method 1: Try HTTP connection (most reliable for our server)
+    try {
+        $request = [System.Net.WebRequest]::Create("http://localhost:$Port/api/status")
+        $request.Timeout = 2000
+        $request.Method = "GET"
+        $response = $request.GetResponse()
+        $response.Close()
+        return $true
+    }
+    catch {
+        # HTTP request failed, try other methods
+    }
+
+    # Method 2: Try Get-NetTCPConnection
     try {
         $listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-        return ($null -ne $listener -and $listener.Count -gt 0)
+        if ($null -ne $listener -and $listener.Count -gt 0) {
+            return $true
+        }
     }
     catch {
         # Fallback to netstat
+    }
+
+    # Method 3: Fallback to netstat
+    try {
         $netstat = netstat -ano 2>$null | Select-String ":$Port\s+.*LISTENING"
         return ($null -ne $netstat)
+    }
+    catch {
+        return $false
     }
 }
 

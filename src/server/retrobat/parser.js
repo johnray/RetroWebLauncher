@@ -72,11 +72,13 @@ function parseSystemEntry(sys, basePath, paths) {
 
   // Resolve the ROM path
   // Path format is usually: ~\..\roms\systemname
+  // In RetroBat, ~ refers to the emulationstation directory (not .emulationstation)
+  // So ~\..\roms\flash resolves to: emulationstation\..\roms\flash = RetroBat\roms\flash
   let romPath = sys.path || '';
 
-  // Replace ~ with the emulationstation directory
+  // Replace ~ with the emulationstation directory (NOT .emulationstation)
   if (romPath.startsWith('~')) {
-    romPath = romPath.replace('~', paths.esConfig);
+    romPath = romPath.replace('~', paths.emulationStation);
   }
 
   // Normalize and resolve

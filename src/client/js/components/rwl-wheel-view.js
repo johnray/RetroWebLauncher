@@ -197,11 +197,9 @@ class RwlWheelView extends HTMLElement {
   _getImageUrl(game) {
     if (!game) return '';
 
-    if (game.thumbnail) {
-      return `/api/media/image/${encodeURIComponent(game.thumbnail)}`;
-    }
-    if (game.image) {
-      return `/api/media/image/${encodeURIComponent(game.image)}`;
+    // Use game ID-based endpoint which handles thumbnail/image fallback server-side
+    if (game.thumbnail || game.image) {
+      return `/api/media/game/${game.id}/thumbnail`;
     }
     return '';
   }
@@ -262,7 +260,7 @@ class RwlWheelView extends HTMLElement {
           </div>
           <div class="slide-info">
             <div class="game-name">${game.name}</div>
-            ${game.releasedate ? `<div class="game-year">${game.releasedate.substring(0, 4)}</div>` : ''}
+            ${game.releaseYear ? `<div class="game-year">${game.releaseYear}</div>` : ''}
           </div>
         </div>
       `;

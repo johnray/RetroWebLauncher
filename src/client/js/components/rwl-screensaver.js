@@ -138,10 +138,10 @@ class RwlScreensaver extends HTMLElement {
 
     // Determine media to show (prefer video)
     const hasVideo = !!game.video;
-    const imageUrl = game.image || game.thumbnail || game.screenshot;
+    const hasImage = game.image || game.thumbnail || game.screenshot;
 
     if (hasVideo) {
-      const videoUrl = `/api/media/video/${encodeURIComponent(game.video)}`;
+      const videoUrl = `/api/media/game/${game.id}/video`;
       mediaContainer.innerHTML = `
         <video
           src="${videoUrl}"
@@ -152,8 +152,8 @@ class RwlScreensaver extends HTMLElement {
           webkit-playsinline
         ></video>
       `;
-    } else if (imageUrl) {
-      const imgUrl = `/api/media/image/${encodeURIComponent(imageUrl)}`;
+    } else if (hasImage) {
+      const imgUrl = `/api/media/game/${game.id}/image`;
       mediaContainer.innerHTML = `
         <img src="${imgUrl}" alt="${game.name}" />
       `;

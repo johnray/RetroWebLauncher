@@ -163,23 +163,19 @@ class RwlGameDetail extends HTMLElement {
     panels.forEach(p => p.classList.toggle('active', p.dataset.panel === tab));
   }
 
-  _getMediaUrl(path, type = 'image') {
-    if (!path) return '';
-    return `/api/media/${type}/${encodeURIComponent(path)}`;
+  _getMediaUrl(type = 'image') {
+    if (!this._game) return '';
+    return `/api/media/game/${this._game.id}/${type}`;
   }
 
-  _formatDate(dateStr) {
+  _formatLastPlayed(dateStr) {
     if (!dateStr) return 'Unknown';
     try {
-      const year = dateStr.substring(0, 4);
-      const month = dateStr.substring(4, 6);
-      const day = dateStr.substring(6, 8);
-      if (month && day) {
-        return `${year}-${month}-${day}`;
-      }
-      return year;
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Unknown';
+      return date.toLocaleDateString();
     } catch {
-      return dateStr;
+      return 'Unknown';
     }
   }
 
@@ -239,7 +235,7 @@ class RwlGameDetail extends HTMLElement {
             ${hasImage ? `
               <div class="media-panel active" data-panel="image">
                 <img
-                  src="${this._getMediaUrl(game.image || game.thumbnail || game.screenshot)}"
+                  src="${this._getMediaUrl('image')}"
                   alt="${game.name}"
                 />
               </div>
@@ -247,13 +243,13 @@ class RwlGameDetail extends HTMLElement {
 
             ${hasVideo ? `
               <div class="media-panel" data-panel="video">
-                <rwl-video-player src="${this._getMediaUrl(game.video, 'video')}"></rwl-video-player>
+                <rwl-video-player src="${this._getMediaUrl('video')}"></rwl-video-player>
               </div>
             ` : ''}
 
             ${hasManual ? `
               <div class="media-panel" data-panel="manual">
-                <rwl-pdf-viewer src="${this._getMediaUrl(game.manual, 'manual')}"></rwl-pdf-viewer>
+                <rwl-pdf-viewer src="${this._getMediaUrl('manual')}"></rwl-pdf-viewer>
               </div>
             ` : ''}
 
@@ -279,18 +275,18 @@ class RwlGameDetail extends HTMLElement {
           </div>
 
           <div class="game-metadata">
-            ${game.desc ? `
+            ${game.description ? `
               <div class="meta-group description">
                 <h3>Description</h3>
-                <p>${game.desc}</p>
+                <p>${game.description}</p>
               </div>
             ` : ''}
 
             <div class="meta-grid">
-              ${game.releasedate ? `
+              ${game.releaseYear ? `
                 <div class="meta-item">
-                  <span class="meta-label">Release Date</span>
-                  <span class="meta-value">${this._formatDate(game.releasedate)}</span>
+                  <span class="meta-label">Release Year</span>
+                  <span class="meta-value">${game.releaseYear}</span>
                 </div>
               ` : ''}
 
@@ -315,10 +311,10 @@ class RwlGameDetail extends HTMLElement {
                 </div>
               ` : ''}
 
-              ${game.players ? `
+              ${game.playersString ? `
                 <div class="meta-item">
                   <span class="meta-label">Players</span>
-                  <span class="meta-value">${game.players}</span>
+                  <span class="meta-value">${game.playersString}</span>
                 </div>
               ` : ''}
 
@@ -329,17 +325,17 @@ class RwlGameDetail extends HTMLElement {
                 </div>
               ` : ''}
 
-              ${game.playcount ? `
+              ${game.playCount ? `
                 <div class="meta-item">
                   <span class="meta-label">Times Played</span>
-                  <span class="meta-value">${game.playcount}</span>
+                  <span class="meta-value">${game.playCount}</span>
                 </div>
               ` : ''}
 
-              ${game.lastplayed ? `
+              ${game.lastPlayed ? `
                 <div class="meta-item">
                   <span class="meta-label">Last Played</span>
-                  <span class="meta-value">${this._formatDate(game.lastplayed)}</span>
+                  <span class="meta-value">${this._formatLastPlayed(game.lastPlayed)}</span>
                 </div>
               ` : ''}
             </div>

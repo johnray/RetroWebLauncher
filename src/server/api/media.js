@@ -145,14 +145,17 @@ router.get('/game/:gameId/:type', (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    // Get the appropriate media path
+    // Get the appropriate media path with fallbacks
     let mediaPath;
     switch (type) {
       case 'image':
-        mediaPath = game.image;
+        mediaPath = game.image || game.screenshot || game.thumbnail;
         break;
       case 'thumbnail':
-        mediaPath = game.thumbnail || game.image;
+        mediaPath = game.thumbnail || game.image || game.screenshot;
+        break;
+      case 'screenshot':
+        mediaPath = game.screenshot || game.image;
         break;
       case 'video':
         mediaPath = game.video;

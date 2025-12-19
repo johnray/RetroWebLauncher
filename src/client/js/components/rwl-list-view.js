@@ -231,20 +231,20 @@ class RwlListView extends HTMLElement {
             <tr class="game-row ${index === this._selectedIndex ? 'selected' : ''}" data-game-id="${game.id}">
               <td class="col-name">
                 <div class="game-name-cell">
-                  ${game.thumbnail ? `
-                    <img class="game-thumb" src="/api/media/image/${encodeURIComponent(game.thumbnail)}" alt="" />
+                  ${game.thumbnail || game.image ? `
+                    <img class="game-thumb" src="/api/media/game/${game.id}/thumbnail" alt="" />
                   ` : `
                     <div class="game-thumb-placeholder">🎮</div>
                   `}
                   <span class="game-name">${game.name}</span>
                 </div>
               </td>
-              <td class="col-year">${this._formatDate(game.releasedate)}</td>
+              <td class="col-year">${game.releaseYear || '-'}</td>
               <td class="col-genre">${game.genre || '-'}</td>
               <td class="col-rating">
                 <span class="rating-stars">${this._formatRating(game.rating)}</span>
               </td>
-              <td class="col-plays">${game.playcount || '0'}</td>
+              <td class="col-plays">${game.playCount || '0'}</td>
               <td class="col-fav">${game.favorite ? '❤️' : ''}</td>
             </tr>
           `).join('')}

@@ -86,22 +86,21 @@ class RwlApp extends HTMLElement {
       return;
     }
 
-    // Route matching
+    // Route matching - use route.params for dynamic segments
     if (route.path === '/' || route.path === '') {
       this._renderHome(content);
-    } else if (route.path.startsWith('/system/')) {
-      const systemId = route.path.split('/')[2];
-      this._renderSystemView(content, systemId);
-    } else if (route.path.startsWith('/game/')) {
-      const gameId = route.path.split('/')[2];
-      this._renderGameDetail(content, gameId);
+    } else if (route.path === '/system/:id') {
+      this._renderSystemView(content, route.params.id);
+    } else if (route.path === '/game/:id') {
+      this._renderGameDetail(content, route.params.id);
     } else if (route.path === '/search') {
       this._renderSearch(content);
     } else if (route.path === '/settings') {
       this._renderSettings(content);
-    } else if (route.path.startsWith('/collection/')) {
-      const collectionId = route.path.split('/')[2];
-      this._renderCollectionView(content, collectionId);
+    } else if (route.path === '/collections') {
+      this._renderCollections(content);
+    } else if (route.path === '/collection/:id') {
+      this._renderCollectionView(content, route.params.id);
     } else {
       this._renderNotFound(content);
     }
@@ -167,6 +166,16 @@ class RwlApp extends HTMLElement {
         gridView.systemId = systemId;
       }
     }
+  }
+
+  _renderCollections(container) {
+    container.innerHTML = `
+      <div class="collections-view">
+        <h2>Collections</h2>
+        <p>View your game collections</p>
+      </div>
+    `;
+    // TODO: Implement collections list view
   }
 
   _renderCollectionView(container, collectionId) {

@@ -96,15 +96,9 @@ class RwlGameCard extends HTMLElement {
   _getImageUrl() {
     if (!this._game) return '';
 
-    // Priority: thumbnail > image > marquee
-    if (this._game.thumbnail) {
-      return `/api/media/image/${encodeURIComponent(this._game.thumbnail)}`;
-    }
-    if (this._game.image) {
-      return `/api/media/image/${encodeURIComponent(this._game.image)}`;
-    }
-    if (this._game.marquee) {
-      return `/api/media/image/${encodeURIComponent(this._game.marquee)}`;
+    // Use game ID-based endpoint which handles thumbnail/image fallback server-side
+    if (this._game.thumbnail || this._game.image || this._game.marquee) {
+      return `/api/media/game/${this._game.id}/thumbnail`;
     }
     return '';
   }
@@ -144,7 +138,7 @@ class RwlGameCard extends HTMLElement {
       ${showInfo ? `
         <div class="info">
           <div class="name">${this._game.name}</div>
-          ${this._game.releasedate ? `<div class="year">${this._game.releasedate.substring(0, 4)}</div>` : ''}
+          ${this._game.releaseYear ? `<div class="year">${this._game.releaseYear}</div>` : ''}
         </div>
       ` : ''}
     `;

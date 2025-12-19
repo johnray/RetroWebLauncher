@@ -224,11 +224,8 @@ class RwlSearch extends HTMLElement {
   }
 
   _getImageUrl(game) {
-    if (game.thumbnail) {
-      return `/api/media/image/${encodeURIComponent(game.thumbnail)}`;
-    }
-    if (game.image) {
-      return `/api/media/image/${encodeURIComponent(game.image)}`;
+    if (game.thumbnail || game.image) {
+      return `/api/media/game/${game.id}/thumbnail`;
     }
     return '';
   }

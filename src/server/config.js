@@ -156,6 +156,7 @@ function getRetrobatPaths() {
     emulationStation: path.join(retrobatPath, 'emulationstation'),
     esConfig: path.join(retrobatPath, 'emulationstation', '.emulationstation'),
     esSystems: path.join(retrobatPath, 'emulationstation', '.emulationstation', 'es_systems.cfg'),
+    systemsConfig: path.join(retrobatPath, 'emulationstation', '.emulationstation', 'es_systems.cfg'),
     collections: path.join(retrobatPath, 'emulationstation', '.emulationstation', 'collections'),
     roms: path.join(retrobatPath, 'roms'),
     emulatorLauncher: path.join(retrobatPath, 'emulatorLauncher.exe')

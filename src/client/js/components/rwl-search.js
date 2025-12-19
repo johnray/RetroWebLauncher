@@ -17,6 +17,7 @@ class RwlSearch extends HTMLElement {
     this._selectedIndex = -1;
     this._debounceTimer = null;
     this._showOnScreenKeyboard = false;
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
@@ -25,6 +26,12 @@ class RwlSearch extends HTMLElement {
 
     // Check if we should show on-screen keyboard (touch devices)
     this._checkTouchDevice();
+  }
+
+  disconnectedCallback() {
+    clearTimeout(this._debounceTimer);
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   _checkTouchDevice() {
@@ -71,33 +78,47 @@ class RwlSearch extends HTMLElement {
     });
 
     // Input manager
-    state.on('input:character', (char) => {
-      this._appendCharacter(char);
-    });
+    this._unsubscribers.push(
+      state.on('input:character', (char) => {
+        this._appendCharacter(char);
+      })
+    );
 
-    state.on('input:back', () => {
-      if (this._query.length > 0) {
-        this._query = this._query.slice(0, -1);
-        this._updateInput();
-        this._debounceSearch();
-      } else {
-        router.back();
-      }
-    });
+    this._unsubscribers.push(
+      state.on('input:back', () => {
+        if (this._query.length > 0) {
+          this._query = this._query.slice(0, -1);
+          this._updateInput();
+          this._debounceSearch();
+        } else {
+          router.back();
+        }
+      })
+    );
 
-    state.on('input:navigate', (direction) => {
-      if (direction === 'down') {
-        this._navigateResults(1);
-      } else if (direction === 'up') {
-        this._navigateResults(-1);
-      }
-    });
+    this._unsubscribers.push(
+      state.on('input:navigate', (direction) => {
+        if (direction === 'down') {
+          this._navigateResults(1);
+        } else if (direction === 'up') {
+          this._navigateResults(-1);
+        }
+      })
+    );
 
-    state.on('input:select', () => {
-      if (this._selectedIndex >= 0 && this._results[this._selectedIndex]) {
-        this._selectGame(this._results[this._selectedIndex].id);
-      }
-    });
+    this._unsubscribers.push(
+      state.on('input:select', () => {
+        if (this._selectedIndex >= 0 && this._results[this._selectedIndex]) {
+          this._selectGame(this._results[this._selectedIndex].id);
+        }
+      })
+    );
+  }
+
+  _escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   _handleKeydown(e) {
@@ -257,7 +278,7 @@ class RwlSearch extends HTMLElement {
       container.innerHTML = `
         <div class="no-results">
           <span class="no-results-icon">🔍</span>
-          <p>No games found for "${this._query}"</p>
+          <p>No games found for "${this._escapeHtml(this._query)}"</p>
         </div>
       `;
       return;
@@ -268,6 +289,8 @@ class RwlSearch extends HTMLElement {
       <div class="results-list">
         ${this._results.map((game, index) => {
           const imageUrl = this._getImageUrl(game);
+          const safeName = this._escapeHtml(game.name || 'Unknown');
+          const safeSystem = this._escapeHtml(game.systemName || 'Unknown System');
           return `
             <div
               class="result-item ${index === this._selectedIndex ? 'selected' : ''}"
@@ -278,8 +301,8 @@ class RwlSearch extends HTMLElement {
                 ${imageUrl ? `<img src="${imageUrl}" alt="" loading="lazy" />` : '<span>🎮</span>'}
               </div>
               <div class="result-info">
-                <div class="result-name">${game.name}</div>
-                <div class="result-system">${game.systemName || 'Unknown System'}</div>
+                <div class="result-name">${safeName}</div>
+                <div class="result-system">${safeSystem}</div>
               </div>
               ${game.favorite ? '<span class="result-favorite">❤️</span>' : ''}
             </div>

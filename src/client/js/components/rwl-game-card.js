@@ -143,20 +143,36 @@ class RwlGameCard extends HTMLElement {
       ` : ''}
     `;
 
-    // Handle image load error
+    // Handle image load/error with proper decoding
     const img = content.querySelector('img');
     if (img) {
-      img.onerror = () => {
-        img.style.display = 'none';
-        const container = img.parentElement;
-        if (container && !container.querySelector('.no-image')) {
-          container.innerHTML += `
-            <div class="no-image">
-              <span class="no-image-icon">🎮</span>
-            </div>
-          `;
-        }
-      };
+      // Use decode() for smoother image loading when supported
+      if ('decode' in img) {
+        img.decode().then(() => {
+          img.classList.add('loaded');
+        }).catch(() => {
+          this._handleImageError(img);
+        });
+      } else {
+        // Fallback for browsers without decode()
+        img.onload = () => img.classList.add('loaded');
+      }
+
+      img.onerror = () => this._handleImageError(img);
+    }
+  }
+
+  _handleImageError(img) {
+    if (!img || img.dataset.errorHandled) return;
+    img.dataset.errorHandled = 'true';
+    img.style.display = 'none';
+    const container = img.parentElement;
+    if (container && !container.querySelector('.no-image')) {
+      container.innerHTML += `
+        <div class="no-image">
+          <span class="no-image-icon">🎮</span>
+        </div>
+      `;
     }
   }
 
@@ -214,6 +230,12 @@ class RwlGameCard extends HTMLElement {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+
+        .image-container img.loaded {
+          opacity: 1;
         }
 
         .no-image {

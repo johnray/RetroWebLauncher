@@ -22,6 +22,7 @@ class RwlGridView extends HTMLElement {
     this._currentLetter = '';
     this._letterIndex = {}; // Maps letters to first game index
     this._unsubscribers = []; // Store unsubscribe functions for cleanup
+    this._scrollThrottleTimer = null;
   }
 
   connectedCallback() {
@@ -121,12 +122,18 @@ class RwlGridView extends HTMLElement {
   }
 
   _bindEvents() {
-    // Infinite scroll
+    // Infinite scroll with throttling for performance
     const container = this.shadowRoot.querySelector('.grid-container');
     if (container) {
       container.addEventListener('scroll', () => {
-        this._checkInfiniteScroll(container);
-      });
+        // Throttle scroll checks to every 100ms
+        if (!this._scrollThrottleTimer) {
+          this._scrollThrottleTimer = setTimeout(() => {
+            this._checkInfiniteScroll(container);
+            this._scrollThrottleTimer = null;
+          }, 100);
+        }
+      }, { passive: true });
     }
 
     // Keyboard navigation

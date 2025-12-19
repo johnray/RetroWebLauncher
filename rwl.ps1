@@ -2459,6 +2459,190 @@ function Invoke-Uninstall {
 }
 
 # ============================================================================
+# COMMAND: UPDATE
+# ============================================================================
+
+function Invoke-Update {
+    <#
+    .SYNOPSIS
+        Update an existing installation with new source files
+    .PARAMETER SourcePath
+        Path to the source directory containing updated files
+    #>
+    param(
+        [string]$SourcePath = ""
+    )
+
+    Write-Header "Update Installation"
+
+    # If no source path provided, prompt for it
+    if (-not $SourcePath) {
+        if ($Silent) {
+            Write-Error2 "Source path required in silent mode"
+            return $false
+        }
+
+        Write-Host ""
+        Write-Host "  This will update RetroWebLauncher with files from a source directory." -ForegroundColor White
+        Write-Host "  Your configuration, database, and node_modules will be preserved." -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "  Enter the path to the source directory containing updated files."
+        Write-Host "  Example: " -NoNewline
+        Write-Host "C:\Dev\RetroWebLauncher" -ForegroundColor Cyan
+        Write-Host ""
+
+        $SourcePath = Read-UserInput -Prompt "Source path" -Required
+
+        if (-not $SourcePath) {
+            Write-Info "Cancelled"
+            return $true
+        }
+
+        $SourcePath = $SourcePath -replace '^["'']+|["'']+$', ''
+    }
+
+    # Validate source path
+    if (-not (Test-Path $SourcePath)) {
+        Write-Error2 "Source path does not exist: $SourcePath"
+        return $false
+    }
+
+    # Check if source is a valid RetroWebLauncher directory
+    $sourcePackageJson = Join-Path $SourcePath "package.json"
+    $sourceSrcDir = Join-Path $SourcePath "src"
+
+    if (-not (Test-Path $sourcePackageJson) -or -not (Test-Path $sourceSrcDir)) {
+        Write-Error2 "Source path doesn't appear to be a RetroWebLauncher directory"
+        Write-Info "Expected package.json and src/ directory"
+        return $false
+    }
+
+    # Confirm if not silent
+    if (-not $Silent) {
+        Write-Host ""
+        Write-Host "  Source: " -NoNewline
+        Write-Host $SourcePath -ForegroundColor Cyan
+        Write-Host "  Target: " -NoNewline
+        Write-Host $script:ScriptDir -ForegroundColor Cyan
+        Write-Host ""
+
+        if (-not (Confirm-Action -Message "Proceed with update?" -Default $true)) {
+            Write-Info "Cancelled"
+            return $true
+        }
+    }
+
+    # Stop server if running
+    $port = Get-ServerPort
+    if (Test-PortInUse -Port $port) {
+        Write-Step "Stopping Server"
+        Stop-ServerProcess -Port $port -Quiet | Out-Null
+        Write-Success "Server stopped"
+    }
+
+    # Define what to copy
+    $filesToCopy = @(
+        "src",
+        "assets",
+        "themes",
+        "docs",
+        "package.json",
+        "package-lock.json",
+        "rwl.ps1",
+        "rwl.bat",
+        ".gitignore",
+        "README.md",
+        "LICENSE"
+    )
+
+    Write-Step "Updating Files"
+    $copiedCount = 0
+    $errorCount = 0
+
+    foreach ($item in $filesToCopy) {
+        $sourcePath = Join-Path $SourcePath $item
+        $targetPath = Join-Path $script:ScriptDir $item
+
+        if (Test-Path $sourcePath) {
+            try {
+                if (Test-Path $sourcePath -PathType Container) {
+                    # Directory - remove old and copy new
+                    if (Test-Path $targetPath) {
+                        Remove-Item $targetPath -Recurse -Force -ErrorAction Stop
+                    }
+                    Copy-Item $sourcePath $targetPath -Recurse -Force -ErrorAction Stop
+                }
+                else {
+                    # File
+                    Copy-Item $sourcePath $targetPath -Force -ErrorAction Stop
+                }
+                $copiedCount++
+                Write-Log "Copied: $item" -Level INFO
+            }
+            catch {
+                $errorCount++
+                Write-Warning2 "Failed to copy $item : $($_.Exception.Message)"
+                Write-Log "Failed to copy $item : $($_.Exception.Message)" -Level ERROR
+            }
+        }
+    }
+
+    Write-Success "Copied $copiedCount items"
+    if ($errorCount -gt 0) {
+        Write-Warning2 "$errorCount items failed to copy"
+    }
+
+    # Check if package.json changed and offer to update dependencies
+    Write-Step "Checking Dependencies"
+
+    $sourcePackage = Get-Content (Join-Path $SourcePath "package.json") -Raw | ConvertFrom-Json
+    $targetPackage = Get-Content (Join-Path $script:ScriptDir "package.json") -Raw | ConvertFrom-Json
+
+    $needsNpmInstall = $false
+
+    # Compare dependencies
+    if ($sourcePackage.dependencies -or $sourcePackage.devDependencies) {
+        $sourceDepString = ($sourcePackage.dependencies | ConvertTo-Json -Compress) + ($sourcePackage.devDependencies | ConvertTo-Json -Compress)
+        $targetDepString = ($targetPackage.dependencies | ConvertTo-Json -Compress) + ($targetPackage.devDependencies | ConvertTo-Json -Compress)
+
+        if ($sourceDepString -ne $targetDepString) {
+            $needsNpmInstall = $true
+        }
+    }
+
+    if ($needsNpmInstall -or $Force) {
+        if ($Silent -or (Confirm-Action -Message "Dependencies may have changed. Run npm install?" -Default $true)) {
+            Write-Info "Installing dependencies..."
+            $process = Invoke-Npm -Arguments "install --loglevel=error" -Wait -PassThru
+            if ($process.ExitCode -eq 0) {
+                Write-Success "Dependencies updated"
+            }
+            else {
+                Write-Warning2 "npm install may have had issues"
+            }
+        }
+    }
+    else {
+        Write-Success "Dependencies unchanged"
+    }
+
+    Write-Host ""
+    Write-Host "  =========================================" -ForegroundColor Green
+    Write-Host "   Update Complete!" -ForegroundColor Green
+    Write-Host "  =========================================" -ForegroundColor Green
+    Write-Host ""
+
+    # Offer to start server
+    if (-not $Silent) {
+        if (Confirm-Action -Message "Start the server now?" -Default $true) {
+            return Invoke-Start
+        }
+    }
+
+    return $true
+}
+
+# ============================================================================
 # COMMAND: HELP
 # ============================================================================
 
@@ -2477,6 +2661,7 @@ function Show-Help {
     Write-Host "    restart     Restart the server"
     Write-Host "    status      Show server status"
     Write-Host "    config      Edit configuration"
+    Write-Host "    update      Update from source directory"
     Write-Host "    dev         Development mode (auto-reload)"
     Write-Host "    uninstall   Remove components"
     Write-Host "    help        Show this help"
@@ -2611,6 +2796,7 @@ try {
         'restart'   { $result = Invoke-Restart; if (-not $Silent) { Pause-ForUser } }
         'status'    { $result = Invoke-Status; if (-not $Silent) { Pause-ForUser } }
         'config'    { $result = Invoke-Config; if (-not $Silent) { Pause-ForUser } }
+        'update'    { $result = Invoke-Update; if (-not $Silent) { Pause-ForUser } }
         'dev'       { Invoke-Dev }
         'uninstall' { $result = Invoke-Uninstall; if (-not $Silent) { Pause-ForUser } }
         'help'      { Show-Help }

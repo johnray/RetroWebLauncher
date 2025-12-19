@@ -14,6 +14,8 @@ class RwlWheelView extends HTMLElement {
     this._systemId = null;
     this._swiper = null;
     this._loading = false;
+    this._currentLetter = '';
+    this._letterIndex = {};
   }
 
   connectedCallback() {
@@ -151,18 +153,68 @@ class RwlWheelView extends HTMLElement {
       this._selectCurrent();
     });
 
-    // Gamepad triggers for fast navigation
+    // Gamepad triggers for letter-based navigation
     state.on('input:pageLeft', () => {
-      if (this._swiper) {
-        this._swiper.slideTo(Math.max(0, this._swiper.activeIndex - 10));
-      }
+      this._jumpToPreviousLetter();
     });
 
     state.on('input:pageRight', () => {
-      if (this._swiper) {
-        this._swiper.slideTo(Math.min(this._games.length - 1, this._swiper.activeIndex + 10));
+      this._jumpToNextLetter();
+    });
+
+    // Character input for quick jump
+    state.on('input:character', (char) => {
+      this._jumpToLetter(char.toUpperCase());
+    });
+  }
+
+  _buildLetterIndex() {
+    this._letterIndex = {};
+    this._games.forEach((game, index) => {
+      if (!game.name) return;
+      let firstChar = game.name.charAt(0).toUpperCase();
+      if (!/[A-Z]/.test(firstChar)) {
+        firstChar = '#';
+      }
+      if (!(firstChar in this._letterIndex)) {
+        this._letterIndex[firstChar] = index;
       }
     });
+  }
+
+  _getCurrentLetter() {
+    if (!this._swiper || this._games.length === 0) return '';
+    const game = this._games[this._swiper.activeIndex];
+    if (!game?.name) return '';
+    let letter = game.name.charAt(0).toUpperCase();
+    return /[A-Z]/.test(letter) ? letter : '#';
+  }
+
+  _jumpToLetter(letter) {
+    if (!this._swiper || !(letter in this._letterIndex)) return;
+    this._swiper.slideTo(this._letterIndex[letter]);
+  }
+
+  _jumpToPreviousLetter() {
+    if (!this._swiper) return;
+    const letters = Object.keys(this._letterIndex).sort();
+    if (letters.length === 0) return;
+
+    const currentLetter = this._getCurrentLetter();
+    const currentIndex = letters.indexOf(currentLetter);
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : letters.length - 1;
+    this._jumpToLetter(letters[prevIndex]);
+  }
+
+  _jumpToNextLetter() {
+    if (!this._swiper) return;
+    const letters = Object.keys(this._letterIndex).sort();
+    if (letters.length === 0) return;
+
+    const currentLetter = this._getCurrentLetter();
+    const currentIndex = letters.indexOf(currentLetter);
+    const nextIndex = currentIndex < letters.length - 1 ? currentIndex + 1 : 0;
+    this._jumpToLetter(letters[nextIndex]);
   }
 
   _onSlideChange() {
@@ -265,6 +317,9 @@ class RwlWheelView extends HTMLElement {
         </div>
       `;
     }).join('');
+
+    // Build letter index for quick navigation
+    this._buildLetterIndex();
 
     // Reinitialize Swiper with new slides
     if (this._swiper) {

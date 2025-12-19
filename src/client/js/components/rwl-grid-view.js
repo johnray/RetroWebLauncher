@@ -144,6 +144,11 @@ class RwlGridView extends HTMLElement {
     state.on('input:pageRight', () => {
       this._jumpToNextLetter();
     });
+
+    // Keyboard character for quick jump
+    state.on('input:character', (char) => {
+      this._jumpToLetter(char.toUpperCase());
+    });
   }
 
   _jumpToPreviousLetter() {

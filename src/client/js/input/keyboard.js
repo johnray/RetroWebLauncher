@@ -140,6 +140,10 @@ export class KeyboardHandler {
         this._manager.emit('end', null, 'keyboard');
         return true;
 
+      case 'F11':
+        this._toggleFullscreen();
+        return true;
+
       default:
         // Alphanumeric keys for quick search/jump
         if (key.length === 1 && /[a-zA-Z0-9]/.test(key)) {
@@ -179,6 +183,23 @@ export class KeyboardHandler {
   _clearAllRepeats() {
     for (const key of Object.keys(this._repeatTimers)) {
       this._stopRepeat(key);
+    }
+  }
+
+  _toggleFullscreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
     }
   }
 }

@@ -109,9 +109,34 @@ class RwlListView extends HTMLElement {
     });
 
     // Input manager events
-    state.on('input:up', () => this._selectPrev());
-    state.on('input:down', () => this._selectNext());
+    state.on('input:navigate', (direction) => {
+      if (direction === 'up') this._selectPrev();
+      else if (direction === 'down') this._selectNext();
+    });
     state.on('input:select', () => this._activateSelected());
+
+    // Letter navigation
+    state.on('input:pageLeft', () => this._jumpToPreviousLetter());
+    state.on('input:pageRight', () => this._jumpToNextLetter());
+    state.on('input:character', (char) => this._jumpToLetter(char.toUpperCase()));
+  }
+
+  _jumpToPreviousLetter() {
+    const letters = Object.keys(this._letterIndex).sort();
+    if (letters.length === 0) return;
+
+    const currentIndex = letters.indexOf(this._currentLetter);
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : letters.length - 1;
+    this._jumpToLetter(letters[prevIndex]);
+  }
+
+  _jumpToNextLetter() {
+    const letters = Object.keys(this._letterIndex).sort();
+    if (letters.length === 0) return;
+
+    const currentIndex = letters.indexOf(this._currentLetter);
+    const nextIndex = currentIndex < letters.length - 1 ? currentIndex + 1 : 0;
+    this._jumpToLetter(letters[nextIndex]);
   }
 
   _handleSort(field) {

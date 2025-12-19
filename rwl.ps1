@@ -966,7 +966,7 @@ function Start-ServerProcess {
                 $percent = [math]::Max($lastPercent, 0)
                 $filled = [math]::Floor(($percent / 100) * $barWidth)
                 $empty = $barWidth - $filled
-                $bar = ("=" * $filled) + ("." * $empty)
+                $bar = ("=" * $filled) + ("-" * $empty)
 
                 # Build status message
                 $status = $lastMessage
@@ -974,13 +974,17 @@ function Start-ServerProcess {
                     $status = "$lastMessage ($gamesFound games)"
                 }
 
-                # Truncate long messages
-                if ($status.Length -gt 40) {
-                    $status = $status.Substring(0, 37) + "..."
+                # Truncate long messages to fixed width
+                $maxStatusLen = 45
+                if ($status.Length -gt $maxStatusLen) {
+                    $status = $status.Substring(0, $maxStatusLen - 3) + "..."
                 }
+                # Pad to fixed width to overwrite previous content
+                $status = $status.PadRight($maxStatusLen)
 
-                # Build progress line
-                Write-Host "`r  [$bar] ${percent}% - $status        " -NoNewline
+                # Build progress line with fixed width (clears old content)
+                $percentStr = $percent.ToString().PadLeft(3)
+                Write-Host "`r  [$bar] $percentStr% - $status" -NoNewline
             }
         }
 

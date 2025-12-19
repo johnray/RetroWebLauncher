@@ -1723,9 +1723,6 @@ function Invoke-Setup {
             "C:\Games\RetroBat",
             "D:\Games\RetroBat",
             "E:\Games\RetroBat",
-            "E:\Emulators-and-Launchers\RetroBat",
-            "D:\Emulators-and-Launchers\RetroBat",
-            "C:\Emulators-and-Launchers\RetroBat",
             "$env:USERPROFILE\RetroBat",
             "$env:USERPROFILE\Games\RetroBat"
         )

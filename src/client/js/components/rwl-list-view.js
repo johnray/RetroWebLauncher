@@ -21,6 +21,8 @@ class RwlListView extends HTMLElement {
     this._selectedIndex = 0;
     this._sortBy = 'name';
     this._sortOrder = 'asc';
+    this._currentLetter = '';
+    this._letterIndex = {};
   }
 
   connectedCallback() {
@@ -163,20 +165,96 @@ class RwlListView extends HTMLElement {
     });
   }
 
-  _formatDate(dateStr) {
-    if (!dateStr) return '-';
-    return dateStr.substring(0, 4);
-  }
-
   _formatRating(rating) {
     if (!rating) return '-';
     const stars = Math.round(parseFloat(rating) * 5);
     return '★'.repeat(stars) + '☆'.repeat(5 - stars);
   }
 
+  _buildLetterIndex() {
+    this._letterIndex = {};
+    this._games.forEach((game, index) => {
+      if (!game.name) return;
+      let firstChar = game.name.charAt(0).toUpperCase();
+      if (!/[A-Z]/.test(firstChar)) {
+        firstChar = '#';
+      }
+      if (!(firstChar in this._letterIndex)) {
+        this._letterIndex[firstChar] = index;
+      }
+    });
+  }
+
+  _jumpToLetter(letter) {
+    if (letter in this._letterIndex) {
+      this._selectedIndex = this._letterIndex[letter];
+      this._updateSelection();
+      this._updateAlphabetBar();
+    }
+  }
+
+  _updateCurrentLetter() {
+    const game = this._games[this._selectedIndex];
+    if (!game?.name) return;
+
+    let letter = game.name.charAt(0).toUpperCase();
+    if (!/[A-Z]/.test(letter)) {
+      letter = '#';
+    }
+
+    if (letter !== this._currentLetter) {
+      this._currentLetter = letter;
+      this._updateAlphabetBar();
+    }
+  }
+
+  _updateAlphabetBar() {
+    const bar = this.shadowRoot.querySelector('.alphabet-bar');
+    if (!bar) return;
+
+    bar.querySelectorAll('.alpha-letter').forEach(el => {
+      el.classList.toggle('active', el.dataset.letter === this._currentLetter);
+      el.classList.toggle('has-games', el.dataset.letter in this._letterIndex);
+    });
+  }
+
+  _renderAlphabetBar() {
+    if (this._games.length < 50) return '';
+
+    const letters = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
+
+    return `
+      <div class="alphabet-bar">
+        ${letters.map(letter => `
+          <button
+            class="alpha-letter ${letter in this._letterIndex ? 'has-games' : ''} ${letter === this._currentLetter ? 'active' : ''}"
+            data-letter="${letter}"
+            title="${letter}"
+          >${letter}</button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  _bindAlphabetBar() {
+    const bar = this.shadowRoot.querySelector('.alphabet-bar');
+    if (!bar) return;
+
+    bar.addEventListener('click', (e) => {
+      const letterBtn = e.target.closest('.alpha-letter');
+      if (letterBtn) {
+        this._jumpToLetter(letterBtn.dataset.letter);
+      }
+    });
+  }
+
   _renderGames() {
     const container = this.shadowRoot.querySelector('.list-content');
     if (!container) return;
+
+    // Remove old alphabet bar
+    const oldBar = this.shadowRoot.querySelector('.alphabet-bar');
+    if (oldBar) oldBar.remove();
 
     if (this._loading) {
       container.innerHTML = `
@@ -197,6 +275,10 @@ class RwlListView extends HTMLElement {
       `;
       return;
     }
+
+    // Build letter index
+    this._buildLetterIndex();
+    this._updateCurrentLetter();
 
     container.innerHTML = `
       <table class="games-table">
@@ -251,6 +333,13 @@ class RwlListView extends HTMLElement {
         </tbody>
       </table>
     `;
+
+    // Add alphabet bar for large lists
+    const listContainer = this.shadowRoot.querySelector('.list-container');
+    if (this._games.length >= 50 && listContainer) {
+      listContainer.insertAdjacentHTML('beforeend', this._renderAlphabetBar());
+      this._bindAlphabetBar();
+    }
   }
 
   _render() {
@@ -263,6 +352,7 @@ class RwlListView extends HTMLElement {
         }
 
         .list-container {
+          position: relative;
           height: 100%;
           display: flex;
           flex-direction: column;
@@ -444,12 +534,79 @@ class RwlListView extends HTMLElement {
           border-radius: 4px;
         }
 
+        /* Alphabet Bar */
+        .alphabet-bar {
+          position: absolute;
+          right: 4px;
+          top: 50%;
+          transform: translateY(-50%);
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          padding: var(--spacing-xs, 0.25rem);
+          background: rgba(0, 0, 0, 0.7);
+          border-radius: var(--radius-md, 8px);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          z-index: 100;
+          max-height: calc(100% - 2rem);
+          overflow-y: auto;
+          scrollbar-width: none;
+        }
+
+        .alphabet-bar::-webkit-scrollbar {
+          display: none;
+        }
+
+        .alpha-letter {
+          width: 24px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 600;
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.3);
+          cursor: pointer;
+          border-radius: 3px;
+          transition: all 0.15s ease;
+          padding: 0;
+        }
+
+        .alpha-letter.has-games {
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .alpha-letter.has-games:hover {
+          background: rgba(255, 0, 102, 0.3);
+          color: #fff;
+        }
+
+        .alpha-letter.active {
+          background: var(--color-primary, #ff0066);
+          color: #fff;
+          box-shadow: 0 0 10px rgba(255, 0, 102, 0.5);
+        }
+
         /* Mobile */
         @media (max-width: 768px) {
           .col-genre,
           .col-rating,
           .col-plays {
             display: none;
+          }
+
+          .alphabet-bar {
+            right: 2px;
+            padding: 2px;
+          }
+
+          .alpha-letter {
+            width: 18px;
+            height: 16px;
+            font-size: 8px;
           }
         }
       </style>

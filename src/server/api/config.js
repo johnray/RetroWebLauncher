@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
       safeConfig.ai = { ...safeConfig.ai, apiKey: safeConfig.ai.apiKey ? '****' : '' };
     }
 
-    res.json(safeConfig);
+    res.json({ config: safeConfig });
   } catch (error) {
     console.error('Error getting config:', error);
     res.status(500).json({ error: error.message });

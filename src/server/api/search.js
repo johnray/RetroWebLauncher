@@ -29,9 +29,22 @@ router.get('/', (req, res) => {
 
     const games = cache.searchGames(query, options);
 
+    // Add system names to results
+    const systemCache = {};
+    const gamesWithSystemNames = games.map(game => {
+      if (!systemCache[game.systemId]) {
+        const system = cache.getSystem(game.systemId);
+        systemCache[game.systemId] = system ? system.fullname : game.systemId;
+      }
+      return {
+        ...game,
+        systemName: systemCache[game.systemId]
+      };
+    });
+
     // Group results by system
     const bySystem = {};
-    for (const game of games) {
+    for (const game of gamesWithSystemNames) {
       if (!bySystem[game.systemId]) {
         bySystem[game.systemId] = [];
       }
@@ -39,10 +52,10 @@ router.get('/', (req, res) => {
     }
 
     res.json({
-      results: games,
+      results: gamesWithSystemNames,
       bySystem,
       query,
-      totalCount: games.length
+      totalCount: gamesWithSystemNames.length
     });
   } catch (error) {
     console.error('Error searching:', error);

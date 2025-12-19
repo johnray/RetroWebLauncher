@@ -23,7 +23,8 @@ class App {
 
       // Load initial configuration
       this.updateLoadingStatus('Loading configuration...');
-      this.config = await api.getConfig();
+      const configResponse = await api.getConfig();
+      this.config = configResponse.config || {};
 
       // Update arcade name in loading screen
       const arcadeNameEl = document.getElementById('arcade-name');

@@ -74,8 +74,11 @@
   --z-dropdown: 300;
   --z-modal: 400;
   --z-toast: 500;
-  --z-screensaver: 600;
-  --z-loading: 700;
+  --z-loading: 600;
+  --z-screensaver: 9999;
+
+  /* Touch targets - minimum 44x44 for iOS accessibility */
+  --touch-target-min: 44px;
 }
 
 /* Safari-specific fixes */
@@ -87,6 +90,22 @@
     --safe-area-left: env(safe-area-inset-left);
     --safe-area-right: env(safe-area-inset-right);
   }
+
+  /* Fix Safari flex gap issues */
+  .flex-gap-fix {
+    margin: calc(var(--spacing-sm) / -2);
+  }
+  .flex-gap-fix > * {
+    margin: calc(var(--spacing-sm) / 2);
+  }
+}
+
+/* Fallback safe area values */
+:root {
+  --safe-area-top: 0px;
+  --safe-area-bottom: 0px;
+  --safe-area-left: 0px;
+  --safe-area-right: 0px;
 }
 
 /* Reduced motion preference */

@@ -90,11 +90,22 @@ button {
   background: none;
   border: none;
   cursor: pointer;
+  /* Minimum touch target size for accessibility */
+  min-height: var(--touch-target-min, 44px);
+  min-width: var(--touch-target-min, 44px);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Interactive elements in touch contexts */
+@media (pointer: coarse) {
+  button, a, [role="button"], .clickable {
+    min-height: var(--touch-target-min, 44px);
+    min-width: var(--touch-target-min, 44px);
+  }
 }
 
 /* Images */
@@ -116,6 +127,11 @@ rwl-app {
   width: 100%;
   height: 100vh;
   height: 100dvh;
+  /* Safe area padding for notched devices */
+  padding-top: var(--safe-area-top, 0);
+  padding-bottom: var(--safe-area-bottom, 0);
+  padding-left: var(--safe-area-left, 0);
+  padding-right: var(--safe-area-right, 0);
 }
 
 /* Utility classes */
@@ -229,5 +245,32 @@ rwl-app {
   :root {
     --focus-ring-width: 6px;
     --focus-scale: 1.08;
+  }
+}
+
+/* Dark mode is always on for this app - ensure system dark mode doesn't break things */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Prevent iOS rubber banding on body */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Improve text legibility on low-res displays */
+@media (-webkit-max-device-pixel-ratio: 1) {
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+}
+
+/* Print styles - hide everything interactive */
+@media print {
+  rwl-app {
+    display: none !important;
   }
 }

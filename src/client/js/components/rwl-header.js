@@ -11,6 +11,8 @@ class RwlHeader extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this._isFullscreen = false;
+    this._unsubscribers = [];
+    this._boundFullscreenHandler = () => this._updateFullscreenButton();
   }
 
   connectedCallback() {
@@ -18,11 +20,23 @@ class RwlHeader extends HTMLElement {
     this._bindEvents();
 
     // Listen for config changes
-    state.subscribe('config', () => this._updateArcadeName());
+    this._unsubscribers.push(
+      state.subscribe('config', () => this._updateArcadeName())
+    );
 
     // Listen for fullscreen changes
-    document.addEventListener('fullscreenchange', () => this._updateFullscreenButton());
-    document.addEventListener('webkitfullscreenchange', () => this._updateFullscreenButton());
+    document.addEventListener('fullscreenchange', this._boundFullscreenHandler);
+    document.addEventListener('webkitfullscreenchange', this._boundFullscreenHandler);
+  }
+
+  disconnectedCallback() {
+    // Clean up state listeners
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
+
+    // Clean up document listeners
+    document.removeEventListener('fullscreenchange', this._boundFullscreenHandler);
+    document.removeEventListener('webkitfullscreenchange', this._boundFullscreenHandler);
   }
 
   _updateArcadeName() {
@@ -107,6 +121,9 @@ class RwlHeader extends HTMLElement {
           border-bottom: 2px solid var(--color-primary, #ff0066);
           position: relative;
           z-index: var(--z-header, 200);
+          /* Glassmorphism effect with Safari fallback */
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
         }
 
         .header-container {

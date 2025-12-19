@@ -13,6 +13,7 @@ data/*.db-shm
 rwl.config.json
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 

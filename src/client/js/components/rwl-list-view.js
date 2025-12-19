@@ -23,11 +23,17 @@ class RwlListView extends HTMLElement {
     this._sortOrder = 'asc';
     this._currentLetter = '';
     this._letterIndex = {};
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
     this._render();
     this._bindEvents();
+  }
+
+  disconnectedCallback() {
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -109,16 +115,26 @@ class RwlListView extends HTMLElement {
     });
 
     // Input manager events
-    state.on('input:navigate', (direction) => {
-      if (direction === 'up') this._selectPrev();
-      else if (direction === 'down') this._selectNext();
-    });
-    state.on('input:select', () => this._activateSelected());
+    this._unsubscribers.push(
+      state.on('input:navigate', (direction) => {
+        if (direction === 'up') this._selectPrev();
+        else if (direction === 'down') this._selectNext();
+      })
+    );
+    this._unsubscribers.push(
+      state.on('input:select', () => this._activateSelected())
+    );
 
     // Letter navigation
-    state.on('input:pageLeft', () => this._jumpToPreviousLetter());
-    state.on('input:pageRight', () => this._jumpToNextLetter());
-    state.on('input:character', (char) => this._jumpToLetter(char.toUpperCase()));
+    this._unsubscribers.push(
+      state.on('input:pageLeft', () => this._jumpToPreviousLetter())
+    );
+    this._unsubscribers.push(
+      state.on('input:pageRight', () => this._jumpToNextLetter())
+    );
+    this._unsubscribers.push(
+      state.on('input:character', (char) => this._jumpToLetter(char.toUpperCase()))
+    );
   }
 
   _jumpToPreviousLetter() {

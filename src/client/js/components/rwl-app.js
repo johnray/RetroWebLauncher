@@ -13,6 +13,7 @@ class RwlApp extends HTMLElement {
     this._currentRoute = null;
     this._config = null;
     this._currentSystemId = null;
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
@@ -21,45 +22,60 @@ class RwlApp extends HTMLElement {
   }
 
   disconnectedCallback() {
-    // Cleanup
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   _bindEvents() {
     // Listen for route changes
-    state.on('routeChanged', (route) => {
-      this._handleRoute(route);
-    });
+    this._unsubscribers.push(
+      state.on('routeChanged', (route) => {
+        this._handleRoute(route);
+      })
+    );
 
     // Listen for config changes
-    state.subscribe('config', (config) => {
-      this._config = config;
-      this._applyTheme();
-    });
+    this._unsubscribers.push(
+      state.subscribe('config', (config) => {
+        this._config = config;
+        this._applyTheme();
+      })
+    );
 
     // Listen for game activation (navigate to detail)
-    state.on('gameActivated', (game) => {
-      router.navigate(`/game/${game.id}`);
-    });
+    this._unsubscribers.push(
+      state.on('gameActivated', (game) => {
+        router.navigate(`/game/${game.id}`);
+      })
+    );
 
     // Listen for navigation from sidebar
-    state.on('navigate', (data) => {
-      if (data.systemId) {
-        this._currentSystemId = data.systemId;
-      }
-    });
+    this._unsubscribers.push(
+      state.on('navigate', (data) => {
+        if (data.systemId) {
+          this._currentSystemId = data.systemId;
+        }
+      })
+    );
 
     // Input shortcuts
-    state.on('input:search', () => {
-      router.navigate('/search');
-    });
+    this._unsubscribers.push(
+      state.on('input:search', () => {
+        router.navigate('/search');
+      })
+    );
 
-    state.on('input:menu', () => {
-      router.navigate('/settings');
-    });
+    this._unsubscribers.push(
+      state.on('input:menu', () => {
+        router.navigate('/settings');
+      })
+    );
 
-    state.on('input:back', () => {
-      router.back();
-    });
+    this._unsubscribers.push(
+      state.on('input:back', () => {
+        router.back();
+      })
+    );
   }
 
   _handleRoute(route) {

@@ -17,6 +17,8 @@ class RwlScreensaver extends HTMLElement {
     this._idleTimer = null;
     this._idleTimeout = 300000; // 5 minutes default
     this._cycleInterval = 10000; // 10 seconds per game
+    this._unsubscribers = [];
+    this._boundHandleActivity = () => this._handleActivity();
   }
 
   connectedCallback() {
@@ -28,6 +30,14 @@ class RwlScreensaver extends HTMLElement {
 
   disconnectedCallback() {
     this._clearTimers();
+    // Clean up document event listeners
+    const exitEvents = ['click', 'keydown', 'touchstart', 'mousemove'];
+    exitEvents.forEach(event => {
+      document.removeEventListener(event, this._boundHandleActivity);
+    });
+    // Clean up state event listeners
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   async _loadConfig() {
@@ -41,14 +51,18 @@ class RwlScreensaver extends HTMLElement {
     // Any input exits screensaver
     const exitEvents = ['click', 'keydown', 'touchstart', 'mousemove'];
     exitEvents.forEach(event => {
-      document.addEventListener(event, () => this._handleActivity(), { passive: true });
+      document.addEventListener(event, this._boundHandleActivity, { passive: true });
     });
 
     // Gamepad activity
-    state.on('input:any', () => this._handleActivity());
+    this._unsubscribers.push(
+      state.on('input:any', () => this._handleActivity())
+    );
 
     // Config changes
-    state.on('configSaved', () => this._loadConfig());
+    this._unsubscribers.push(
+      state.on('configSaved', () => this._loadConfig())
+    );
   }
 
   _handleActivity() {

@@ -17,11 +17,17 @@ class RwlGameDetail extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._game = null;
     this._launching = false;
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
     this._render();
     this._bindEvents();
+  }
+
+  disconnectedCallback() {
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -86,8 +92,12 @@ class RwlGameDetail extends HTMLElement {
     });
 
     // Listen for input manager
-    state.on('input:select', () => this._launchGame());
-    state.on('input:back', () => router.back());
+    this._unsubscribers.push(
+      state.on('input:select', () => this._launchGame())
+    );
+    this._unsubscribers.push(
+      state.on('input:back', () => router.back())
+    );
   }
 
   async _launchGame() {

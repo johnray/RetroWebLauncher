@@ -21,6 +21,7 @@ class RwlGridView extends HTMLElement {
     this._resizeObserver = null;
     this._currentLetter = '';
     this._letterIndex = {}; // Maps letters to first game index
+    this._unsubscribers = []; // Store unsubscribe functions for cleanup
   }
 
   connectedCallback() {
@@ -33,6 +34,9 @@ class RwlGridView extends HTMLElement {
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
     }
+    // Clean up state event listeners
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   set systemId(id) {
@@ -129,26 +133,36 @@ class RwlGridView extends HTMLElement {
     this.addEventListener('keydown', (e) => this._handleKeyboard(e));
 
     // Listen for game focus events from input manager
-    state.on('input:navigate', (direction) => {
-      this._navigate(direction);
-    });
+    this._unsubscribers.push(
+      state.on('input:navigate', (direction) => {
+        this._navigate(direction);
+      })
+    );
 
-    state.on('input:select', () => {
-      this._selectCurrent();
-    });
+    this._unsubscribers.push(
+      state.on('input:select', () => {
+        this._selectCurrent();
+      })
+    );
 
-    state.on('input:pageLeft', () => {
-      this._jumpToPreviousLetter();
-    });
+    this._unsubscribers.push(
+      state.on('input:pageLeft', () => {
+        this._jumpToPreviousLetter();
+      })
+    );
 
-    state.on('input:pageRight', () => {
-      this._jumpToNextLetter();
-    });
+    this._unsubscribers.push(
+      state.on('input:pageRight', () => {
+        this._jumpToNextLetter();
+      })
+    );
 
     // Keyboard character for quick jump
-    state.on('input:character', (char) => {
-      this._jumpToLetter(char.toUpperCase());
-    });
+    this._unsubscribers.push(
+      state.on('input:character', (char) => {
+        this._jumpToLetter(char.toUpperCase());
+      })
+    );
   }
 
   _jumpToPreviousLetter() {

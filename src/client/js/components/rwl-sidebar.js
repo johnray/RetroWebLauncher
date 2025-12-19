@@ -14,6 +14,7 @@ class RwlSidebar extends HTMLElement {
     this._systems = [];
     this._collections = [];
     this._selectedSystem = null;
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
@@ -22,17 +23,26 @@ class RwlSidebar extends HTMLElement {
     this._bindEvents();
 
     // Listen for navigation
-    state.on('navigate', (data) => {
-      if (data.systemId) {
-        this._selectedSystem = data.systemId;
-        this._highlightSelected();
-      }
-    });
+    this._unsubscribers.push(
+      state.on('navigate', (data) => {
+        if (data.systemId) {
+          this._selectedSystem = data.systemId;
+          this._highlightSelected();
+        }
+      })
+    );
 
     // Listen for library updates
-    state.on('libraryUpdated', () => {
-      this._loadData();
-    });
+    this._unsubscribers.push(
+      state.on('libraryUpdated', () => {
+        this._loadData();
+      })
+    );
+  }
+
+  disconnectedCallback() {
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   async _loadData() {

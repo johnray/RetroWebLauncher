@@ -16,6 +16,7 @@ class RwlWheelView extends HTMLElement {
     this._loading = false;
     this._currentLetter = '';
     this._letterIndex = {};
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
@@ -29,6 +30,9 @@ class RwlWheelView extends HTMLElement {
       this._swiper.destroy();
       this._swiper = null;
     }
+    // Clean up state event listeners
+    this._unsubscribers.forEach(unsub => unsub());
+    this._unsubscribers = [];
   }
 
   set systemId(id) {
@@ -139,33 +143,43 @@ class RwlWheelView extends HTMLElement {
 
   _bindEvents() {
     // Input manager navigation
-    state.on('input:navigate', (direction) => {
-      if (!this._swiper) return;
+    this._unsubscribers.push(
+      state.on('input:navigate', (direction) => {
+        if (!this._swiper) return;
 
-      if (direction === 'left' || direction === 'up') {
-        this._swiper.slidePrev();
-      } else if (direction === 'right' || direction === 'down') {
-        this._swiper.slideNext();
-      }
-    });
+        if (direction === 'left' || direction === 'up') {
+          this._swiper.slidePrev();
+        } else if (direction === 'right' || direction === 'down') {
+          this._swiper.slideNext();
+        }
+      })
+    );
 
-    state.on('input:select', () => {
-      this._selectCurrent();
-    });
+    this._unsubscribers.push(
+      state.on('input:select', () => {
+        this._selectCurrent();
+      })
+    );
 
     // Gamepad triggers for letter-based navigation
-    state.on('input:pageLeft', () => {
-      this._jumpToPreviousLetter();
-    });
+    this._unsubscribers.push(
+      state.on('input:pageLeft', () => {
+        this._jumpToPreviousLetter();
+      })
+    );
 
-    state.on('input:pageRight', () => {
-      this._jumpToNextLetter();
-    });
+    this._unsubscribers.push(
+      state.on('input:pageRight', () => {
+        this._jumpToNextLetter();
+      })
+    );
 
     // Character input for quick jump
-    state.on('input:character', (char) => {
-      this._jumpToLetter(char.toUpperCase());
-    });
+    this._unsubscribers.push(
+      state.on('input:character', (char) => {
+        this._jumpToLetter(char.toUpperCase());
+      })
+    );
   }
 
   _buildLetterIndex() {

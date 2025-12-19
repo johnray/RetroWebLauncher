@@ -9,6 +9,9 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 
+# Gamelist cache (copied from network for faster reading)
+data/gamelist-cache/
+
 # Configuration (user-specific)
 rwl.config.json
 

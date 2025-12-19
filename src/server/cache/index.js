@@ -7,8 +7,82 @@
 const fs = require('fs');
 const path = require('path');
 const { parseSystems } = require('../retrobat/parser');
-const { parseGamelist, filterGames, sortGames } = require('../retrobat/gamelist');
+const { parseGamelist, parseGamelistFromFile, filterGames, sortGames } = require('../retrobat/gamelist');
 const { loadConfig } = require('../config');
+const { followSymlink } = require('../retrobat/paths');
+
+// Local cache directory for gamelist.xml files (faster than network reads)
+const GAMELIST_CACHE_DIR = path.join(__dirname, '..', '..', '..', 'data', 'gamelist-cache');
+
+/**
+ * Clear the local gamelist cache directory
+ */
+function clearGamelistCache() {
+  try {
+    if (fs.existsSync(GAMELIST_CACHE_DIR)) {
+      // Remove all files in the cache directory
+      const files = fs.readdirSync(GAMELIST_CACHE_DIR);
+      for (const file of files) {
+        fs.unlinkSync(path.join(GAMELIST_CACHE_DIR, file));
+      }
+    } else {
+      // Create the cache directory
+      fs.mkdirSync(GAMELIST_CACHE_DIR, { recursive: true });
+    }
+    console.log('[Cache] Gamelist cache cleared');
+  } catch (err) {
+    console.error('[Cache] Error clearing gamelist cache:', err.message);
+  }
+}
+
+/**
+ * Copy gamelist.xml files from source directories to local cache
+ * @param {Array} systems - Array of system objects with paths
+ * @returns {Map} Map of systemId -> cached file path
+ */
+function cacheGamelists(systems, progressCallback) {
+  const cachedPaths = new Map();
+  let copied = 0;
+  let skipped = 0;
+
+  // Ensure cache directory exists
+  if (!fs.existsSync(GAMELIST_CACHE_DIR)) {
+    fs.mkdirSync(GAMELIST_CACHE_DIR, { recursive: true });
+  }
+
+  for (const system of systems) {
+    try {
+      const romPath = system.resolvedPath || system.path;
+      const resolvedPath = followSymlink(romPath);
+      const sourceGamelist = path.join(resolvedPath, 'gamelist.xml');
+
+      // Check if gamelist.xml exists and is non-zero
+      if (fs.existsSync(sourceGamelist)) {
+        const stats = fs.statSync(sourceGamelist);
+        if (stats.size > 0) {
+          // Create unique filename using system ID
+          const cachedFilename = `${system.id}.xml`;
+          const cachedPath = path.join(GAMELIST_CACHE_DIR, cachedFilename);
+
+          // Copy file to local cache (READ ONLY - never write back!)
+          fs.copyFileSync(sourceGamelist, cachedPath);
+          cachedPaths.set(system.id, cachedPath);
+          copied++;
+        } else {
+          skipped++;
+        }
+      } else {
+        skipped++;
+      }
+    } catch (err) {
+      // Silently skip systems with inaccessible gamelists
+      skipped++;
+    }
+  }
+
+  console.log(`[Cache] Copied ${copied} gamelists to local cache (${skipped} skipped)`);
+  return cachedPaths;
+}
 
 // Progress file for external monitoring (PowerShell startup script)
 const PROGRESS_FILE = path.join(__dirname, '..', '..', '..', 'data', 'startup-progress.json');
@@ -114,15 +188,23 @@ async function fullScan(progressCallback = null) {
     progress('Parsing systems configuration...', 5);
     const systems = await parseSystems();
 
-    progress(`Found ${systems.length} systems`, 10, { systemCount: systems.length });
+    progress(`Found ${systems.length} systems`, 8, { systemCount: systems.length });
 
-    // Clear existing data
-    progress('Clearing old cache...', 15);
+    // Clear existing data and gamelist cache
+    progress('Clearing old cache...', 10);
     clearCache();
+    clearGamelistCache();
 
-    // Process each system
-    let totalGames = 0;
+    // Get accessible systems
     const accessibleSystems = systems.filter(s => s.accessible);
+
+    // Copy gamelists from network to local cache (fast bulk copy)
+    progress('Copying gamelists to local cache...', 12);
+    const cachedGamelists = cacheGamelists(accessibleSystems);
+    progress(`Cached ${cachedGamelists.size} gamelists locally`, 18, { cachedCount: cachedGamelists.size });
+
+    // Process each system from local cache
+    let totalGames = 0;
 
     for (let i = 0; i < accessibleSystems.length; i++) {
       const system = accessibleSystems[i];
@@ -136,8 +218,17 @@ async function fullScan(progressCallback = null) {
       });
 
       try {
-        // Parse gamelist for this system
-        const games = await parseGamelist(system.resolvedPath || system.path, system.id);
+        // Check if we have a cached gamelist for this system
+        const cachedPath = cachedGamelists.get(system.id);
+        let games;
+
+        if (cachedPath) {
+          // Parse from local cache (fast!)
+          games = await parseGamelistFromFile(cachedPath, system.resolvedPath || system.path, system.id);
+        } else {
+          // No cached gamelist - system has no games
+          games = [];
+        }
 
         // Store games in memory
         const systemGames = [];

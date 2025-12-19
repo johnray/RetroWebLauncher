@@ -79,6 +79,75 @@ async function parseGamelist(romPath, systemName) {
 }
 
 /**
+ * Parse a gamelist.xml from a cached local file
+ * This reads from the local cache but resolves paths relative to the original ROM directory
+ * @param {string} cachedFilePath - Path to the locally cached gamelist.xml
+ * @param {string} originalRomPath - Original ROM directory path (for resolving media paths)
+ * @param {string} systemName - Name of the system
+ * @returns {Promise<Array>} Array of game objects
+ */
+async function parseGamelistFromFile(cachedFilePath, originalRomPath, systemName) {
+  if (!fs.existsSync(cachedFilePath)) {
+    return [];
+  }
+
+  const config = loadConfig();
+  const showHidden = config.showHiddenGames || false;
+
+  // Resolve the original ROM path for media path resolution
+  const resolvedRomPath = followSymlink(originalRomPath);
+
+  let xmlContent;
+  try {
+    xmlContent = fs.readFileSync(cachedFilePath, 'utf-8');
+  } catch (err) {
+    console.error(`Error reading cached gamelist for ${systemName}:`, err.message);
+    return [];
+  }
+
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '@_',
+    textNodeName: '#text',
+    isArray: (name) => {
+      return ['game', 'folder', 'scrap'].includes(name);
+    },
+    commentPropName: false,
+  });
+
+  let result;
+  try {
+    result = parser.parse(xmlContent);
+  } catch (err) {
+    console.error(`Error parsing cached gamelist XML for ${systemName}:`, err.message);
+    return [];
+  }
+
+  if (!result.gameList || !result.gameList.game) {
+    return [];
+  }
+
+  const games = [];
+
+  for (const gameData of result.gameList.game) {
+    try {
+      // Use the original ROM path for resolving game and media paths
+      const game = parseGameEntry(gameData, resolvedRomPath, systemName);
+      if (game) {
+        if (game.hidden && !showHidden) {
+          continue;
+        }
+        games.push(game);
+      }
+    } catch (err) {
+      console.error(`Error parsing game entry in ${systemName}:`, err.message);
+    }
+  }
+
+  return games;
+}
+
+/**
  * Parse a single game entry
  * @param {Object} gameData - Raw game object from XML
  * @param {string} romDir - ROM directory path
@@ -368,6 +437,7 @@ function sortGames(games, sortBy = 'name', order = 'asc') {
 
 module.exports = {
   parseGamelist,
+  parseGamelistFromFile,
   getGameCount,
   filterGames,
   sortGames

@@ -236,12 +236,23 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Handle uncaught errors gracefully
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err);
-  shutdown('uncaughtException');
+  console.error('');
+  console.error('===========================================');
+  console.error('UNCAUGHT EXCEPTION - Server crashing');
+  console.error('===========================================');
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+  console.error('===========================================');
+  process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  console.error('');
+  console.error('===========================================');
+  console.error('UNHANDLED PROMISE REJECTION');
+  console.error('===========================================');
+  console.error('Reason:', reason);
+  console.error('===========================================');
 });
 
 // Start the server

@@ -27,7 +27,13 @@ async function parseGamelist(romPath, systemName) {
   const config = loadConfig();
   const showHidden = config.showHiddenGames || false;
 
-  const xmlContent = fs.readFileSync(gamelistPath, 'utf-8');
+  let xmlContent;
+  try {
+    xmlContent = fs.readFileSync(gamelistPath, 'utf-8');
+  } catch (err) {
+    console.error(`Error reading gamelist for ${systemName}:`, err.message);
+    return [];
+  }
 
   const parser = new XMLParser({
     ignoreAttributes: false,
@@ -39,7 +45,13 @@ async function parseGamelist(romPath, systemName) {
     commentPropName: false,
   });
 
-  const result = parser.parse(xmlContent);
+  let result;
+  try {
+    result = parser.parse(xmlContent);
+  } catch (err) {
+    console.error(`Error parsing gamelist XML for ${systemName}:`, err.message);
+    return [];
+  }
 
   if (!result.gameList || !result.gameList.game) {
     return [];
@@ -48,13 +60,18 @@ async function parseGamelist(romPath, systemName) {
   const games = [];
 
   for (const gameData of result.gameList.game) {
-    const game = parseGameEntry(gameData, resolvedPath, systemName);
-    if (game) {
-      // Filter hidden games unless showHidden is enabled
-      if (game.hidden && !showHidden) {
-        continue;
+    try {
+      const game = parseGameEntry(gameData, resolvedPath, systemName);
+      if (game) {
+        // Filter hidden games unless showHidden is enabled
+        if (game.hidden && !showHidden) {
+          continue;
+        }
+        games.push(game);
       }
-      games.push(game);
+    } catch (err) {
+      console.error(`Error parsing game entry in ${systemName}:`, err.message);
+      // Continue with other games
     }
   }
 

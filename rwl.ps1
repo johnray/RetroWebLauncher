@@ -47,7 +47,7 @@ $script:NodeUrl = "https://nodejs.org/dist/v$script:NodeVersion/node-v$script:No
 
 # Process management constants
 $script:StopTimeoutSeconds = 10
-$script:StartTimeoutSeconds = 15
+$script:StartTimeoutSeconds = 120
 
 # Set location to script directory
 $script:ScriptDir = $PSScriptRoot
@@ -916,11 +916,14 @@ function Start-ServerProcess {
         Write-Log "Server process started with PID $($process.Id)" -Level INFO
 
         # Wait for server to start listening
-        Write-Info "Waiting for server to start..."
+        Write-Host ""
+        Write-Info "Starting server (scanning library, this may take up to 2 minutes)..."
+        Write-Host ""
 
         $timeout = $script:StartTimeoutSeconds
         $elapsed = 0
         $started = $false
+        $barWidth = 40
 
         while ($elapsed -lt $timeout -and -not $started) {
             Start-Sleep -Milliseconds 500
@@ -929,6 +932,7 @@ function Start-ServerProcess {
             # Check if process died
             $process.Refresh()
             if ($process.HasExited) {
+                Write-Host ""
                 Write-Log "Server process exited prematurely with code $($process.ExitCode)" -Level ERROR
                 Write-Error2 "Server process exited unexpectedly (exit code: $($process.ExitCode))"
                 return $false
@@ -937,7 +941,16 @@ function Start-ServerProcess {
             $started = Test-PortInUse -Port $port
 
             if (-not $Silent -and -not $started) {
-                Write-Host "`r  Waiting... ($([math]::Floor($elapsed))/$timeout sec)" -NoNewline
+                # Calculate progress bar
+                $percent = [math]::Min(($elapsed / $timeout) * 100, 99)
+                $filled = [math]::Floor(($percent / 100) * $barWidth)
+                $empty = $barWidth - $filled
+                $bar = ("=" * $filled) + ("." * $empty)
+                $timeStr = "{0:N0}" -f $elapsed
+                $status = "Scanning library..."
+
+                # Build progress line
+                Write-Host "`r  [$bar] $timeStr sec - $status    " -NoNewline
             }
         }
 

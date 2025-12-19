@@ -135,7 +135,7 @@ function parseGameEntry(gameData, romDir, systemName) {
     releaseYear: releaseDate ? releaseDate.getFullYear() : null,
     genre: gameData.genre || '',
     players: parsePlayersString(gameData.players),
-    playersString: gameData.players || '',
+    playersString: gameData.players != null ? String(gameData.players) : '',
     rating: rating,
     playCount: parseInt(gameData.playcount) || 0,
     lastPlayed: lastPlayed,
@@ -214,7 +214,10 @@ function parseBool(value) {
 function parsePlayersString(playersStr) {
   if (!playersStr) return { min: 1, max: 1 };
 
-  const match = playersStr.match(/(\d+)(?:\s*-\s*(\d+))?/);
+  // Convert to string (XML parser may return number)
+  const str = String(playersStr);
+
+  const match = str.match(/(\d+)(?:\s*-\s*(\d+))?/);
   if (match) {
     const min = parseInt(match[1]) || 1;
     const max = parseInt(match[2]) || min;

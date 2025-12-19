@@ -97,15 +97,27 @@ router.get('/:id', (req, res) => {
  */
 router.post('/:id/launch', async (req, res) => {
   try {
-    const game = cache.getGame(req.params.id);
+    const gameId = req.params.id;
+
+    // Validate game ID
+    if (!gameId || typeof gameId !== 'string') {
+      return res.status(400).json({ error: 'Invalid game ID' });
+    }
+
+    const game = cache.getGame(gameId);
 
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
 
+    // Validate game file exists
+    if (!game.fullPath) {
+      return res.status(400).json({ error: 'Game file path not available' });
+    }
+
     const options = {
-      emulator: req.body.emulator,
-      core: req.body.core
+      emulator: req.body.emulator || null,
+      core: req.body.core || null
     };
 
     const result = await launcher.launchGame(game, options);
@@ -119,7 +131,7 @@ router.post('/:id/launch', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error launching game:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Failed to launch game' });
   }
 });
 

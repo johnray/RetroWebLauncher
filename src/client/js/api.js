@@ -3,14 +3,24 @@
  * Handles all communication with the backend server
  */
 
+class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 class ApiClient {
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
     this.cache = new Map();
     this.cacheTimeout = 60000; // 1 minute cache
+    this.requestTimeout = 30000; // 30 second timeout
+    this.maxRetries = 2;
   }
 
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, retryCount = 0) {
     const url = `${this.baseUrl}${endpoint}`;
 
     const defaultOptions = {
@@ -21,19 +31,44 @@ class ApiClient {
 
     const fetchOptions = { ...defaultOptions, ...options };
 
+    // Add timeout via AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
+    fetchOptions.signal = controller.signal;
+
     try {
       const response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(error.message || `HTTP ${response.status}`);
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        const errorMessage = error.error || error.message || `HTTP ${response.status}`;
+        throw new ApiError(errorMessage, response.status);
       }
 
       return await response.json();
     } catch (error) {
+      clearTimeout(timeoutId);
+
+      // Handle timeout
+      if (error.name === 'AbortError') {
+        throw new ApiError('Request timed out', 408);
+      }
+
+      // Retry on network errors (not on 4xx errors)
+      if (retryCount < this.maxRetries && !error.status) {
+        console.warn(`Retrying request (${retryCount + 1}/${this.maxRetries}): ${endpoint}`);
+        await this._delay(1000 * (retryCount + 1));
+        return this.request(endpoint, options, retryCount + 1);
+      }
+
       console.error(`API request failed: ${endpoint}`, error);
       throw error;
     }
+  }
+
+  _delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   async get(endpoint, useCache = true) {

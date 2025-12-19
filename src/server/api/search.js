@@ -12,7 +12,8 @@ const cache = require('../cache');
  */
 router.get('/', (req, res) => {
   try {
-    const query = req.query.q || '';
+    // Sanitize and validate query (max 200 chars)
+    const query = (req.query.q || '').trim().slice(0, 200);
 
     if (!query || query.length < 2) {
       return res.json({
@@ -22,9 +23,13 @@ router.get('/', (req, res) => {
       });
     }
 
+    // Validate and sanitize options
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 50, 100));
+    const systemId = req.query.system ? String(req.query.system).slice(0, 50) : null;
+
     const options = {
-      limit: Math.min(parseInt(req.query.limit) || 50, 100),
-      systemId: req.query.system || null
+      limit,
+      systemId
     };
 
     const games = cache.searchGames(query, options);

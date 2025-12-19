@@ -47,7 +47,7 @@ $script:NodeUrl = "https://nodejs.org/dist/v$script:NodeVersion/node-v$script:No
 
 # Process management constants
 $script:StopTimeoutSeconds = 10
-$script:StartTimeoutSeconds = 120
+$script:StartTimeoutSeconds = 300
 
 # Set location to script directory
 $script:ScriptDir = $PSScriptRoot
@@ -917,7 +917,7 @@ function Start-ServerProcess {
 
         # Wait for server to start listening
         Write-Host ""
-        Write-Info "Starting server (scanning library, this may take up to 2 minutes)..."
+        Write-Info "Starting server (scanning library, this may take up to 5 minutes)..."
         Write-Host ""
 
         $timeout = $script:StartTimeoutSeconds

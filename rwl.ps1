@@ -367,6 +367,56 @@ function Test-NodeInstalled {
     return Test-Path $portableNode
 }
 
+function Invoke-Npm {
+    <#
+    .SYNOPSIS
+        Runs npm with portable Node.js in PATH (required for native module compilation)
+    .PARAMETER Arguments
+        Arguments to pass to npm
+    .PARAMETER Wait
+        Wait for process to complete (default: true)
+    .PARAMETER PassThru
+        Return the process object
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Arguments,
+        [switch]$Wait = $true,
+        [switch]$PassThru
+    )
+
+    $node = Get-NodePath
+    if (-not $node.IsInstalled) {
+        throw "Node.js is not installed"
+    }
+
+    # Get the node directory to add to PATH
+    $nodeDir = Split-Path $node.NodePath -Parent
+
+    # Save current PATH and prepend node directory
+    $originalPath = $env:PATH
+    $env:PATH = "$nodeDir;$originalPath"
+
+    try {
+        $processParams = @{
+            FilePath = $node.NpmPath
+            ArgumentList = $Arguments
+            WorkingDirectory = $script:ScriptDir
+            NoNewWindow = $true
+        }
+
+        if ($Wait) { $processParams.Wait = $true }
+        if ($PassThru) { $processParams.PassThru = $true }
+
+        $result = Start-Process @processParams
+        return $result
+    }
+    finally {
+        # Restore original PATH
+        $env:PATH = $originalPath
+    }
+}
+
 function Get-Config {
     <#
     .SYNOPSIS
@@ -1131,8 +1181,7 @@ function Invoke-Install {
         }
 
         try {
-            $npmArgs = "install --loglevel=error"
-            $process = Start-Process -FilePath $node.NpmPath -ArgumentList $npmArgs -Wait -PassThru -NoNewWindow
+            $process = Invoke-Npm -Arguments "install --loglevel=error" -Wait -PassThru
 
             if ($process.ExitCode -eq 0) {
                 $success = $true
@@ -1151,7 +1200,7 @@ function Invoke-Install {
 
             if ($attempt -lt $maxAttempts) {
                 Write-Info "Clearing npm cache before retry..."
-                Start-Process -FilePath $node.NpmPath -ArgumentList "cache clean --force" -Wait -NoNewWindow -ErrorAction SilentlyContinue
+                Invoke-Npm -Arguments "cache clean --force" -Wait | Out-Null
 
                 if (-not $Silent -and -not (Confirm-Action -Message "Retry installation?" -Default $true)) {
                     break
@@ -1559,7 +1608,7 @@ function Invoke-Setup {
     }
     else {
         Write-Info "Installing dependencies..."
-        $process = Start-Process -FilePath $node.NpmPath -ArgumentList "install --loglevel=error" -Wait -PassThru -NoNewWindow
+        $process = Invoke-Npm -Arguments "install --loglevel=error" -Wait -PassThru
 
         if ($process.ExitCode -ne 0) {
             Write-Error2 "Failed to install dependencies."
@@ -1939,7 +1988,7 @@ function Invoke-Start {
         Write-Warning2 "Dependencies not installed"
         if ($Silent -or (Confirm-Action -Message "Install dependencies now?" -Default $true)) {
             Write-Info "Installing dependencies..."
-            $process = Start-Process -FilePath $node.NpmPath -ArgumentList "install --loglevel=error" -Wait -PassThru -NoNewWindow
+            $process = Invoke-Npm -Arguments "install --loglevel=error" -Wait -PassThru
             if ($process.ExitCode -ne 0) {
                 Write-Error2 "Failed to install dependencies"
                 return $false
@@ -2187,7 +2236,7 @@ function Invoke-Dev {
     if (-not (Test-DependenciesInstalled)) {
         Write-Warning2 "Dependencies not installed."
         if (Confirm-Action -Message "Install dependencies now?" -Default $true) {
-            $process = Start-Process -FilePath $node.NpmPath -ArgumentList "install" -Wait -PassThru -NoNewWindow
+            $process = Invoke-Npm -Arguments "install" -Wait -PassThru
             if ($process.ExitCode -ne 0) {
                 Write-Error2 "Failed to install dependencies"
                 return $false

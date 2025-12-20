@@ -1,6 +1,6 @@
 /**
  * RetroWebLauncher - Grid View Component
- * Responsive grid with size slider and scrolling
+ * Simple, working grid with size slider
  */
 
 import { state } from '../state.js';
@@ -17,29 +17,19 @@ class RwlGridView extends HTMLElement {
     this._page = 1;
     this._totalPages = 1;
     this._loading = false;
-    this._selectedIndex = 0;
-    this._cardSize = 150; // Default card width in pixels
-    this._unsubscribers = [];
+    this._cardSize = parseInt(localStorage.getItem('rwl-card-size') || '150', 10);
   }
 
   connectedCallback() {
     this._render();
-    this._bindEvents();
-
-    // Load saved card size preference
-    const savedSize = localStorage.getItem('rwl-card-size');
-    if (savedSize) {
-      this._cardSize = parseInt(savedSize, 10);
-      this._updateCardSize();
-    }
   }
 
   disconnectedCallback() {
-    this._unsubscribers.forEach(unsub => unsub());
-    this._unsubscribers = [];
+    // Cleanup if needed
   }
 
   set systemId(id) {
+    console.log('[GridView] systemId set to:', id);
     this._systemId = id;
     this._collectionId = null;
     this._page = 1;
@@ -48,6 +38,7 @@ class RwlGridView extends HTMLElement {
   }
 
   set collectionId(id) {
+    console.log('[GridView] collectionId set to:', id);
     this._collectionId = id;
     this._systemId = null;
     this._page = 1;
@@ -58,6 +49,7 @@ class RwlGridView extends HTMLElement {
   async _loadGames() {
     if (this._loading) return;
 
+    console.log('[GridView] Loading games...');
     this._loading = true;
     this._showLoading();
 
@@ -68,455 +60,276 @@ class RwlGridView extends HTMLElement {
       } else if (this._collectionId) {
         response = await api.getCollection(this._collectionId);
       } else {
+        console.log('[GridView] No systemId or collectionId');
         return;
       }
 
-      if (this._page === 1) {
-        this._games = response.games || [];
-      } else {
-        this._games = [...this._games, ...(response.games || [])];
-      }
-
+      console.log('[GridView] Got response:', response);
+      this._games = response.games || [];
       this._totalPages = response.totalPages || 1;
+      console.log('[GridView] Loaded', this._games.length, 'games');
       this._renderGames();
     } catch (error) {
-      console.error('Failed to load games:', error);
-      this._showError(`Failed to load games: ${error.message || 'Unknown error'}`);
+      console.error('[GridView] Failed to load games:', error);
+      this._showError(error.message);
     } finally {
       this._loading = false;
     }
   }
 
-  _bindEvents() {
-    // Size slider
-    const slider = this.shadowRoot.querySelector('.size-slider');
-    if (slider) {
-      slider.addEventListener('input', (e) => {
-        this._cardSize = parseInt(e.target.value, 10);
-        this._updateCardSize();
-        localStorage.setItem('rwl-card-size', this._cardSize);
-      });
-    }
-
-    // Scroll for infinite loading
-    const container = this.shadowRoot.querySelector('.grid-container');
-    if (container) {
-      container.addEventListener('scroll', () => {
-        this._checkInfiniteScroll(container);
-      }, { passive: true });
-    }
-
-    // Listen for navigation events
-    this._unsubscribers.push(
-      state.on('input:navigate', (direction) => this._navigate(direction))
-    );
-    this._unsubscribers.push(
-      state.on('input:select', () => this._selectCurrent())
-    );
-  }
-
-  _updateCardSize() {
-    const grid = this.shadowRoot.querySelector('.games-grid');
-    const slider = this.shadowRoot.querySelector('.size-slider');
-    const sizeLabel = this.shadowRoot.querySelector('.size-label');
-
-    if (grid) {
-      grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this._cardSize}px, 1fr))`;
-    }
-    if (slider) {
-      slider.value = this._cardSize;
-    }
-    if (sizeLabel) {
-      sizeLabel.textContent = `${this._cardSize}px`;
-    }
-  }
-
-  _checkInfiniteScroll(container) {
-    if (this._loading || this._page >= this._totalPages) return;
-
-    const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    if (scrollBottom < 500) {
-      this._page++;
-      this._loadGames();
-    }
-  }
-
-  _navigate(direction) {
-    const cards = this.shadowRoot.querySelectorAll('.game-card');
-    if (!cards.length) return;
-
-    const grid = this.shadowRoot.querySelector('.games-grid');
-    const gridStyle = getComputedStyle(grid);
-    const columns = gridStyle.gridTemplateColumns.split(' ').length;
-
-    const oldIndex = this._selectedIndex;
-
-    switch (direction) {
-      case 'up':
-        this._selectedIndex = Math.max(0, this._selectedIndex - columns);
-        break;
-      case 'down':
-        this._selectedIndex = Math.min(this._games.length - 1, this._selectedIndex + columns);
-        break;
-      case 'left':
-        this._selectedIndex = Math.max(0, this._selectedIndex - 1);
-        break;
-      case 'right':
-        this._selectedIndex = Math.min(this._games.length - 1, this._selectedIndex + 1);
-        break;
-    }
-
-    if (oldIndex !== this._selectedIndex) {
-      this._focusCard(this._selectedIndex);
-    }
-  }
-
-  _focusCard(index) {
-    const cards = this.shadowRoot.querySelectorAll('.game-card');
-    cards.forEach((card, i) => {
-      card.classList.toggle('selected', i === index);
-    });
-    if (cards[index]) {
-      cards[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }
-
-  _selectCurrent() {
-    const game = this._games[this._selectedIndex];
-    if (game) {
-      router.navigate(`/game/${game.id}`);
-    }
-  }
-
   _showLoading() {
-    const grid = this.shadowRoot.querySelector('.games-grid');
-    if (!grid) return;
-
-    grid.innerHTML = `
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Loading games...</p>
-      </div>
-    `;
+    const grid = this.shadowRoot.getElementById('games-grid');
+    if (grid) {
+      grid.innerHTML = '<div class="message"><div class="spinner"></div><p>Loading games...</p></div>';
+    }
   }
 
   _showError(message) {
-    const grid = this.shadowRoot.querySelector('.games-grid');
+    const grid = this.shadowRoot.getElementById('games-grid');
     if (grid) {
-      grid.innerHTML = `
-        <div class="error-state">
-          <p>${message}</p>
-          <button class="retry-btn">Retry</button>
-        </div>
-      `;
-      grid.querySelector('.retry-btn')?.addEventListener('click', () => this._loadGames());
+      grid.innerHTML = `<div class="message"><p>Error: ${message}</p><button onclick="location.reload()">Retry</button></div>`;
     }
-  }
-
-  _getImageUrl(game) {
-    if (game.thumbnail || game.image || game.marquee) {
-      return `/api/media/game/${game.id}/thumbnail`;
-    }
-    return '';
   }
 
   _renderGames() {
-    const grid = this.shadowRoot.querySelector('.games-grid');
-    if (!grid) return;
+    const grid = this.shadowRoot.getElementById('games-grid');
+    const countEl = this.shadowRoot.getElementById('game-count');
 
-    if (this._games.length === 0) {
-      grid.innerHTML = `
-        <div class="empty-state">
-          <p>No games found</p>
-        </div>
-      `;
+    if (!grid) {
+      console.error('[GridView] Grid element not found!');
       return;
     }
 
-    grid.innerHTML = this._games.map((game, index) => {
-      const imageUrl = this._getImageUrl(game);
-      const name = game.name || 'Unknown Game';
+    if (this._games.length === 0) {
+      grid.innerHTML = '<div class="message"><p>No games found</p></div>';
+      return;
+    }
 
-      return `
-        <div class="game-card" data-index="${index}" data-game-id="${game.id}" tabindex="0">
-          <div class="card-image">
-            ${imageUrl
-              ? `<img src="${imageUrl}" alt="${name}" loading="lazy" />`
-              : `<div class="no-image">🎮</div>`
-            }
+    console.log('[GridView] Rendering', this._games.length, 'game cards');
+
+    // Build HTML for all cards
+    let html = '';
+    for (let i = 0; i < this._games.length; i++) {
+      const game = this._games[i];
+      const name = String(game.name || 'Unknown');
+      const hasImage = game.thumbnail || game.image || game.marquee;
+      const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
+
+      html += `
+        <div class="card" data-id="${game.id}" tabindex="0">
+          <div class="card-img">
+            ${imageUrl ? `<img src="${imageUrl}" alt="${name}" loading="lazy">` : '<span class="no-img">🎮</span>'}
           </div>
-          <div class="card-title">${name}</div>
+          <div class="card-name">${name}</div>
         </div>
       `;
-    }).join('');
+    }
 
-    // Bind click events to cards
-    grid.querySelectorAll('.game-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const gameId = card.dataset.gameId;
-        if (gameId) {
-          router.navigate(`/game/${gameId}`);
-        }
-      });
+    grid.innerHTML = html;
 
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          const gameId = card.dataset.gameId;
-          if (gameId) {
-            router.navigate(`/game/${gameId}`);
-          }
+    // Update count
+    if (countEl) {
+      countEl.textContent = `${this._games.length} games`;
+    }
+
+    // Add click handlers
+    grid.querySelectorAll('.card').forEach(card => {
+      card.onclick = () => {
+        const id = card.dataset.id;
+        console.log('[GridView] Card clicked:', id);
+        router.navigate(`/game/${id}`);
+      };
+      card.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          router.navigate(`/game/${card.dataset.id}`);
         }
-      });
+      };
     });
 
-    // Apply current card size
-    this._updateCardSize();
-    this._updateGameCount();
+    // Apply size
+    this._applySize();
+  }
+
+  _applySize() {
+    const grid = this.shadowRoot.getElementById('games-grid');
+    if (grid) {
+      grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this._cardSize}px, 1fr))`;
+    }
+  }
+
+  _onSliderChange(e) {
+    this._cardSize = parseInt(e.target.value, 10);
+    localStorage.setItem('rwl-card-size', this._cardSize);
+    const label = this.shadowRoot.getElementById('size-label');
+    if (label) label.textContent = `${this._cardSize}px`;
+    this._applySize();
   }
 
   _render() {
     this.shadowRoot.innerHTML = `
       <style>
+        * { box-sizing: border-box; }
+
         :host {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
+          display: block;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
           overflow: hidden;
+          background: #0a0a0a;
         }
 
-        .grid-container {
-          flex: 1;
+        #scroll-container {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 50px;
           overflow-y: auto;
           overflow-x: hidden;
-          padding: 1rem;
-          padding-bottom: 60px;
+          padding: 16px;
         }
 
-        .games-grid {
+        #games-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-          gap: 1rem;
-          align-content: start;
+          grid-template-columns: repeat(auto-fill, minmax(${this._cardSize}px, 1fr));
+          gap: 16px;
         }
 
-        .game-card {
-          background: rgba(30, 30, 30, 0.8);
+        .card {
+          background: #1a1a1a;
           border-radius: 8px;
           overflow: hidden;
           cursor: pointer;
-          transition: transform 0.15s ease, box-shadow 0.15s ease;
-          display: flex;
-          flex-direction: column;
+          transition: transform 0.15s, box-shadow 0.15s;
         }
 
-        .game-card:hover {
+        .card:hover {
           transform: scale(1.05);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 20px rgba(255,0,102,0.3);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,102,0.3);
           z-index: 10;
+          position: relative;
         }
 
-        .game-card:focus {
+        .card:focus {
           outline: 3px solid #ff0066;
           outline-offset: 2px;
         }
 
-        .game-card.selected {
-          outline: 3px solid #ff0066;
-        }
-
-        .card-image {
+        .card-img {
           aspect-ratio: 3/4;
           background: #111;
           display: flex;
           align-items: center;
           justify-content: center;
-          overflow: hidden;
         }
 
-        .card-image img {
+        .card-img img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
 
-        .no-image {
-          font-size: 3rem;
+        .no-img {
+          font-size: 48px;
           opacity: 0.3;
         }
 
-        .card-title {
-          padding: 0.5rem;
-          font-size: 0.75rem;
+        .card-name {
+          padding: 8px;
+          font-size: 12px;
           color: #fff;
+          background: rgba(0,0,0,0.7);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          background: rgba(0,0,0,0.6);
         }
 
-        /* Slider toolbar at bottom */
-        .slider-toolbar {
+        #toolbar {
           position: absolute;
           bottom: 0;
           left: 0;
           right: 0;
           height: 50px;
-          background: rgba(20, 20, 20, 0.95);
-          border-top: 1px solid rgba(255,255,255,0.1);
+          background: #141414;
+          border-top: 1px solid #333;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 1rem;
-          padding: 0 1rem;
-          backdrop-filter: blur(10px);
-          z-index: 100;
+          gap: 16px;
+          padding: 0 16px;
         }
 
-        .slider-label {
+        #toolbar label {
           color: #888;
-          font-size: 0.75rem;
+          font-size: 12px;
         }
 
-        .size-slider {
+        #size-slider {
           width: 200px;
-          height: 4px;
-          -webkit-appearance: none;
-          appearance: none;
-          background: rgba(255,255,255,0.2);
-          border-radius: 2px;
-          outline: none;
-        }
-
-        .size-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          background: #ff0066;
-          border-radius: 50%;
           cursor: pointer;
         }
 
-        .size-slider::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          background: #ff0066;
-          border-radius: 50%;
-          cursor: pointer;
-          border: none;
-        }
-
-        .size-label {
+        #size-label {
           color: #fff;
-          font-size: 0.75rem;
+          font-size: 12px;
           min-width: 50px;
         }
 
-        .game-count {
+        #game-count {
           color: #888;
-          font-size: 0.75rem;
+          font-size: 12px;
           margin-left: auto;
         }
 
-        /* States */
-        .loading-state,
-        .empty-state,
-        .error-state {
+        .message {
           grid-column: 1 / -1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 3rem;
+          text-align: center;
+          padding: 48px;
           color: #888;
         }
 
         .spinner {
           width: 40px;
           height: 40px;
-          border: 3px solid rgba(255,255,255,0.1);
+          border: 3px solid #333;
           border-top-color: #ff0066;
           border-radius: 50%;
+          margin: 0 auto 16px;
           animation: spin 1s linear infinite;
-          margin-bottom: 1rem;
         }
 
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
 
-        .retry-btn {
-          margin-top: 1rem;
-          padding: 0.5rem 1.5rem;
-          background: #ff0066;
-          border: none;
-          border-radius: 4px;
-          color: #fff;
-          cursor: pointer;
-        }
-
-        .retry-btn:hover {
-          background: #ff3388;
-        }
-
         /* Scrollbar */
-        .grid-container::-webkit-scrollbar {
-          width: 8px;
-        }
-        .grid-container::-webkit-scrollbar-track {
-          background: rgba(0,0,0,0.2);
-        }
-        .grid-container::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.2);
-          border-radius: 4px;
-        }
-        .grid-container::-webkit-scrollbar-thumb:hover {
-          background: rgba(255,255,255,0.3);
-        }
-
-        /* Mobile */
-        @media (max-width: 640px) {
-          .games-grid {
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 0.5rem;
-          }
-          .grid-container {
-            padding: 0.5rem;
-          }
-          .slider-toolbar {
-            height: 44px;
-          }
-          .size-slider {
-            width: 120px;
-          }
-        }
+        #scroll-container::-webkit-scrollbar { width: 8px; }
+        #scroll-container::-webkit-scrollbar-track { background: #1a1a1a; }
+        #scroll-container::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        #scroll-container::-webkit-scrollbar-thumb:hover { background: #555; }
       </style>
 
-      <div class="grid-container">
-        <div class="games-grid">
-          <div class="empty-state">
-            <p>Select a system to view games</p>
-          </div>
+      <div id="scroll-container">
+        <div id="games-grid">
+          <div class="message"><p>Select a system to view games</p></div>
         </div>
       </div>
 
-      <div class="slider-toolbar">
-        <span class="slider-label">Size:</span>
-        <input type="range" class="size-slider" min="80" max="250" value="${this._cardSize}" />
-        <span class="size-label">${this._cardSize}px</span>
-        <span class="game-count"></span>
+      <div id="toolbar">
+        <label>Size:</label>
+        <input type="range" id="size-slider" min="80" max="280" value="${this._cardSize}">
+        <span id="size-label">${this._cardSize}px</span>
+        <span id="game-count"></span>
       </div>
     `;
 
-    // Update game count when games are loaded
-    this._updateGameCount();
-  }
-
-  _updateGameCount() {
-    const countEl = this.shadowRoot.querySelector('.game-count');
-    if (countEl && this._games.length > 0) {
-      countEl.textContent = `${this._games.length} games`;
+    // Bind slider
+    const slider = this.shadowRoot.getElementById('size-slider');
+    if (slider) {
+      slider.oninput = (e) => this._onSliderChange(e);
     }
   }
 }

@@ -63,6 +63,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Disable caching for development (JS/CSS files)
+app.use((req, res, next) => {
+  if (req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+  }
+  next();
+});
+
 // Serve static files from client directory
 app.use(express.static(path.join(__dirname, '..', 'client')));
 

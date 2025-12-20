@@ -3,7 +3,7 @@
  * Enables offline caching and PWA functionality
  */
 
-const CACHE_NAME = 'rwl-cache-v1';
+const CACHE_NAME = 'rwl-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -73,6 +73,28 @@ self.addEventListener('fetch', (event) => {
 
   // Skip media requests (too large to cache)
   if (url.pathname.startsWith('/api/media/')) {
+    return;
+  }
+
+  // Always fetch fresh JS and CSS files (network-first)
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache the fresh response
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fall back to cache if offline
+          return caches.match(event.request);
+        })
+    );
     return;
   }
 

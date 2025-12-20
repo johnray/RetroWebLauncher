@@ -203,32 +203,32 @@ async function fullScan(progressCallback = null) {
     const cachedGamelists = cacheGamelists(accessibleSystems);
     progress(`Cached ${cachedGamelists.size} gamelists locally`, 18, { cachedCount: cachedGamelists.size });
 
-    // Process each system from local cache
+    // Build a map of system ID to system object for quick lookup
+    const systemMap = new Map();
+    for (const system of systems) {
+      systemMap.set(system.id, system);
+    }
+
+    // ONLY process systems that have cached gamelists (have games)
+    const systemsWithGames = Array.from(cachedGamelists.keys());
     let totalGames = 0;
 
-    for (let i = 0; i < accessibleSystems.length; i++) {
-      const system = accessibleSystems[i];
-      const pct = Math.floor(20 + (i / accessibleSystems.length) * 70);
+    for (let i = 0; i < systemsWithGames.length; i++) {
+      const systemId = systemsWithGames[i];
+      const system = systemMap.get(systemId);
+      const cachedPath = cachedGamelists.get(systemId);
+      const pct = Math.floor(20 + (i / systemsWithGames.length) * 70);
 
       progress(`Scanning ${system.fullname}...`, pct, {
         currentSystem: system.fullname,
         systemIndex: i + 1,
-        totalSystems: accessibleSystems.length,
+        totalSystems: systemsWithGames.length,
         gamesFound: totalGames
       });
 
       try {
-        // Check if we have a cached gamelist for this system
-        const cachedPath = cachedGamelists.get(system.id);
-        let games;
-
-        if (cachedPath) {
-          // Parse from local cache (fast!)
-          games = await parseGamelistFromFile(cachedPath, system.resolvedPath || system.path, system.id);
-        } else {
-          // No cached gamelist - system has no games
-          games = [];
-        }
+        // Parse from local cache only
+        const games = await parseGamelistFromFile(cachedPath, system.resolvedPath || system.path, system.id);
 
         // Store games in memory
         const systemGames = [];
@@ -253,12 +253,13 @@ async function fullScan(progressCallback = null) {
       }
     }
 
-    // Also store inaccessible systems (with 0 games)
-    const inaccessibleSystems = systems.filter(s => !s.accessible);
-    for (const system of inaccessibleSystems) {
-      system.gameCount = 0;
-      systemsMap.set(system.id, system);
-      gamesBySystem.set(system.id, []);
+    // Store systems without games (not in cache) with gameCount = 0
+    for (const system of systems) {
+      if (!cachedGamelists.has(system.id)) {
+        system.gameCount = 0;
+        systemsMap.set(system.id, system);
+        gamesBySystem.set(system.id, []);
+      }
     }
 
     progress('Building search index...', 95, { gamesFound: totalGames });

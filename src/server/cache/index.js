@@ -2,6 +2,7 @@
  * RetroWebLauncher - Memory Cache Manager
  * In-memory cache for systems and games data
  * Data is loaded fresh from RetroBat XML files on each server start
+ * Uses parallel processing for faster scanning
  */
 
 const fs = require('fs');
@@ -13,6 +14,37 @@ const { followSymlink } = require('../retrobat/paths');
 
 // Local cache directory for gamelist.xml files (faster than network reads)
 const GAMELIST_CACHE_DIR = path.join(__dirname, '..', '..', '..', 'data', 'gamelist-cache');
+
+// Concurrency settings for parallel processing
+const COPY_CONCURRENCY = 8;   // Parallel file copies (network I/O bound)
+const PARSE_CONCURRENCY = 6;  // Parallel XML parsing (CPU + I/O bound)
+
+/**
+ * Run async tasks with limited concurrency
+ * @param {Array} items - Items to process
+ * @param {number} concurrency - Max concurrent operations
+ * @param {Function} task - Async function to run on each item
+ * @returns {Array} Results from all tasks
+ */
+async function parallelLimit(items, concurrency, task) {
+  const results = [];
+  const executing = new Set();
+
+  for (const [index, item] of items.entries()) {
+    const promise = Promise.resolve().then(() => task(item, index));
+    results.push(promise);
+    executing.add(promise);
+
+    const cleanup = () => executing.delete(promise);
+    promise.then(cleanup, cleanup);
+
+    if (executing.size >= concurrency) {
+      await Promise.race(executing);
+    }
+  }
+
+  return Promise.all(results);
+}
 
 /**
  * Clear the local gamelist cache directory
@@ -36,11 +68,11 @@ function clearGamelistCache() {
 }
 
 /**
- * Copy gamelist.xml files from source directories to local cache
+ * Copy gamelist.xml files from source directories to local cache (parallel)
  * @param {Array} systems - Array of system objects with paths
  * @returns {Map} Map of systemId -> cached file path
  */
-function cacheGamelists(systems, progressCallback) {
+async function cacheGamelists(systems) {
   const cachedPaths = new Map();
   let copied = 0;
   let skipped = 0;
@@ -50,7 +82,8 @@ function cacheGamelists(systems, progressCallback) {
     fs.mkdirSync(GAMELIST_CACHE_DIR, { recursive: true });
   }
 
-  for (const system of systems) {
+  // Process systems in parallel with concurrency limit
+  const results = await parallelLimit(systems, COPY_CONCURRENCY, async (system) => {
     try {
       const romPath = system.resolvedPath || system.path;
       const resolvedPath = followSymlink(romPath);
@@ -65,22 +98,28 @@ function cacheGamelists(systems, progressCallback) {
           const cachedPath = path.join(GAMELIST_CACHE_DIR, cachedFilename);
 
           // Copy file to local cache (READ ONLY - never write back!)
-          fs.copyFileSync(sourceGamelist, cachedPath);
-          cachedPaths.set(system.id, cachedPath);
-          copied++;
-        } else {
-          skipped++;
+          await fs.promises.copyFile(sourceGamelist, cachedPath);
+          return { systemId: system.id, cachedPath, success: true };
         }
-      } else {
-        skipped++;
       }
+      return { systemId: system.id, success: false };
     } catch (err) {
       // Silently skip systems with inaccessible gamelists
+      return { systemId: system.id, success: false };
+    }
+  });
+
+  // Collect results
+  for (const result of results) {
+    if (result.success) {
+      cachedPaths.set(result.systemId, result.cachedPath);
+      copied++;
+    } else {
       skipped++;
     }
   }
 
-  console.log(`[Cache] Copied ${copied} gamelists to local cache (${skipped} skipped)`);
+  console.log(`[Cache] Copied ${copied} gamelists to local cache (${skipped} skipped) [${COPY_CONCURRENCY} parallel]`);
   return cachedPaths;
 }
 
@@ -198,9 +237,9 @@ async function fullScan(progressCallback = null) {
     // Get accessible systems
     const accessibleSystems = systems.filter(s => s.accessible);
 
-    // Copy gamelists from network to local cache (fast bulk copy)
+    // Copy gamelists from network to local cache (parallel)
     progress('Copying gamelists to local cache...', 12);
-    const cachedGamelists = cacheGamelists(accessibleSystems);
+    const cachedGamelists = await cacheGamelists(accessibleSystems);
     progress(`Cached ${cachedGamelists.size} gamelists locally`, 18, { cachedCount: cachedGamelists.size });
 
     // Build a map of system ID to system object for quick lookup
@@ -212,45 +251,55 @@ async function fullScan(progressCallback = null) {
     // ONLY process systems that have cached gamelists (have games)
     const systemsWithGames = Array.from(cachedGamelists.keys());
     let totalGames = 0;
+    let processedCount = 0;
 
-    for (let i = 0; i < systemsWithGames.length; i++) {
-      const systemId = systemsWithGames[i];
+    progress(`Parsing ${systemsWithGames.length} gamelists (${PARSE_CONCURRENCY} parallel)...`, 20);
+
+    // Parse gamelists in parallel from LOCAL CACHE (not network!)
+    const parseResults = await parallelLimit(systemsWithGames, PARSE_CONCURRENCY, async (systemId) => {
       const system = systemMap.get(systemId);
       const cachedPath = cachedGamelists.get(systemId);
-      const pct = Math.floor(20 + (i / systemsWithGames.length) * 70);
-
-      progress(`Scanning ${system.fullname}...`, pct, {
-        currentSystem: system.fullname,
-        systemIndex: i + 1,
-        totalSystems: systemsWithGames.length,
-        gamesFound: totalGames
-      });
 
       try {
-        // Parse from local cache only
+        // Parse from LOCAL CACHE only - never reads from network
         const games = await parseGamelistFromFile(cachedPath, system.resolvedPath || system.path, system.id);
 
-        // Store games in memory
+        processedCount++;
+        const pct = Math.floor(20 + (processedCount / systemsWithGames.length) * 70);
+        progress(`Parsed ${system.fullname} (${games.length} games)`, pct, {
+          currentSystem: system.fullname,
+          systemIndex: processedCount,
+          totalSystems: systemsWithGames.length
+        });
+
+        return { systemId, system, games, success: true };
+      } catch (error) {
+        console.error(`Error scanning ${system.id}:`, error.message);
+        processedCount++;
+        return { systemId, system, games: [], success: false };
+      }
+    });
+
+    // Collect results into memory structures (must be sequential to avoid race conditions)
+    for (const result of parseResults) {
+      const { systemId, system, games, success } = result;
+
+      if (success && games.length > 0) {
         const systemGames = [];
         for (const game of games) {
           gamesMap.set(game.id, game);
           systemGames.push(game);
           allGames.push(game);
         }
-        gamesBySystem.set(system.id, systemGames);
-
-        // Update system with game count and store
+        gamesBySystem.set(systemId, systemGames);
         system.gameCount = games.length;
-        systemsMap.set(system.id, system);
-
         totalGames += games.length;
-        console.log(`  ${system.id}: ${games.length} games`);
-      } catch (error) {
-        console.error(`Error scanning ${system.id}:`, error.message);
+        console.log(`  ${systemId}: ${games.length} games`);
+      } else {
         system.gameCount = 0;
-        systemsMap.set(system.id, system);
-        gamesBySystem.set(system.id, []);
+        gamesBySystem.set(systemId, []);
       }
+      systemsMap.set(systemId, system);
     }
 
     // Store systems without games (not in cache) with gameCount = 0

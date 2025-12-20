@@ -61,7 +61,8 @@ async function parseGamelist(romPath, systemName) {
 
   for (const gameData of result.gameList.game) {
     try {
-      const game = parseGameEntry(gameData, resolvedPath, systemName);
+      // Skip file existence check (false) - checking each file over network is too slow
+      const game = parseGameEntry(gameData, resolvedPath, systemName, false);
       if (game) {
         // Filter hidden games unless showHidden is enabled
         if (game.hidden && !showHidden) {
@@ -132,7 +133,8 @@ async function parseGamelistFromFile(cachedFilePath, originalRomPath, systemName
   for (const gameData of result.gameList.game) {
     try {
       // Use the original ROM path for resolving game and media paths
-      const game = parseGameEntry(gameData, resolvedRomPath, systemName);
+      // Skip file existence check (false) - checking each file over network is too slow
+      const game = parseGameEntry(gameData, resolvedRomPath, systemName, false);
       if (game) {
         if (game.hidden && !showHidden) {
           continue;
@@ -152,9 +154,10 @@ async function parseGamelistFromFile(cachedFilePath, originalRomPath, systemName
  * @param {Object} gameData - Raw game object from XML
  * @param {string} romDir - ROM directory path
  * @param {string} systemName - System name
+ * @param {boolean} checkFileExists - Whether to check if file exists (slow over network)
  * @returns {Object|null} Parsed game object or null if invalid
  */
-function parseGameEntry(gameData, romDir, systemName) {
+function parseGameEntry(gameData, romDir, systemName, checkFileExists = false) {
   if (!gameData.path) {
     return null;
   }
@@ -225,8 +228,8 @@ function parseGameEntry(gameData, romDir, systemName) {
     fanart: fanartPath,
     manual: manualPath,
 
-    // File info
-    fileExists: isFileAccessible(fullPath)
+    // File info - skip network check during parsing for speed
+    fileExists: checkFileExists ? isFileAccessible(fullPath) : true
   };
 }
 

@@ -161,7 +161,9 @@ function parseGameEntry(gameData, romDir, systemName) {
 
   const gamePath = gameData.path;
   const fullPath = resolveGamePath(gamePath, romDir);
-  const name = gameData.name || path.basename(gamePath, path.extname(gamePath));
+  // Ensure name is always a string (XML parser may return numbers)
+  const rawName = gameData.name;
+  const name = rawName != null ? String(rawName) : path.basename(gamePath, path.extname(gamePath));
 
   // Generate a unique ID from system and path
   const id = `${systemName}_${pathToId(gamePath)}`;
@@ -392,39 +394,42 @@ function sortGames(games, sortBy = 'name', order = 'asc') {
   const result = [...games];
   const multiplier = order === 'desc' ? -1 : 1;
 
+  // Helper to safely get string for comparison
+  const safeString = (val) => (val != null ? String(val) : '').toLowerCase();
+
   result.sort((a, b) => {
     let aVal, bVal;
 
     switch (sortBy) {
       case 'name':
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
+        aVal = safeString(a.name);
+        bVal = safeString(b.name);
         break;
       case 'year':
         aVal = a.releaseYear || 0;
         bVal = b.releaseYear || 0;
         break;
       case 'rating':
-        aVal = a.rating;
-        bVal = b.rating;
+        aVal = a.rating || 0;
+        bVal = b.rating || 0;
         break;
       case 'playCount':
-        aVal = a.playCount;
-        bVal = b.playCount;
+        aVal = a.playCount || 0;
+        bVal = b.playCount || 0;
         break;
       case 'lastPlayed':
         aVal = a.lastPlayed ? a.lastPlayed.getTime() : 0;
         bVal = b.lastPlayed ? b.lastPlayed.getTime() : 0;
         break;
       case 'gameTime':
-        aVal = a.gameTime;
-        bVal = b.gameTime;
+        aVal = a.gameTime || 0;
+        bVal = b.gameTime || 0;
         break;
       case 'random':
         return Math.random() - 0.5;
       default:
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
+        aVal = safeString(a.name);
+        bVal = safeString(b.name);
     }
 
     if (aVal < bVal) return -1 * multiplier;

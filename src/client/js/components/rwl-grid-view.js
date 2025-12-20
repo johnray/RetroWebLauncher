@@ -1,10 +1,11 @@
 /**
  * RetroWebLauncher - Grid View Component
- * Responsive grid with virtual scrolling for large game lists
+ * Responsive grid with size slider and scrolling
  */
 
 import { state } from '../state.js';
 import { api } from '../api.js';
+import { router } from '../router.js';
 
 class RwlGridView extends HTMLElement {
   constructor() {
@@ -17,25 +18,23 @@ class RwlGridView extends HTMLElement {
     this._totalPages = 1;
     this._loading = false;
     this._selectedIndex = 0;
-    this._columns = 4;
-    this._resizeObserver = null;
-    this._currentLetter = '';
-    this._letterIndex = {}; // Maps letters to first game index
-    this._unsubscribers = []; // Store unsubscribe functions for cleanup
-    this._scrollThrottleTimer = null;
+    this._cardSize = 150; // Default card width in pixels
+    this._unsubscribers = [];
   }
 
   connectedCallback() {
     this._render();
     this._bindEvents();
-    this._setupResizeObserver();
+
+    // Load saved card size preference
+    const savedSize = localStorage.getItem('rwl-card-size');
+    if (savedSize) {
+      this._cardSize = parseInt(savedSize, 10);
+      this._updateCardSize();
+    }
   }
 
   disconnectedCallback() {
-    if (this._resizeObserver) {
-      this._resizeObserver.disconnect();
-    }
-    // Clean up state event listeners
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
   }
@@ -56,11 +55,6 @@ class RwlGridView extends HTMLElement {
     this._loadGames();
   }
 
-  set games(data) {
-    this._games = data || [];
-    this._renderGames();
-  }
-
   async _loadGames() {
     if (this._loading) return;
 
@@ -70,7 +64,7 @@ class RwlGridView extends HTMLElement {
     try {
       let response;
       if (this._systemId) {
-        response = await api.getGames(this._systemId, { page: this._page, limit: 100 });
+        response = await api.getGames(this._systemId, { page: this._page, limit: 500 });
       } else if (this._collectionId) {
         response = await api.getCollection(this._collectionId);
       } else {
@@ -83,112 +77,58 @@ class RwlGridView extends HTMLElement {
         this._games = [...this._games, ...(response.games || [])];
       }
 
-      this._totalPages = response.totalPages || response.pagination?.totalPages || 1;
+      this._totalPages = response.totalPages || 1;
       this._renderGames();
     } catch (error) {
       console.error('Failed to load games:', error);
-      console.error('System ID:', this._systemId, 'Collection ID:', this._collectionId);
       this._showError(`Failed to load games: ${error.message || 'Unknown error'}`);
     } finally {
       this._loading = false;
     }
   }
 
-  _setupResizeObserver() {
-    this._resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        this._calculateColumns(entry.contentRect.width);
-      }
-    });
-
-    this._resizeObserver.observe(this);
-  }
-
-  _calculateColumns(width) {
-    const cardMinWidth = 180;
-    const gap = 16;
-    const newColumns = Math.max(2, Math.floor((width + gap) / (cardMinWidth + gap)));
-
-    if (newColumns !== this._columns) {
-      this._columns = newColumns;
-      this._updateGridStyle();
-    }
-  }
-
-  _updateGridStyle() {
-    const grid = this.shadowRoot.querySelector('.games-grid');
-    if (grid) {
-      grid.style.gridTemplateColumns = `repeat(${this._columns}, 1fr)`;
-    }
-  }
-
   _bindEvents() {
-    // Infinite scroll with throttling for performance
+    // Size slider
+    const slider = this.shadowRoot.querySelector('.size-slider');
+    if (slider) {
+      slider.addEventListener('input', (e) => {
+        this._cardSize = parseInt(e.target.value, 10);
+        this._updateCardSize();
+        localStorage.setItem('rwl-card-size', this._cardSize);
+      });
+    }
+
+    // Scroll for infinite loading
     const container = this.shadowRoot.querySelector('.grid-container');
     if (container) {
       container.addEventListener('scroll', () => {
-        // Throttle scroll checks to every 100ms
-        if (!this._scrollThrottleTimer) {
-          this._scrollThrottleTimer = setTimeout(() => {
-            this._checkInfiniteScroll(container);
-            this._scrollThrottleTimer = null;
-          }, 100);
-        }
+        this._checkInfiniteScroll(container);
       }, { passive: true });
     }
 
-    // Keyboard navigation
-    this.addEventListener('keydown', (e) => this._handleKeyboard(e));
-
-    // Listen for game focus events from input manager
+    // Listen for navigation events
     this._unsubscribers.push(
-      state.on('input:navigate', (direction) => {
-        this._navigate(direction);
-      })
+      state.on('input:navigate', (direction) => this._navigate(direction))
     );
-
     this._unsubscribers.push(
-      state.on('input:select', () => {
-        this._selectCurrent();
-      })
-    );
-
-    this._unsubscribers.push(
-      state.on('input:pageLeft', () => {
-        this._jumpToPreviousLetter();
-      })
-    );
-
-    this._unsubscribers.push(
-      state.on('input:pageRight', () => {
-        this._jumpToNextLetter();
-      })
-    );
-
-    // Keyboard character for quick jump
-    this._unsubscribers.push(
-      state.on('input:character', (char) => {
-        this._jumpToLetter(char.toUpperCase());
-      })
+      state.on('input:select', () => this._selectCurrent())
     );
   }
 
-  _jumpToPreviousLetter() {
-    const letters = Object.keys(this._letterIndex).sort();
-    if (letters.length === 0) return;
+  _updateCardSize() {
+    const grid = this.shadowRoot.querySelector('.games-grid');
+    const slider = this.shadowRoot.querySelector('.size-slider');
+    const sizeLabel = this.shadowRoot.querySelector('.size-label');
 
-    const currentIndex = letters.indexOf(this._currentLetter);
-    const prevIndex = currentIndex > 0 ? currentIndex - 1 : letters.length - 1;
-    this._jumpToLetter(letters[prevIndex]);
-  }
-
-  _jumpToNextLetter() {
-    const letters = Object.keys(this._letterIndex).sort();
-    if (letters.length === 0) return;
-
-    const currentIndex = letters.indexOf(this._currentLetter);
-    const nextIndex = currentIndex < letters.length - 1 ? currentIndex + 1 : 0;
-    this._jumpToLetter(letters[nextIndex]);
+    if (grid) {
+      grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this._cardSize}px, 1fr))`;
+    }
+    if (slider) {
+      slider.value = this._cardSize;
+    }
+    if (sizeLabel) {
+      sizeLabel.textContent = `${this._cardSize}px`;
+    }
   }
 
   _checkInfiniteScroll(container) {
@@ -201,48 +141,22 @@ class RwlGridView extends HTMLElement {
     }
   }
 
-  _handleKeyboard(e) {
-    const moves = {
-      'ArrowUp': 'up',
-      'ArrowDown': 'down',
-      'ArrowLeft': 'left',
-      'ArrowRight': 'right'
-    };
-
-    if (moves[e.key]) {
-      e.preventDefault();
-      this._navigate(moves[e.key]);
-    } else if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      this._selectCurrent();
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      this._selectedIndex = 0;
-      this._focusSelected();
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      this._selectedIndex = this._games.length - 1;
-      this._focusSelected();
-    } else if (e.key === 'PageUp') {
-      e.preventDefault();
-      this._selectedIndex = Math.max(0, this._selectedIndex - this._columns * 3);
-      this._focusSelected();
-    } else if (e.key === 'PageDown') {
-      e.preventDefault();
-      this._selectedIndex = Math.min(this._games.length - 1, this._selectedIndex + this._columns * 3);
-      this._focusSelected();
-    }
-  }
-
   _navigate(direction) {
+    const cards = this.shadowRoot.querySelectorAll('.game-card');
+    if (!cards.length) return;
+
+    const grid = this.shadowRoot.querySelector('.games-grid');
+    const gridStyle = getComputedStyle(grid);
+    const columns = gridStyle.gridTemplateColumns.split(' ').length;
+
     const oldIndex = this._selectedIndex;
 
     switch (direction) {
       case 'up':
-        this._selectedIndex = Math.max(0, this._selectedIndex - this._columns);
+        this._selectedIndex = Math.max(0, this._selectedIndex - columns);
         break;
       case 'down':
-        this._selectedIndex = Math.min(this._games.length - 1, this._selectedIndex + this._columns);
+        this._selectedIndex = Math.min(this._games.length - 1, this._selectedIndex + columns);
         break;
       case 'left':
         this._selectedIndex = Math.max(0, this._selectedIndex - 1);
@@ -253,91 +167,24 @@ class RwlGridView extends HTMLElement {
     }
 
     if (oldIndex !== this._selectedIndex) {
-      this._focusSelected();
+      this._focusCard(this._selectedIndex);
     }
   }
 
-  _focusSelected() {
-    const cards = this.shadowRoot.querySelectorAll('rwl-game-card');
-    if (cards[this._selectedIndex]) {
-      cards[this._selectedIndex].focus();
-      cards[this._selectedIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      state.emit('gameSelected', this._games[this._selectedIndex]);
-      this._updateCurrentLetter();
-    }
-  }
-
-  _buildLetterIndex() {
-    this._letterIndex = {};
-    this._games.forEach((game, index) => {
-      if (!game.name) return;
-      let firstChar = game.name.charAt(0).toUpperCase();
-      // Group numbers and special chars under #
-      if (!/[A-Z]/.test(firstChar)) {
-        firstChar = '#';
-      }
-      if (!(firstChar in this._letterIndex)) {
-        this._letterIndex[firstChar] = index;
-      }
+  _focusCard(index) {
+    const cards = this.shadowRoot.querySelectorAll('.game-card');
+    cards.forEach((card, i) => {
+      card.classList.toggle('selected', i === index);
     });
-  }
-
-  _jumpToLetter(letter) {
-    if (letter in this._letterIndex) {
-      this._selectedIndex = this._letterIndex[letter];
-      this._focusSelected();
-      this._updateAlphabetBar();
+    if (cards[index]) {
+      cards[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }
-
-  _updateCurrentLetter() {
-    const game = this._games[this._selectedIndex];
-    if (!game?.name) return;
-
-    let letter = game.name.charAt(0).toUpperCase();
-    if (!/[A-Z]/.test(letter)) {
-      letter = '#';
-    }
-
-    if (letter !== this._currentLetter) {
-      this._currentLetter = letter;
-      this._updateAlphabetBar();
-    }
-  }
-
-  _updateAlphabetBar() {
-    const bar = this.shadowRoot.querySelector('.alphabet-bar');
-    if (!bar) return;
-
-    bar.querySelectorAll('.alpha-letter').forEach(el => {
-      el.classList.toggle('active', el.dataset.letter === this._currentLetter);
-      el.classList.toggle('has-games', el.dataset.letter in this._letterIndex);
-    });
-  }
-
-  _renderAlphabetBar() {
-    // Only show for large game lists
-    if (this._games.length < 50) return '';
-
-    const letters = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
-
-    return `
-      <div class="alphabet-bar">
-        ${letters.map(letter => `
-          <button
-            class="alpha-letter ${letter in this._letterIndex ? 'has-games' : ''} ${letter === this._currentLetter ? 'active' : ''}"
-            data-letter="${letter}"
-            title="${letter}"
-          >${letter}</button>
-        `).join('')}
-      </div>
-    `;
   }
 
   _selectCurrent() {
     const game = this._games[this._selectedIndex];
     if (game) {
-      state.emit('gameActivated', game);
+      router.navigate(`/game/${game.id}`);
     }
   }
 
@@ -345,291 +192,303 @@ class RwlGridView extends HTMLElement {
     const grid = this.shadowRoot.querySelector('.games-grid');
     if (!grid) return;
 
-    if (this._page === 1) {
-      grid.innerHTML = `
-        <div class="loading-placeholder">
-          ${Array(12).fill().map(() => `
-            <div class="loading-card"></div>
-          `).join('')}
-        </div>
-      `;
-    }
+    grid.innerHTML = `
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading games...</p>
+      </div>
+    `;
   }
 
   _showError(message) {
     const grid = this.shadowRoot.querySelector('.games-grid');
     if (grid) {
       grid.innerHTML = `
-        <div class="error-message">
-          <span class="error-icon">⚠️</span>
+        <div class="error-state">
           <p>${message}</p>
           <button class="retry-btn">Retry</button>
         </div>
       `;
-
-      grid.querySelector('.retry-btn')?.addEventListener('click', () => {
-        this._loadGames();
-      });
+      grid.querySelector('.retry-btn')?.addEventListener('click', () => this._loadGames());
     }
+  }
+
+  _getImageUrl(game) {
+    if (game.thumbnail || game.image || game.marquee) {
+      return `/api/media/game/${game.id}/thumbnail`;
+    }
+    return '';
   }
 
   _renderGames() {
     const grid = this.shadowRoot.querySelector('.games-grid');
-    const container = this.shadowRoot.querySelector('.grid-container');
     if (!grid) return;
-
-    // Remove old alphabet bar if exists
-    const oldBar = this.shadowRoot.querySelector('.alphabet-bar');
-    if (oldBar) oldBar.remove();
 
     if (this._games.length === 0) {
       grid.innerHTML = `
         <div class="empty-state">
-          <span class="empty-icon">🎮</span>
           <p>No games found</p>
         </div>
       `;
       return;
     }
 
-    // Build letter index for alphabet navigation
-    this._buildLetterIndex();
-    this._updateCurrentLetter();
+    grid.innerHTML = this._games.map((game, index) => {
+      const imageUrl = this._getImageUrl(game);
+      const name = game.name || 'Unknown Game';
 
-    // Create or update game cards
-    grid.innerHTML = this._games.map((game, index) => `
-      <rwl-game-card
-        tabindex="${index === this._selectedIndex ? '0' : '-1'}"
-        data-index="${index}"
-      ></rwl-game-card>
-    `).join('');
+      return `
+        <div class="game-card" data-index="${index}" data-game-id="${game.id}" tabindex="0">
+          <div class="card-image">
+            ${imageUrl
+              ? `<img src="${imageUrl}" alt="${name}" loading="lazy" />`
+              : `<div class="no-image">🎮</div>`
+            }
+          </div>
+          <div class="card-title">${name}</div>
+        </div>
+      `;
+    }).join('');
 
-    // Set game data on cards
-    const cards = grid.querySelectorAll('rwl-game-card');
-    cards.forEach((card, index) => {
-      card.game = this._games[index];
+    // Bind click events to cards
+    grid.querySelectorAll('.game-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const gameId = card.dataset.gameId;
+        if (gameId) {
+          router.navigate(`/game/${gameId}`);
+        }
+      });
+
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const gameId = card.dataset.gameId;
+          if (gameId) {
+            router.navigate(`/game/${gameId}`);
+          }
+        }
+      });
     });
 
-    // Update grid columns
-    this._updateGridStyle();
-
-    // Add alphabet bar for large lists
-    if (this._games.length >= 50 && container) {
-      container.insertAdjacentHTML('beforeend', this._renderAlphabetBar());
-      this._bindAlphabetBar();
-    }
-  }
-
-  _bindAlphabetBar() {
-    const bar = this.shadowRoot.querySelector('.alphabet-bar');
-    if (!bar) return;
-
-    bar.addEventListener('click', (e) => {
-      const letterBtn = e.target.closest('.alpha-letter');
-      if (letterBtn) {
-        this._jumpToLetter(letterBtn.dataset.letter);
-      }
-    });
-
-    // Touch drag support for quick scrolling
-    let isDragging = false;
-    bar.addEventListener('touchstart', () => { isDragging = true; }, { passive: true });
-    bar.addEventListener('touchend', () => { isDragging = false; }, { passive: true });
-    bar.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
-      const touch = e.touches[0];
-      const element = this.shadowRoot.elementFromPoint(touch.clientX, touch.clientY);
-      if (element?.classList.contains('alpha-letter')) {
-        this._jumpToLetter(element.dataset.letter);
-      }
-    }, { passive: true });
+    // Apply current card size
+    this._updateCardSize();
+    this._updateGameCount();
   }
 
   _render() {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: block;
+          display: flex;
+          flex-direction: column;
           height: 100%;
           overflow: hidden;
         }
 
         .grid-container {
-          position: relative;
-          height: 100%;
+          flex: 1;
           overflow-y: auto;
           overflow-x: hidden;
-          padding: var(--spacing-md, 1rem);
+          padding: 1rem;
+          padding-bottom: 60px;
         }
 
         .games-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: var(--spacing-md, 1rem);
-          min-height: 100%;
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          gap: 1rem;
+          align-content: start;
         }
 
-        rwl-game-card {
+        .game-card {
+          background: rgba(30, 30, 30, 0.8);
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .game-card:hover {
+          transform: scale(1.05);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 20px rgba(255,0,102,0.3);
+          z-index: 10;
+        }
+
+        .game-card:focus {
+          outline: 3px solid #ff0066;
+          outline-offset: 2px;
+        }
+
+        .game-card.selected {
+          outline: 3px solid #ff0066;
+        }
+
+        .card-image {
           aspect-ratio: 3/4;
+          background: #111;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
         }
 
-        .loading-placeholder {
-          display: contents;
+        .card-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
-        .loading-card {
-          aspect-ratio: 3/4;
-          background: linear-gradient(
-            90deg,
-            rgba(255,255,255,0.05) 0%,
-            rgba(255,255,255,0.1) 50%,
-            rgba(255,255,255,0.05) 100%
-          );
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-          border-radius: var(--radius-md, 8px);
+        .no-image {
+          font-size: 3rem;
+          opacity: 0.3;
         }
 
-        @keyframes shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
+        .card-title {
+          padding: 0.5rem;
+          font-size: 0.75rem;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          background: rgba(0,0,0,0.6);
         }
 
+        /* Slider toolbar at bottom */
+        .slider-toolbar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 50px;
+          background: rgba(20, 20, 20, 0.95);
+          border-top: 1px solid rgba(255,255,255,0.1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          padding: 0 1rem;
+          backdrop-filter: blur(10px);
+          z-index: 100;
+        }
+
+        .slider-label {
+          color: #888;
+          font-size: 0.75rem;
+        }
+
+        .size-slider {
+          width: 200px;
+          height: 4px;
+          -webkit-appearance: none;
+          appearance: none;
+          background: rgba(255,255,255,0.2);
+          border-radius: 2px;
+          outline: none;
+        }
+
+        .size-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          background: #ff0066;
+          border-radius: 50%;
+          cursor: pointer;
+        }
+
+        .size-slider::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          background: #ff0066;
+          border-radius: 50%;
+          cursor: pointer;
+          border: none;
+        }
+
+        .size-label {
+          color: #fff;
+          font-size: 0.75rem;
+          min-width: 50px;
+        }
+
+        .game-count {
+          color: #888;
+          font-size: 0.75rem;
+          margin-left: auto;
+        }
+
+        /* States */
+        .loading-state,
         .empty-state,
-        .error-message {
+        .error-state {
           grid-column: 1 / -1;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: var(--spacing-xl, 3rem);
-          text-align: center;
+          padding: 3rem;
+          color: #888;
         }
 
-        .empty-icon,
-        .error-icon {
-          font-size: 4rem;
-          margin-bottom: var(--spacing-md, 1rem);
-          opacity: 0.5;
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(255,255,255,0.1);
+          border-top-color: #ff0066;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
         }
 
-        .empty-state p,
-        .error-message p {
-          color: var(--color-text-muted, #888);
-          font-size: var(--font-size-lg, 1.25rem);
-          margin: 0;
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
 
         .retry-btn {
-          margin-top: var(--spacing-md, 1rem);
-          padding: var(--spacing-sm, 0.5rem) var(--spacing-lg, 1.5rem);
-          background: var(--color-primary, #ff0066);
+          margin-top: 1rem;
+          padding: 0.5rem 1.5rem;
+          background: #ff0066;
           border: none;
-          border-radius: var(--radius-md, 8px);
-          color: var(--color-text, #fff);
-          font-size: var(--font-size-sm, 0.75rem);
+          border-radius: 4px;
+          color: #fff;
           cursor: pointer;
-          transition: background var(--transition-fast, 150ms);
         }
 
         .retry-btn:hover {
-          background: var(--color-primary-hover, #ff3388);
+          background: #ff3388;
         }
 
         /* Scrollbar */
         .grid-container::-webkit-scrollbar {
           width: 8px;
         }
-
         .grid-container::-webkit-scrollbar-track {
           background: rgba(0,0,0,0.2);
         }
-
         .grid-container::-webkit-scrollbar-thumb {
           background: rgba(255,255,255,0.2);
           border-radius: 4px;
         }
-
         .grid-container::-webkit-scrollbar-thumb:hover {
           background: rgba(255,255,255,0.3);
-        }
-
-        /* Alphabet Bar */
-        .alphabet-bar {
-          position: absolute;
-          right: 4px;
-          top: 50%;
-          transform: translateY(-50%);
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          padding: var(--spacing-xs, 0.25rem);
-          background: rgba(0, 0, 0, 0.7);
-          border-radius: var(--radius-md, 8px);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          z-index: 100;
-          max-height: calc(100% - 2rem);
-          overflow-y: auto;
-          scrollbar-width: none;
-        }
-
-        .alphabet-bar::-webkit-scrollbar {
-          display: none;
-        }
-
-        .alpha-letter {
-          width: 24px;
-          height: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-          font-weight: 600;
-          background: transparent;
-          border: none;
-          color: rgba(255, 255, 255, 0.3);
-          cursor: pointer;
-          border-radius: 3px;
-          transition: all 0.15s ease;
-          padding: 0;
-        }
-
-        .alpha-letter.has-games {
-          color: rgba(255, 255, 255, 0.7);
-        }
-
-        .alpha-letter.has-games:hover {
-          background: rgba(255, 0, 102, 0.3);
-          color: #fff;
-        }
-
-        .alpha-letter.active {
-          background: var(--color-primary, #ff0066);
-          color: #fff;
-          box-shadow: 0 0 10px rgba(255, 0, 102, 0.5);
         }
 
         /* Mobile */
         @media (max-width: 640px) {
           .games-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: var(--spacing-sm, 0.5rem);
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.5rem;
           }
-
           .grid-container {
-            padding: var(--spacing-sm, 0.5rem);
+            padding: 0.5rem;
           }
-
-          .alphabet-bar {
-            right: 2px;
-            padding: 2px;
+          .slider-toolbar {
+            height: 44px;
           }
-
-          .alpha-letter {
-            width: 18px;
-            height: 16px;
-            font-size: 8px;
+          .size-slider {
+            width: 120px;
           }
         }
       </style>
@@ -637,12 +496,28 @@ class RwlGridView extends HTMLElement {
       <div class="grid-container">
         <div class="games-grid">
           <div class="empty-state">
-            <span class="empty-icon">🎮</span>
             <p>Select a system to view games</p>
           </div>
         </div>
       </div>
+
+      <div class="slider-toolbar">
+        <span class="slider-label">Size:</span>
+        <input type="range" class="size-slider" min="80" max="250" value="${this._cardSize}" />
+        <span class="size-label">${this._cardSize}px</span>
+        <span class="game-count"></span>
+      </div>
     `;
+
+    // Update game count when games are loaded
+    this._updateGameCount();
+  }
+
+  _updateGameCount() {
+    const countEl = this.shadowRoot.querySelector('.game-count');
+    if (countEl && this._games.length > 0) {
+      countEl.textContent = `${this._games.length} games`;
+    }
   }
 }
 

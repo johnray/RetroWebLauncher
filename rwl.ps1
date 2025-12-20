@@ -1580,7 +1580,7 @@ function Select-InstallDirectory {
     Write-Host ""
 
     # Suggest a default path
-    $defaultPath = "C:\RetroWebLauncher"
+    $defaultPath = "E:\Emulators-and-Launchers\RetroWebLauncher"
 
     # If we're already in a reasonable location, offer to stay
     $currentIsReasonable = $script:ScriptDir -notmatch '\\(Temp|Downloads|Desktop)\\' -and
@@ -1928,7 +1928,7 @@ function Invoke-Setup {
     if (-not $Silent) {
         Write-Step "Step 7: Shortcuts (Optional)"
 
-        if (Confirm-Action -Message "Create Start Menu shortcut?" -Default $true) {
+        if (Confirm-Action -Message "Create Start Menu shortcut?" -Default $false) {
             try {
                 $startMenuPath = [Environment]::GetFolderPath('StartMenu') + "\Programs"
                 $shortcutPath = Join-Path $startMenuPath "RetroWebLauncher.lnk"

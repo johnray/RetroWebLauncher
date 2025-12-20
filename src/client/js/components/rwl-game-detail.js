@@ -49,7 +49,8 @@ class RwlGameDetail extends HTMLElement {
     try {
       this._showLoading();
       const response = await api.getGame(gameId);
-      this._game = response.game;
+      // API returns game properties directly at root level, not wrapped in .game
+      this._game = response;
       this._renderContent();
     } catch (error) {
       console.error('Failed to load game:', error);

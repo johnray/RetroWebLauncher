@@ -165,11 +165,22 @@ class RwlApp extends HTMLElement {
   }
 
   _renderSystemView(container, systemId) {
-    // Always use grid view for systems
-    container.innerHTML = `<rwl-grid-view></rwl-grid-view>`;
-    const gridView = container.querySelector('rwl-grid-view');
-    if (gridView) {
-      gridView.systemId = systemId;
+    // Use wheel view by default, grid view if configured
+    const viewType = this._config?.defaultView || 'wheel';
+
+    if (viewType === 'grid') {
+      container.innerHTML = `<rwl-grid-view></rwl-grid-view>`;
+      const gridView = container.querySelector('rwl-grid-view');
+      if (gridView) {
+        gridView.systemId = systemId;
+      }
+    } else {
+      // Default to wheel view
+      container.innerHTML = `<rwl-wheel-view></rwl-wheel-view>`;
+      const wheelView = container.querySelector('rwl-wheel-view');
+      if (wheelView) {
+        wheelView.systemId = systemId;
+      }
     }
   }
 

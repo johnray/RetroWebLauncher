@@ -2888,16 +2888,16 @@ function Show-Menu {
 
 try {
     switch ($Command.ToLower()) {
-        'install'   { $result = Invoke-Install; if (-not $Silent) { Pause-ForUser } }
-        'setup'     { $result = Invoke-Setup; if (-not $Silent) { Pause-ForUser } }
-        'start'     { $result = Invoke-Start; if (-not $Silent) { Pause-ForUser } }
-        'stop'      { $result = Invoke-Stop; if (-not $Silent) { Pause-ForUser } }
-        'restart'   { $result = Invoke-Restart; if (-not $Silent) { Pause-ForUser } }
-        'status'    { $result = Invoke-Status; if (-not $Silent) { Pause-ForUser } }
-        'config'    { $result = Invoke-Config; if (-not $Silent) { Pause-ForUser } }
-        'update'    { $result = Invoke-Update; if (-not $Silent) { Pause-ForUser } }
+        'install'   { $result = Invoke-Install }
+        'setup'     { $result = Invoke-Setup }
+        'start'     { $result = Invoke-Start }
+        'stop'      { $result = Invoke-Stop }
+        'restart'   { $result = Invoke-Restart }
+        'status'    { $result = Invoke-Status }
+        'config'    { $result = Invoke-Config }
+        'update'    { $result = Invoke-Update }
         'dev'       { Invoke-Dev }
-        'uninstall' { $result = Invoke-Uninstall; if (-not $Silent) { Pause-ForUser } }
+        'uninstall' { $result = Invoke-Uninstall }
         'help'      { Show-Help }
         ''          { Show-Menu }
         'menu'      { Show-Menu }
@@ -2908,7 +2908,6 @@ catch {
     Write-Log "Unhandled exception: $($_.Exception.Message)" -Level ERROR
     Write-Log $_.ScriptStackTrace -Level ERROR
     Write-Error2 "An unexpected error occurred: $($_.Exception.Message)"
-    if (-not $Silent) { Pause-ForUser }
     exit 1
 }
 

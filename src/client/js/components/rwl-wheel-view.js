@@ -492,6 +492,7 @@ class RwlWheelView extends HTMLElement {
           position: absolute;
           top: -5%; left: -5%;
           width: 110%; height: 110%;
+          background-color: var(--color-background, #0a0a0a);
           background-size: cover;
           background-position: center;
           filter: blur(20px) brightness(var(--bg-brightness, 0.4));

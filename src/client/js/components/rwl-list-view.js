@@ -788,9 +788,10 @@ class RwlListView extends HTMLElement {
           left: -5%;
           width: 110%;
           height: 110%;
+          background-color: var(--color-background, #0a0a0a);
           background-size: cover;
           background-position: center;
-          filter: blur(25px) brightness(0.5);
+          filter: blur(25px) brightness(var(--bg-brightness, 0.5));
           opacity: 0;
           transition: opacity 0.5s ease, background-image 0.5s ease;
         }

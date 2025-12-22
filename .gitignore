@@ -34,6 +34,7 @@ Desktop.ini
 
 # AI assistant notes
 CLAUDE.md
+.claude/
 
 # Build output
 dist/

@@ -1,6 +1,6 @@
 /**
- * RetroWebLauncher - Wheel View Component (Carousel)
- * Horizontal carousel at bottom, details panel with CRT video above
+ * RetroWebLauncher - Spin Wheel View Component
+ * HyperSpin-style vertical spinning wheel on right, details on left
  */
 
 import { state } from '../state.js';
@@ -8,7 +8,7 @@ import { api } from '../api.js';
 import { router } from '../router.js';
 import { themeService } from '../theme-service.js';
 
-class RwlWheelView extends HTMLElement {
+class RwlSpinWheel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -16,10 +16,11 @@ class RwlWheelView extends HTMLElement {
     this._systemId = null;
     this._currentIndex = 0;
     this._loading = false;
+    this._rotation = 0;
     this._letterIndex = {};
     this._currentLetter = '#';
     this._unsubscribers = [];
-    this._cardSize = 330; // Will be loaded per-section when systemId is set
+    this._cardSize = 300; // Will be loaded per-section when systemId is set
   }
 
   /**
@@ -34,13 +35,13 @@ class RwlWheelView extends HTMLElement {
    */
   _loadSectionSize() {
     const key = this._getSectionKey();
-    const stored = localStorage.getItem(`rwl-wheel-size-${key}`);
+    const stored = localStorage.getItem(`rwl-spin-size-${key}`);
     if (stored) {
       this._cardSize = parseInt(stored, 10);
     } else {
       // Fall back to theme default
-      const carouselSettings = themeService.getCarouselSettings();
-      this._cardSize = carouselSettings?.sizing?.defaultCardSize || 330;
+      const spinWheelSettings = themeService.getSpinWheelSettings();
+      this._cardSize = spinWheelSettings?.sizing?.defaultCardSize || 300;
     }
     this._updateSlider();
   }
@@ -50,7 +51,7 @@ class RwlWheelView extends HTMLElement {
    */
   _saveSectionSize() {
     const key = this._getSectionKey();
-    localStorage.setItem(`rwl-wheel-size-${key}`, this._cardSize);
+    localStorage.setItem(`rwl-spin-size-${key}`, this._cardSize);
   }
 
   /**
@@ -67,7 +68,7 @@ class RwlWheelView extends HTMLElement {
     this._render();
     this._bindEvents();
 
-    const savedPos = sessionStorage.getItem(`rwl-wheel-pos-${this._systemId}`);
+    const savedPos = sessionStorage.getItem(`rwl-spin-pos-${this._systemId}`);
     if (savedPos) {
       this._currentIndex = parseInt(savedPos, 10);
     }
@@ -75,7 +76,7 @@ class RwlWheelView extends HTMLElement {
 
   disconnectedCallback() {
     if (this._systemId && this._games.length > 0) {
-      sessionStorage.setItem(`rwl-wheel-pos-${this._systemId}`, this._currentIndex);
+      sessionStorage.setItem(`rwl-spin-pos-${this._systemId}`, this._currentIndex);
     }
 
     this._unsubscribers.forEach(unsub => unsub());
@@ -87,7 +88,7 @@ class RwlWheelView extends HTMLElement {
   set systemId(id) {
     this._systemId = id;
 
-    const savedPos = sessionStorage.getItem(`rwl-wheel-pos-${id}`);
+    const savedPos = sessionStorage.getItem(`rwl-spin-pos-${id}`);
     this._currentIndex = savedPos ? parseInt(savedPos, 10) : 0;
 
     this._loadSectionSize();
@@ -113,7 +114,7 @@ class RwlWheelView extends HTMLElement {
         this._currentIndex = Math.max(0, this._games.length - 1);
       }
 
-      this._renderGames();
+      this._renderWheel();
     } catch (error) {
       console.error('Failed to load games:', error);
       this._showError();
@@ -124,10 +125,10 @@ class RwlWheelView extends HTMLElement {
 
   _bindEvents() {
     this._keyHandler = (e) => {
-      if (e.key === 'ArrowLeft') {
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
         this._navigate(-1);
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         this._navigate(1);
       } else if (e.key === 'Enter') {
@@ -142,11 +143,11 @@ class RwlWheelView extends HTMLElement {
       } else if (e.key === 'Home') {
         e.preventDefault();
         this._currentIndex = 0;
-        this._updateCarousel();
+        this._updateWheel();
       } else if (e.key === 'End') {
         e.preventDefault();
         this._currentIndex = this._games.length - 1;
-        this._updateCarousel();
+        this._updateWheel();
       } else if (/^[a-zA-Z]$/.test(e.key)) {
         this._jumpToLetter(e.key.toUpperCase());
       }
@@ -155,8 +156,8 @@ class RwlWheelView extends HTMLElement {
 
     this._unsubscribers.push(
       state.on('input:navigate', (direction) => {
-        if (direction === 'left') this._navigate(-1);
-        if (direction === 'right') this._navigate(1);
+        if (direction === 'up') this._navigate(-1);
+        if (direction === 'down') this._navigate(1);
       })
     );
 
@@ -169,7 +170,7 @@ class RwlWheelView extends HTMLElement {
     if (this._games.length === 0) return;
 
     this._currentIndex = (this._currentIndex + delta + this._games.length) % this._games.length;
-    this._updateCarousel();
+    this._updateWheel();
 
     const game = this.selectedGame;
     if (game) {
@@ -180,7 +181,7 @@ class RwlWheelView extends HTMLElement {
   _selectCurrent() {
     const game = this.selectedGame;
     if (game) {
-      sessionStorage.setItem(`rwl-wheel-pos-${this._systemId}`, this._currentIndex);
+      sessionStorage.setItem(`rwl-spin-pos-${this._systemId}`, this._currentIndex);
       router.navigate(`/game/${game.id}`);
     }
   }
@@ -201,7 +202,7 @@ class RwlWheelView extends HTMLElement {
     if (letter in this._letterIndex) {
       this._currentIndex = this._letterIndex[letter];
       this._currentLetter = letter;
-      this._updateCarousel();
+      this._updateWheel();
       this._updateAlphabetBar();
     }
   }
@@ -244,7 +245,7 @@ class RwlWheelView extends HTMLElement {
   }
 
   _showLoading() {
-    const container = this.shadowRoot.querySelector('.carousel-area');
+    const container = this.shadowRoot.querySelector('.wheel-area');
     if (container) {
       container.innerHTML = `
         <div class="state-message">
@@ -256,7 +257,7 @@ class RwlWheelView extends HTMLElement {
   }
 
   _showError() {
-    const container = this.shadowRoot.querySelector('.carousel-area');
+    const container = this.shadowRoot.querySelector('.wheel-area');
     if (container) {
       container.innerHTML = `
         <div class="state-message">
@@ -267,8 +268,8 @@ class RwlWheelView extends HTMLElement {
     }
   }
 
-  _renderGames() {
-    const container = this.shadowRoot.querySelector('.carousel-area');
+  _renderWheel() {
+    const container = this.shadowRoot.querySelector('.wheel-area');
     if (!container) return;
 
     if (this._games.length === 0) {
@@ -281,59 +282,60 @@ class RwlWheelView extends HTMLElement {
       return;
     }
 
+    const visibleItems = 5;
+
     container.innerHTML = `
-      <div class="carousel">
-        <div class="carousel-track">
-          ${this._games.map((game, index) => this._renderCard(game, index)).join('')}
-        </div>
+      <div class="spin-wheel">
+        <div class="wheel-track"></div>
+        <div class="wheel-pointer"></div>
+        <div class="wheel-glow"></div>
       </div>
     `;
 
-    // Bind click events
-    this.shadowRoot.querySelectorAll('.card').forEach((card, i) => {
-      card.addEventListener('click', () => {
-        if (i === this._currentIndex) {
-          this._selectCurrent();
-        } else {
-          this._currentIndex = i;
-          this._updateCarousel();
-        }
-      });
-    });
+    this._renderWheelItems();
+    this._renderAlphabetBar();
 
-    // Wheel on carousel
-    this.shadowRoot.querySelector('.carousel')?.addEventListener('wheel', (e) => {
+    this.shadowRoot.querySelector('.spin-wheel')?.addEventListener('wheel', (e) => {
       e.preventDefault();
       this._navigate(e.deltaY > 0 ? 1 : -1);
     });
 
-    // Update game count
-    const countEl = this.shadowRoot.querySelector('.game-count');
-    if (countEl) {
-      countEl.textContent = `${this._games.length} games`;
-    }
-
-    this._applyCardSize();
-    this._renderAlphabetBar();
-    this._updateCarousel();
+    this._updateWheel();
   }
 
-  _renderCard(game, index) {
-    const hasImage = game.thumbnail || game.image;
-    const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
+  _renderWheelItems() {
+    const track = this.shadowRoot.querySelector('.wheel-track');
+    if (!track) return;
 
-    return `
-      <div class="card" data-index="${index}">
-        <div class="card-image">
-          ${imageUrl ? `<img src="${imageUrl}" alt="${game.name}" loading="lazy">` : '<span class="no-img">🎮</span>'}
+    track.innerHTML = this._games.map((game, index) => {
+      const hasImage = game.thumbnail || game.image;
+      const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
+
+      return `
+        <div class="wheel-item" data-index="${index}">
+          <div class="item-image">
+            ${imageUrl ? `<img src="${imageUrl}" alt="${game.name}" loading="lazy">` : '<span class="no-img">🎮</span>'}
+          </div>
+          <div class="item-title">${game.name}</div>
+          ${game.favorite ? '<span class="badge favorite">❤</span>' : ''}
         </div>
-        ${game.favorite ? '<span class="badge favorite">❤</span>' : ''}
-      </div>
-    `;
+      `;
+    }).join('');
+
+    track.querySelectorAll('.wheel-item').forEach((item, i) => {
+      item.addEventListener('click', () => {
+        if (i === this._currentIndex) {
+          this._selectCurrent();
+        } else {
+          this._currentIndex = i;
+          this._updateWheel();
+        }
+      });
+    });
   }
 
   _renderAlphabetBar() {
-    const wrapper = this.shadowRoot.querySelector('.wheel-view');
+    const wrapper = this.shadowRoot.querySelector('.spin-view');
     if (!wrapper) return;
 
     const existing = wrapper.querySelector('.alphabet-bar');
@@ -363,33 +365,53 @@ class RwlWheelView extends HTMLElement {
     });
   }
 
-  _updateCarousel() {
-    const track = this.shadowRoot.querySelector('.carousel-track');
-    const cards = this.shadowRoot.querySelectorAll('.card');
+  _updateWheel() {
+    const track = this.shadowRoot.querySelector('.wheel-track');
+    const items = this.shadowRoot.querySelectorAll('.wheel-item');
     const counter = this.shadowRoot.querySelector('.counter');
 
-    if (!track || cards.length === 0) return;
+    if (!track || items.length === 0) return;
 
-    // Update active state
-    cards.forEach((card, i) => {
-      card.classList.toggle('active', i === this._currentIndex);
-      card.classList.toggle('prev', i === this._currentIndex - 1);
-      card.classList.toggle('next', i === this._currentIndex + 1);
+    const itemHeight = this._cardSize * 0.35;
+    const visibleItems = 5;
+
+    items.forEach((item, i) => {
+      const offset = i - this._currentIndex;
+      const absOffset = Math.abs(offset);
+
+      const angle = offset * 22;
+      const translateZ = -Math.abs(offset) * 40;
+      const translateY = offset * itemHeight;
+      const opacity = Math.max(0, 1 - absOffset * 0.25);
+      const scale = Math.max(0.55, 1 - absOffset * 0.12);
+
+      item.style.transform = `
+        translateY(${translateY}px)
+        translateZ(${translateZ}px)
+        rotateX(${-angle}deg)
+        scale(${scale})
+      `;
+      item.style.opacity = opacity;
+      item.style.zIndex = 100 - absOffset;
+
+      const imgContainer = item.querySelector('.item-image');
+      if (imgContainer) {
+        imgContainer.style.width = `${this._cardSize * 0.3}px`;
+        imgContainer.style.height = `${this._cardSize * 0.4}px`;
+      }
+
+      item.style.width = `${this._cardSize}px`;
+      item.classList.toggle('active', i === this._currentIndex);
+      item.classList.toggle('hidden', absOffset > visibleItems);
     });
 
-    // Calculate translation
-    const cardWidth = this._cardSize;
-    const gap = Math.round(this._cardSize * 0.09);
-    const containerWidth = this.shadowRoot.querySelector('.carousel')?.offsetWidth || 800;
-    const centerOffset = (containerWidth / 2) - (cardWidth / 2);
-    const translateX = centerOffset - (this._currentIndex * (cardWidth + gap));
+    const gameCount = this.shadowRoot.querySelector('.game-count');
+    if (gameCount) {
+      gameCount.textContent = `${this._games.length} games`;
+    }
 
-    track.style.transform = `translateX(${translateX}px)`;
-
-    // Update counter
     if (counter) counter.textContent = `${this._currentIndex + 1} / ${this._games.length}`;
 
-    // Update game details
     this._updateGameDetails();
     this._updateCurrentLetter();
   }
@@ -402,22 +424,22 @@ class RwlWheelView extends HTMLElement {
 
     if (!detailsPanel || !game) return;
 
-    // Update background
+    // Background
     if (bgImage) {
       const imgUrl = `/api/media/game/${game.id}/fanart`;
       bgImage.style.backgroundImage = `url('${imgUrl}'), url('/api/media/game/${game.id}/screenshot')`;
     }
 
-    // Update CRT TV video player
+    // CRT TV video player
     if (videoPlayer) {
       const videoUrl = `/api/media/game/${game.id}/video`;
       videoPlayer.src = videoUrl;
     }
 
-    // Build details
+    // Details
     const rating = this._formatRating(game.rating);
     const ratingHtml = rating
-      ? `<div class="detail-item"><span class="rating-stars">${'★'.repeat(rating.filled)}${'☆'.repeat(rating.empty)}</span></div>`
+      ? `<div class="detail-row"><span class="detail-label">Rating</span><span class="rating-stars">${'★'.repeat(rating.filled)}${'☆'.repeat(rating.empty)}</span></div>`
       : '';
 
     detailsPanel.innerHTML = `
@@ -425,14 +447,14 @@ class RwlWheelView extends HTMLElement {
       <div class="game-meta">
         ${game.releaseYear ? `<span class="meta-item">${game.releaseYear}</span>` : ''}
         ${game.genre ? `<span class="meta-item">${game.genre}</span>` : ''}
-        ${game.developer ? `<span class="meta-item">${game.developer}</span>` : ''}
       </div>
-      <div class="details-row">
-        ${game.publisher ? `<div class="detail-item"><span class="label">Publisher</span><span class="value">${game.publisher}</span></div>` : ''}
-        ${game.players ? `<div class="detail-item"><span class="label">Players</span><span class="value">${game.players}</span></div>` : ''}
-        ${game.region ? `<div class="detail-item"><span class="label">Region</span><span class="value">${game.region}</span></div>` : ''}
+      <div class="details-grid">
+        ${game.developer ? `<div class="detail-row"><span class="detail-label">Developer</span><span class="detail-value">${game.developer}</span></div>` : ''}
+        ${game.publisher ? `<div class="detail-row"><span class="detail-label">Publisher</span><span class="detail-value">${game.publisher}</span></div>` : ''}
+        ${game.players ? `<div class="detail-row"><span class="detail-label">Players</span><span class="detail-value">${game.players}</span></div>` : ''}
+        ${game.region ? `<div class="detail-row"><span class="detail-label">Region</span><span class="detail-value">${game.region}</span></div>` : ''}
         ${ratingHtml}
-        ${game.playCount ? `<div class="detail-item"><span class="label">Plays</span><span class="value">${game.playCount}</span></div>` : ''}
+        ${game.playCount ? `<div class="detail-row"><span class="detail-label">Play Count</span><span class="detail-value">${game.playCount}</span></div>` : ''}
       </div>
       ${game.description ? `<p class="game-desc">${game.description}</p>` : ''}
     `;
@@ -441,29 +463,10 @@ class RwlWheelView extends HTMLElement {
   _onSliderChange(e) {
     this._cardSize = parseInt(e.target.value, 10);
     this._saveSectionSize();
-    this._applyCardSize();
-    this._updateCarousel();
-  }
-
-  _applyCardSize() {
-    const cards = this.shadowRoot.querySelectorAll('.card');
-    const height = Math.round(this._cardSize * 1.36);
-
-    cards.forEach(card => {
-      card.style.width = `${this._cardSize}px`;
-      card.style.height = `${height}px`;
-    });
-
-    const track = this.shadowRoot.querySelector('.carousel-track');
-    if (track) {
-      track.style.gap = `${Math.round(this._cardSize * 0.09)}px`;
-    }
+    this._updateWheel();
   }
 
   _render() {
-    const cardHeight = Math.round(this._cardSize * 1.36);
-    const gap = Math.round(this._cardSize * 0.09);
-
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -473,10 +476,9 @@ class RwlWheelView extends HTMLElement {
           overflow: hidden;
         }
 
-        .wheel-view {
+        .spin-view {
           position: relative;
           display: flex;
-          flex-direction: column;
           height: 100%;
         }
 
@@ -494,40 +496,42 @@ class RwlWheelView extends HTMLElement {
           width: 110%; height: 110%;
           background-size: cover;
           background-position: center;
-          filter: blur(20px) brightness(var(--bg-brightness, 0.4));
+          filter: blur(20px) brightness(0.4);
           transition: background-image 0.5s ease;
         }
 
         .bg-gradient {
           position: absolute;
           top: 0; left: 0; right: 0; bottom: 0;
-          background: var(--bg-gradient-overlay,
-            radial-gradient(ellipse at center bottom, transparent 0%, rgba(10,10,10,0.9) 70%),
-            linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%));
+          background:
+            linear-gradient(90deg, rgba(0,0,0,0.5) 0%, transparent 40%, transparent 50%, rgba(0,0,0,0.7) 100%),
+            linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.5) 100%);
         }
 
-        /* Top: Details Panel */
+        /* Left: Details */
         .details-panel {
           position: relative;
-          flex: 1;
+          width: 45%;
+          height: calc(100% - 70px);
+          z-index: 5;
           display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 25px 40px;
-          z-index: 1;
-          gap: 40px;
+          flex-direction: column;
+          padding: 30px 40px;
+          overflow: hidden;
         }
 
-        /* CRT TV */
+        /* CRT TV - uses theme variables */
         .crt-container {
+          width: 100%;
+          max-width: 350px;
+          margin-bottom: 25px;
           flex-shrink: 0;
-          width: 320px;
         }
 
         .crt-frame {
           background: var(--crt-frame-background, linear-gradient(145deg, #2a2a2a, #1a1a1a));
           border: 1px solid var(--crt-frame-border, transparent);
-          border-radius: 20px;
+          border-radius: 18px;
           padding: 12px;
           box-shadow:
             0 10px 40px rgba(0,0,0,0.5),
@@ -604,22 +608,26 @@ class RwlWheelView extends HTMLElement {
         /* Details content */
         .details-content {
           flex: 1;
-          max-width: 500px;
+          overflow-y: auto;
+          padding-right: 10px;
         }
+
+        .details-content::-webkit-scrollbar { width: 4px; }
+        .details-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
         .game-title {
           font-family: var(--font-display, 'VT323', monospace);
-          font-size: 1.1rem;
-          color: var(--color-text, #fff);
+          font-size: 1rem;
+          color: #fff;
           margin: 0 0 12px 0;
-          text-shadow: 0 0 20px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
+          text-shadow: 0 0 20px rgba(255, 0, 102, 0.5);
           line-height: 1.5;
         }
 
         .game-meta {
           display: flex;
           gap: 12px;
-          margin-bottom: 15px;
+          margin-bottom: 18px;
           flex-wrap: wrap;
         }
 
@@ -631,33 +639,33 @@ class RwlWheelView extends HTMLElement {
           border-radius: 4px;
         }
 
-        .details-row {
-          display: flex;
-          gap: 20px;
-          margin-bottom: 15px;
-          flex-wrap: wrap;
+        .details-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px 18px;
+          margin-bottom: 18px;
         }
 
-        .detail-item {
+        .detail-row {
           display: flex;
           flex-direction: column;
           gap: 2px;
         }
 
-        .detail-item .label {
+        .detail-label {
           font-size: 0.65rem;
           color: rgba(255,255,255,0.5);
           text-transform: uppercase;
         }
 
-        .detail-item .value {
+        .detail-value {
           font-size: 0.85rem;
           color: #fff;
         }
 
         .rating-stars {
           color: #ffcc00;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
         }
 
         .game-desc {
@@ -665,125 +673,198 @@ class RwlWheelView extends HTMLElement {
           color: rgba(255,255,255,0.6);
           line-height: 1.5;
           margin: 0;
-          max-height: 60px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
         }
 
-        /* Bottom: Carousel */
-        .carousel-area {
-          position: relative;
-          height: ${cardHeight + 80}px;
-          overflow: visible;
-          z-index: 1;
-          margin-bottom: 80px; /* Space for controls bar - increased for better separation */
-        }
-
-        .carousel {
-          width: 100%;
-          height: 100%;
-          overflow: visible;
-        }
-
-        .carousel-track {
+        /* Right: Wheel */
+        .wheel-area {
+          flex: 1;
+          height: calc(100% - 70px);
           display: flex;
-          gap: ${gap}px;
-          transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-          height: 100%;
           align-items: center;
-          padding: 20px 0 40px;
-        }
-
-        .card {
-          flex-shrink: 0;
-          width: ${this._cardSize}px;
-          height: ${cardHeight}px;
-          background: var(--game-card-background, #1a1a1a);
-          border: 1px solid var(--game-card-border, transparent);
-          border-radius: 12px;
+          justify-content: center;
           overflow: hidden;
-          cursor: pointer;
-          transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-          transform: scale(0.85);
-          opacity: 0.5;
-          filter: brightness(0.6);
+          perspective: 1000px;
+          z-index: 1;
+        }
+
+        .spin-wheel {
           position: relative;
-        }
-
-        .card.active {
-          transform: scale(1.1);
-          opacity: 1;
-          filter: brightness(1);
-          z-index: 10;
-          border: var(--selection-border-width, 3px) solid var(--selection-border-color, #ff0066);
-          box-shadow:
-            0 0 60px var(--selection-glow-rgba, rgba(255, 0, 102, 0.4)),
-            0 20px 40px rgba(0, 0, 0, 0.6);
-        }
-
-        .card.prev, .card.next {
-          transform: scale(0.95);
-          opacity: 0.8;
-          filter: brightness(0.8);
-        }
-
-        .card:hover:not(.active) {
-          transform: scale(0.9);
-          opacity: 0.9;
-        }
-
-        .card-image {
-          width: 100%;
+          width: 400px;
           height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--game-card-image-bg, linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%));
+          perspective: 1000px;
         }
 
-        .card-image img {
+        .wheel-track {
+          position: relative;
+          transform-style: preserve-3d;
           width: 100%;
           height: 100%;
-          object-fit: contain;
-          background: var(--game-card-image-bg, linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%));
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
         }
 
-        .no-img {
-          font-size: 4rem;
-          opacity: 0.2;
-        }
-
-        .badge {
+        .wheel-item {
           position: absolute;
-          top: 10px;
-          right: 10px;
-          font-size: 1.2rem;
+          width: ${this._cardSize}px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 15px;
+          background: rgba(20, 20, 30, 0.85);
+          border-radius: 10px;
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+          transform-style: preserve-3d;
+          backface-visibility: hidden;
         }
 
-        /* Reflection */
-        .carousel::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 80px;
-          background: var(--carousel-reflection-gradient, linear-gradient(0deg, rgba(10, 10, 10, 1) 0%, transparent 100%));
+        .wheel-item.active {
+          background: linear-gradient(135deg, rgba(255, 0, 102, 0.3), rgba(0, 200, 255, 0.2));
+          border-color: rgba(255, 0, 102, 0.8);
+          box-shadow:
+            0 0 30px rgba(255, 0, 102, 0.4),
+            0 0 60px rgba(0, 200, 255, 0.2);
+        }
+
+        .wheel-item.hidden {
+          visibility: hidden;
           pointer-events: none;
         }
 
-        /* Controls bar */
+        .wheel-item:hover:not(.active) {
+          border-color: rgba(255, 255, 255, 0.3);
+          background: rgba(30, 30, 50, 0.9);
+        }
+
+        .item-image {
+          width: 60px;
+          height: 80px;
+          flex-shrink: 0;
+          border-radius: 6px;
+          overflow: hidden;
+          background: rgba(0, 0, 0, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .item-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+
+        .no-img {
+          font-size: 1.8rem;
+          opacity: 0.3;
+        }
+
+        .item-title {
+          flex: 1;
+          font-size: 0.85rem;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .wheel-item.active .item-title {
+          text-shadow: 0 0 15px rgba(255, 0, 102, 0.5);
+        }
+
+        .badge { position: absolute; top: 5px; right: 10px; font-size: 1rem; }
+
+        .wheel-pointer {
+          position: absolute;
+          left: -15px;
+          width: 0;
+          height: 0;
+          border-top: 12px solid transparent;
+          border-bottom: 12px solid transparent;
+          border-left: 18px solid #ff0066;
+          filter: drop-shadow(0 0 10px rgba(255, 0, 102, 0.8));
+          z-index: 200;
+        }
+
+        .wheel-glow {
+          position: absolute;
+          width: 280px;
+          height: 120px;
+          background: radial-gradient(ellipse, rgba(255, 0, 102, 0.15) 0%, transparent 70%);
+          pointer-events: none;
+          z-index: -1;
+        }
+
+        /* Alphabet bar - uses theme variables for automatic adaptation */
+        .alphabet-bar {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          padding: 6px 4px;
+          background: var(--alphabet-bar-background, rgba(0, 0, 0, 0.8));
+          border: 1px solid var(--alphabet-bar-border, transparent);
+          border-radius: 8px;
+          backdrop-filter: blur(8px);
+          z-index: 300;
+          max-height: calc(100% - 150px);
+          overflow-y: auto;
+          scrollbar-width: none;
+        }
+
+        .alphabet-bar::-webkit-scrollbar { display: none; }
+
+        .alpha-letter {
+          width: 20px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8px;
+          font-weight: 600;
+          background: transparent;
+          border: none;
+          color: var(--alphabet-letter-muted, var(--color-text-muted, rgba(255, 255, 255, 0.25)));
+          cursor: default;
+          border-radius: 3px;
+          transition: all 0.15s ease;
+          padding: 0;
+        }
+
+        .alpha-letter.has-games {
+          color: var(--alphabet-letter-color, var(--color-text, rgba(255, 255, 255, 0.7)));
+          cursor: pointer;
+        }
+
+        .alpha-letter.has-games:hover {
+          background: var(--selection-hover-bg, rgba(255, 0, 102, 0.3));
+          color: var(--alphabet-letter-active-color, var(--color-text, #fff));
+        }
+
+        .alpha-letter.active {
+          background: var(--alphabet-letter-active-bg, var(--color-primary, #ff0066));
+          color: var(--alphabet-letter-active-color, #fff);
+          box-shadow: 0 0 8px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
+        }
+
+        /* Controls bar - uses theme variables */
         .controls-bar {
           position: absolute;
           bottom: 0;
           left: 0;
           right: 0;
-          height: 60px;
-          background: var(--toolbar-background, rgba(15, 15, 15, 0.95));
-          border-top: 1px solid var(--toolbar-border, #333);
+          height: 70px;
+          background: var(--controls-bar-bg, rgba(15, 15, 15, 0.95));
+          border-top: 1px solid var(--controls-bar-border-color, #333);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -798,13 +879,13 @@ class RwlWheelView extends HTMLElement {
         }
 
         .nav-btn {
-          width: 40px;
-          height: 40px;
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
           background: var(--nav-btn-bg, rgba(255, 0, 102, 0.15));
           border: 2px solid var(--nav-btn-border, rgba(255, 0, 102, 0.4));
           color: var(--nav-btn-color, #ff0066);
-          font-size: 1rem;
+          font-size: 1.1rem;
           cursor: pointer;
           transition: all 0.2s;
         }
@@ -846,61 +927,6 @@ class RwlWheelView extends HTMLElement {
           font-size: 11px;
         }
 
-        /* Alphabet bar - uses theme variables for automatic adaptation */
-        .alphabet-bar {
-          position: absolute;
-          right: 8px;
-          top: 50%;
-          transform: translateY(-50%);
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          padding: 6px 4px;
-          background: var(--alphabet-bar-background, rgba(0, 0, 0, 0.8));
-          border: 1px solid var(--alphabet-bar-border, transparent);
-          border-radius: 8px;
-          backdrop-filter: blur(8px);
-          z-index: 100;
-          max-height: calc(100% - 150px);
-          overflow-y: auto;
-          scrollbar-width: none;
-        }
-
-        .alphabet-bar::-webkit-scrollbar { display: none; }
-
-        .alpha-letter {
-          width: 20px;
-          height: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 8px;
-          font-weight: 600;
-          background: transparent;
-          border: none;
-          color: var(--alphabet-letter-muted, var(--color-text-muted, rgba(255, 255, 255, 0.25)));
-          cursor: default;
-          border-radius: 3px;
-          transition: all 0.15s ease;
-          padding: 0;
-        }
-
-        .alpha-letter.has-games {
-          color: var(--alphabet-letter-color, var(--color-text, rgba(255, 255, 255, 0.7)));
-          cursor: pointer;
-        }
-
-        .alpha-letter.has-games:hover {
-          background: var(--selection-hover-bg, rgba(255, 0, 102, 0.3));
-          color: var(--alphabet-letter-active-color, var(--color-text, #fff));
-        }
-
-        .alpha-letter.active {
-          background: var(--alphabet-letter-active-bg, var(--color-primary, #ff0066));
-          color: var(--alphabet-letter-active-color, #fff);
-          box-shadow: 0 0 8px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
-        }
-
         /* State messages */
         .state-message {
           text-align: center;
@@ -909,12 +935,10 @@ class RwlWheelView extends HTMLElement {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          height: 100%;
         }
 
         .state-message .icon {
           font-size: 4rem;
-          display: block;
           margin-bottom: 20px;
           opacity: 0.5;
         }
@@ -927,8 +951,8 @@ class RwlWheelView extends HTMLElement {
         .spinner {
           width: 50px;
           height: 50px;
-          border: 3px solid var(--spinner-track, #333);
-          border-top-color: var(--color-primary, #ff0066);
+          border: 3px solid #333;
+          border-top-color: #ff0066;
           border-radius: 50%;
           margin-bottom: 20px;
           animation: spin 1s linear infinite;
@@ -939,38 +963,46 @@ class RwlWheelView extends HTMLElement {
         }
 
         /* Responsive */
-        @media (max-width: 900px) {
+        @media (max-width: 1000px) {
           .details-panel {
-            flex-direction: column;
-            gap: 20px;
-            padding: 15px;
+            width: 40%;
+            padding: 20px;
           }
 
           .crt-container {
-            width: 250px;
+            max-width: 280px;
           }
 
-          .game-title {
-            font-size: 0.9rem;
-          }
-
-          .game-desc {
-            display: none;
+          .details-grid {
+            grid-template-columns: 1fr;
           }
         }
 
-        @media (max-width: 600px) {
-          .crt-container {
-            display: none;
+        @media (max-width: 768px) {
+          .spin-view {
+            flex-direction: column;
           }
 
-          .details-content {
-            text-align: center;
+          .details-panel {
+            width: 100%;
+            height: auto;
+            padding: 15px;
+            order: 2;
+          }
+
+          .wheel-area {
+            width: 100%;
+            height: 50%;
+            order: 1;
+          }
+
+          .crt-container {
+            display: none;
           }
         }
       </style>
 
-      <div class="wheel-view">
+      <div class="spin-view">
         <div class="bg-layer">
           <div class="bg-image"></div>
           <div class="bg-gradient"></div>
@@ -993,7 +1025,7 @@ class RwlWheelView extends HTMLElement {
           </div>
         </div>
 
-        <div class="carousel-area">
+        <div class="wheel-area">
           <div class="state-message">
             <span class="icon">🎮</span>
             <p>Select a system to browse games</p>
@@ -1002,13 +1034,13 @@ class RwlWheelView extends HTMLElement {
 
         <div class="controls-bar">
           <div class="nav-controls">
-            <button class="nav-btn prev" aria-label="Previous">◀</button>
+            <button class="nav-btn prev" aria-label="Previous">▲</button>
             <span class="counter">0 / 0</span>
-            <button class="nav-btn next" aria-label="Next">▶</button>
+            <button class="nav-btn next" aria-label="Next">▼</button>
           </div>
           <div class="size-control">
             <label>🔍</label>
-            <input type="range" id="size-slider" min="95" max="125" value="${Math.min(this._cardSize, 125)}" title="Adjust size">
+            <input type="range" id="size-slider" min="200" max="550" value="${this._cardSize}" title="Adjust size">
           </div>
           <span class="game-count"></span>
         </div>
@@ -1027,4 +1059,4 @@ class RwlWheelView extends HTMLElement {
   }
 }
 
-customElements.define('rwl-wheel-view', RwlWheelView);
+customElements.define('rwl-spin-wheel', RwlSpinWheel);

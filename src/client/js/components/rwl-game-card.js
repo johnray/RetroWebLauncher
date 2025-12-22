@@ -190,24 +190,26 @@ class RwlGameCard extends HTMLElement {
           position: relative;
           border-radius: var(--radius-md, 8px);
           overflow: hidden;
-          background: rgba(0,0,0,0.4);
+          background: var(--game-card-background, rgba(0,0,0,0.4));
+          border: 1px solid var(--game-card-border, transparent);
           cursor: pointer;
           transition: transform var(--transition-fast, 150ms),
                       box-shadow var(--transition-fast, 150ms);
           height: 100%;
+          box-shadow: var(--game-card-shadow, none);
         }
 
         .card:hover {
-          transform: scale(1.05);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.4),
-                      0 0 20px rgba(255,0,102,0.3);
+          transform: scale(var(--grid-hover-scale, 1.05));
+          box-shadow: var(--game-card-hover-shadow, 0 8px 24px rgba(0,0,0,0.4)),
+                      0 0 20px var(--selection-glow-color, rgba(255,0,102,0.3));
           z-index: 10;
         }
 
         .card:focus-visible {
-          outline: var(--focus-ring-width, 4px) solid var(--focus-ring-color, #ff0066);
+          outline: var(--selection-border-width, 4px) solid var(--selection-border-color, #ff0066);
           outline-offset: 2px;
-          transform: scale(1.05);
+          transform: scale(var(--grid-hover-scale, 1.05));
         }
 
         .card-content {
@@ -220,7 +222,7 @@ class RwlGameCard extends HTMLElement {
           position: relative;
           flex: 1;
           min-height: 0;
-          background: rgba(0,0,0,0.6);
+          background: var(--game-card-image-bg, rgba(0,0,0,0.6));
           display: flex;
           align-items: center;
           justify-content: center;
@@ -244,7 +246,7 @@ class RwlGameCard extends HTMLElement {
           justify-content: center;
           width: 100%;
           height: 100%;
-          background: linear-gradient(135deg, rgba(40,40,40,1) 0%, rgba(20,20,20,1) 100%);
+          background: var(--game-card-no-image-bg, linear-gradient(135deg, rgba(40,40,40,1) 0%, rgba(20,20,20,1) 100%));
         }
 
         .no-image-icon {
@@ -258,7 +260,7 @@ class RwlGameCard extends HTMLElement {
           justify-content: center;
           width: 100%;
           height: 100%;
-          background: rgba(0,0,0,0.4);
+          background: var(--game-card-image-bg, rgba(0,0,0,0.4));
         }
 
         .placeholder-icon {
@@ -284,7 +286,7 @@ class RwlGameCard extends HTMLElement {
           position: absolute;
           bottom: 8px;
           right: 8px;
-          background: rgba(0,0,0,0.7);
+          background: var(--badge-background, rgba(0,0,0,0.7));
           color: var(--color-primary, #ff0066);
           width: 24px;
           height: 24px;
@@ -297,7 +299,7 @@ class RwlGameCard extends HTMLElement {
 
         .info {
           padding: var(--spacing-sm, 0.5rem);
-          background: rgba(0,0,0,0.8);
+          background: var(--game-card-title-bg, rgba(0,0,0,0.8));
         }
 
         .name {

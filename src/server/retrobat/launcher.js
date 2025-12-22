@@ -46,33 +46,61 @@ async function launchGame(game, options = {}) {
     await killCurrentGame();
   }
 
-  // Build launch arguments
+  // Determine emulator and core to use
+  // Priority: options override > system default
+  let emulatorName = options.emulator || '';
+  let coreName = options.core || '';
+
+  // If no emulator specified, use system's default (first in list)
+  if (!emulatorName && system.emulators && system.emulators.length > 0) {
+    const defaultEmu = system.emulators[0];
+    emulatorName = defaultEmu.name;
+
+    // If it's libretro and has cores, use the first core
+    if (!coreName && defaultEmu.cores && defaultEmu.cores.length > 0) {
+      // Look for default core first, otherwise use first
+      const defaultCore = defaultEmu.cores.find(c => c.default) || defaultEmu.cores[0];
+      coreName = defaultCore.name || defaultCore;
+    }
+  }
+
+  // Build launch arguments - quote paths with spaces
+  const quotedRomPath = `"${romPath}"`;
   const args = [
     '-system', system.name,
-    '-rom', romPath
+    '-rom', quotedRomPath
   ];
 
-  // Add optional emulator/core overrides
-  if (options.emulator) {
-    args.push('-emulator', options.emulator);
+  // Add emulator (required by emulatorLauncher)
+  if (emulatorName) {
+    args.push('-emulator', emulatorName);
   }
-  if (options.core) {
-    args.push('-core', options.core);
+
+  // Add core (required for libretro)
+  if (coreName) {
+    args.push('-core', coreName);
   }
 
   console.log(`Launching: ${game.name}`);
   console.log(`  System: ${system.name}`);
+  console.log(`  Emulator: ${emulatorName || 'auto'}`);
+  console.log(`  Core: ${coreName || 'none'}`);
   console.log(`  ROM: ${romPath}`);
   console.log(`  Command: ${launcherPath} ${args.join(' ')}`);
 
   return new Promise((resolve, reject) => {
     try {
-      // Spawn the launcher process
-      currentGameProcess = spawn(launcherPath, args, {
+      // Quote the launcher path too in case it has spaces
+      const quotedLauncherPath = `"${launcherPath}"`;
+
+      // Use shell: true to properly handle quoted paths on Windows
+      // Use pipe for stdio to capture output for debugging
+      currentGameProcess = spawn(quotedLauncherPath, args, {
         cwd: path.dirname(launcherPath),
         detached: true,
-        stdio: 'ignore',
-        windowsHide: false // Show the game window
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: false, // Show the game window
+        shell: true // Required for proper path quoting on Windows
       });
 
       currentGameInfo = {
@@ -84,11 +112,28 @@ async function launchGame(game, options = {}) {
         pid: currentGameProcess.pid
       };
 
+      // Capture stdout and stderr for debugging
+      let stdout = '';
+      let stderr = '';
+
+      currentGameProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+        console.log('[Launcher stdout]:', data.toString().trim());
+      });
+
+      currentGameProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+        console.error('[Launcher stderr]:', data.toString().trim());
+      });
+
       currentGameProcess.unref();
 
       // Listen for process exit
       currentGameProcess.on('exit', (code) => {
         console.log(`Game process exited with code: ${code}`);
+        if (code !== 0 && (stdout || stderr)) {
+          console.log('Captured output:', { stdout: stdout.trim(), stderr: stderr.trim() });
+        }
         currentGameProcess = null;
         currentGameInfo = null;
       });

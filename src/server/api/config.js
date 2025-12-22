@@ -5,8 +5,13 @@
 const express = require('express');
 const router = express.Router();
 const os = require('os');
+const path = require('path');
 const { loadConfig, updateConfig, validateConfig } = require('../config');
 const cache = require('../cache');
+
+// Load version from package.json
+const packageJson = require(path.join(__dirname, '../../..', 'package.json'));
+const APP_VERSION = packageJson.version || '1.0.0';
 
 /**
  * GET /api/config
@@ -24,6 +29,9 @@ router.get('/', (req, res) => {
     if (safeConfig.ai?.apiKey) {
       safeConfig.ai = { ...safeConfig.ai, apiKey: safeConfig.ai.apiKey ? '****' : '' };
     }
+
+    // Add version from package.json
+    safeConfig.version = APP_VERSION;
 
     res.json({ config: safeConfig });
   } catch (error) {

@@ -14,6 +14,7 @@ class RwlVideoPlayer extends HTMLElement {
     this._video = null;
     this._loaded = false;
     this._hasInteracted = false;
+    this._errorShown = false;
   }
 
   connectedCallback() {
@@ -33,9 +34,21 @@ class RwlVideoPlayer extends HTMLElement {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue !== newValue) {
-      if (name === 'src' && this._video) {
-        this._video.src = newValue;
-        this._loaded = false;
+      if (name === 'src') {
+        // Hide error state when src changes
+        this._hideError();
+
+        if (newValue) {
+          // Hide color bars when we have a video source
+          this._hidePlaceholder();
+          if (this._video) {
+            this._video.src = newValue;
+            this._loaded = false;
+          }
+        } else {
+          // Show color bars when no video source
+          this._showPlaceholder();
+        }
       }
     }
   }
@@ -94,7 +107,10 @@ class RwlVideoPlayer extends HTMLElement {
     });
 
     video.addEventListener('error', () => {
-      this._showError();
+      // Don't show error for empty/missing src - allows dynamic src setting
+      if (this.src && this.src.trim()) {
+        this._showError();
+      }
     });
 
     video.addEventListener('play', () => {
@@ -243,14 +259,46 @@ class RwlVideoPlayer extends HTMLElement {
   }
 
   _showError() {
-    const container = this.shadowRoot.querySelector('.video-container');
-    if (container) {
-      container.innerHTML = `
-        <div class="error-state">
-          <span class="error-icon">⚠️</span>
-          <p>Video unavailable</p>
-        </div>
-      `;
+    const errorState = this.shadowRoot.querySelector('.error-state');
+    const video = this.shadowRoot.querySelector('video');
+    const playOverlay = this.shadowRoot.querySelector('.play-overlay');
+    const controls = this.shadowRoot.querySelector('.controls');
+
+    if (errorState) {
+      errorState.classList.remove('hidden');
+      this._errorShown = true;
+    }
+    if (video) video.style.display = 'none';
+    if (playOverlay) playOverlay.style.display = 'none';
+    if (controls) controls.style.display = 'none';
+  }
+
+  _hideError() {
+    const errorState = this.shadowRoot.querySelector('.error-state');
+    const video = this.shadowRoot.querySelector('video');
+    const playOverlay = this.shadowRoot.querySelector('.play-overlay');
+    const controls = this.shadowRoot.querySelector('.controls');
+
+    if (errorState) {
+      errorState.classList.add('hidden');
+      this._errorShown = false;
+    }
+    if (video) video.style.display = '';
+    if (playOverlay) playOverlay.style.display = '';
+    if (controls) controls.style.display = '';
+  }
+
+  _showPlaceholder() {
+    const placeholder = this.shadowRoot.querySelector('.tv-placeholder');
+    if (placeholder) {
+      placeholder.classList.remove('hidden');
+    }
+  }
+
+  _hidePlaceholder() {
+    const placeholder = this.shadowRoot.querySelector('.tv-placeholder');
+    if (placeholder) {
+      placeholder.classList.add('hidden');
     }
   }
 
@@ -258,6 +306,8 @@ class RwlVideoPlayer extends HTMLElement {
     const src = this.getAttribute('src') || '';
     const loop = this.hasAttribute('loop') || true;
     const muted = this.hasAttribute('muted') || true;
+    // Only include src attribute if there's actually a value
+    const srcAttr = src ? `src="${src}"` : '';
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -279,6 +329,92 @@ class RwlVideoPlayer extends HTMLElement {
           width: 100%;
           height: 100%;
           object-fit: contain;
+        }
+
+        /* TV Static/Color Bars Placeholder */
+        .tv-placeholder {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: flex;
+          flex-direction: column;
+          background: #1a1a1a;
+          z-index: 1;
+        }
+
+        .tv-placeholder.hidden {
+          display: none;
+        }
+
+        /* SMPTE Color Bars */
+        .color-bars {
+          display: flex;
+          height: 70%;
+        }
+
+        .color-bar {
+          flex: 1;
+        }
+
+        .color-bars .bar-white { background: #c0c0c0; }
+        .color-bars .bar-yellow { background: #c0c000; }
+        .color-bars .bar-cyan { background: #00c0c0; }
+        .color-bars .bar-green { background: #00c000; }
+        .color-bars .bar-magenta { background: #c000c0; }
+        .color-bars .bar-red { background: #c00000; }
+        .color-bars .bar-blue { background: #0000c0; }
+
+        /* Bottom section with static */
+        .static-section {
+          height: 30%;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .static-noise {
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          right: -50%;
+          bottom: -50%;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+          background-size: 200px 200px;
+          opacity: 0.4;
+          animation: static-move 0.1s steps(10) infinite;
+        }
+
+        @keyframes static-move {
+          0% { transform: translate(0, 0); }
+          10% { transform: translate(-5%, -5%); }
+          20% { transform: translate(5%, 5%); }
+          30% { transform: translate(-3%, 3%); }
+          40% { transform: translate(3%, -3%); }
+          50% { transform: translate(-5%, 5%); }
+          60% { transform: translate(5%, -5%); }
+          70% { transform: translate(-3%, -3%); }
+          80% { transform: translate(3%, 3%); }
+          90% { transform: translate(-5%, -5%); }
+          100% { transform: translate(0, 0); }
+        }
+
+        /* Scanline overlay on color bars */
+        .color-bars::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 0, 0, 0.15) 2px,
+            rgba(0, 0, 0, 0.15) 4px
+          );
+          pointer-events: none;
         }
 
         .controls {
@@ -389,12 +525,21 @@ class RwlVideoPlayer extends HTMLElement {
         }
 
         .error-state {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          height: 100%;
           gap: var(--spacing-md, 1rem);
+          background: #000;
+        }
+
+        .error-state.hidden {
+          display: none;
         }
 
         .error-icon {
@@ -427,14 +572,35 @@ class RwlVideoPlayer extends HTMLElement {
       </style>
 
       <div class="video-container" tabindex="0">
+        <!-- TV Color Bars Placeholder (shown when no video) -->
+        <div class="tv-placeholder${src ? ' hidden' : ''}">
+          <div class="color-bars">
+            <div class="color-bar bar-white"></div>
+            <div class="color-bar bar-yellow"></div>
+            <div class="color-bar bar-cyan"></div>
+            <div class="color-bar bar-green"></div>
+            <div class="color-bar bar-magenta"></div>
+            <div class="color-bar bar-red"></div>
+            <div class="color-bar bar-blue"></div>
+          </div>
+          <div class="static-section">
+            <div class="static-noise"></div>
+          </div>
+        </div>
+
         <video
-          src="${src}"
+          ${srcAttr}
           ${loop ? 'loop' : ''}
           ${muted ? 'muted' : ''}
           playsinline
           webkit-playsinline
           preload="metadata"
         ></video>
+
+        <div class="error-state hidden">
+          <span class="error-icon">⚠️</span>
+          <p>Video unavailable</p>
+        </div>
 
         <div class="play-overlay">
           <div class="play-btn">

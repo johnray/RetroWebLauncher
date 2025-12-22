@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const cache = require('../cache');
 const { followSymlink } = require('../retrobat/paths');
+const { getRetrobatPaths } = require('../config');
 
 // MIME types for media files
 const MIME_TYPES = {
@@ -210,6 +211,124 @@ router.get('/game/:gameId/:type', (req, res) => {
     }
   } catch (error) {
     console.error('Error serving game media:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/media/system/:systemId/:type
+ * Get theme assets for a specific system
+ * Types: logo, console, background, controller
+ */
+router.get('/system/:systemId/:type', (req, res) => {
+  try {
+    const { systemId, type } = req.params;
+    const paths = getRetrobatPaths();
+
+    // Map type to theme subdirectory
+    const typeMap = {
+      'logo': 'logos',
+      'console': 'consoles',
+      'background': 'background',
+      'controller': 'controllers'
+    };
+
+    const subDir = typeMap[type];
+    if (!subDir) {
+      return res.status(400).json({ error: 'Invalid asset type' });
+    }
+
+    // Look for theme assets in es-theme-carbon
+    const themeBasePath = path.join(paths.emulationStation, 'themes', 'es-theme-carbon', 'art', subDir);
+
+    // Try different extensions
+    const extensions = ['.png', '.svg', '.jpg', '.jpeg', '.webp'];
+    let assetPath = null;
+
+    for (const ext of extensions) {
+      const testPath = path.join(themeBasePath, `${systemId}${ext}`);
+      if (fs.existsSync(testPath)) {
+        assetPath = testPath;
+        break;
+      }
+    }
+
+    if (!assetPath) {
+      // Try alternative path structures
+      const altPaths = [
+        path.join(paths.emulationStation, 'themes', 'es-theme-carbon', subDir, `${systemId}.png`),
+        path.join(paths.emulationStation, 'themes', 'es-theme-carbon', subDir, `${systemId}.svg`),
+        path.join(paths.emulationStation, '.emulationstation', 'themes', 'es-theme-carbon', 'art', subDir, `${systemId}.png`),
+        path.join(paths.emulationStation, '.emulationstation', 'themes', 'es-theme-carbon', 'art', subDir, `${systemId}.svg`)
+      ];
+
+      for (const altPath of altPaths) {
+        if (fs.existsSync(altPath)) {
+          assetPath = altPath;
+          break;
+        }
+      }
+    }
+
+    if (!assetPath) {
+      return res.status(404).json({ error: 'System asset not found' });
+    }
+
+    const stat = fs.statSync(assetPath);
+    const ext = path.extname(assetPath).toLowerCase();
+
+    // Add SVG MIME type
+    const mimeTypes = { ...MIME_TYPES, '.svg': 'image/svg+xml' };
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', stat.size);
+
+    fs.createReadStream(assetPath).pipe(res);
+  } catch (error) {
+    console.error('Error serving system asset:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/media/system-assets
+ * List available system assets for all systems
+ */
+router.get('/system-assets', (req, res) => {
+  try {
+    const paths = getRetrobatPaths();
+    const systems = cache.getSystems();
+    const result = {};
+
+    const themeBasePath = path.join(paths.emulationStation, 'themes', 'es-theme-carbon', 'art');
+
+    for (const system of systems) {
+      const assets = {};
+
+      // Check each asset type
+      const assetTypes = ['logos', 'consoles', 'background', 'controllers'];
+      const extensions = ['.png', '.svg', '.jpg', '.jpeg', '.webp'];
+
+      for (const assetType of assetTypes) {
+        for (const ext of extensions) {
+          const testPath = path.join(themeBasePath, assetType, `${system.id}${ext}`);
+          if (fs.existsSync(testPath)) {
+            assets[assetType.replace(/s$/, '')] = true;
+            break;
+          }
+        }
+      }
+
+      if (Object.keys(assets).length > 0) {
+        result[system.id] = assets;
+      }
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error listing system assets:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -6,6 +6,7 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { router } from '../router.js';
+import { themeService } from '../theme-service.js';
 
 class RwlListView extends HTMLElement {
   static get observedAttributes() {
@@ -24,6 +25,49 @@ class RwlListView extends HTMLElement {
     this._currentLetter = '';
     this._letterIndex = {};
     this._unsubscribers = [];
+    this._iconSize = 40; // Will be loaded per-section when systemId is set
+  }
+
+  /**
+   * Get the storage key for this section
+   */
+  _getSectionKey() {
+    return this._systemId || 'default';
+  }
+
+  /**
+   * Load icon size for this section from localStorage, with theme default fallback
+   */
+  _loadSectionSize() {
+    const key = this._getSectionKey();
+    const stored = localStorage.getItem(`rwl-list-size-${key}`);
+    if (stored) {
+      this._iconSize = parseInt(stored, 10);
+    } else {
+      // Fall back to theme default
+      const listSettings = themeService.getListSettings();
+      this._iconSize = listSettings?.defaultIconSize || 40;
+    }
+    this._updateSlider();
+  }
+
+  /**
+   * Save icon size for this section to localStorage
+   */
+  _saveSectionSize() {
+    const key = this._getSectionKey();
+    localStorage.setItem(`rwl-list-size-${key}`, this._iconSize);
+  }
+
+  /**
+   * Update the slider to reflect current size
+   */
+  _updateSlider() {
+    const slider = this.shadowRoot?.getElementById('size-slider');
+    if (slider) {
+      slider.value = this._iconSize;
+    }
+    this._applyIconSize();
   }
 
   connectedCallback() {
@@ -32,8 +76,28 @@ class RwlListView extends HTMLElement {
   }
 
   disconnectedCallback() {
+    // Save scroll position before leaving
+    this._saveScrollPosition();
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
+  }
+
+  _saveScrollPosition() {
+    const scrollContainer = this.shadowRoot.querySelector('.list-content');
+    if (scrollContainer && this._systemId) {
+      sessionStorage.setItem(`rwl-list-scroll-${this._systemId}`, scrollContainer.scrollTop);
+    }
+  }
+
+  _restoreScrollPosition() {
+    if (!this._savedScrollPos) return;
+    const scrollContainer = this.shadowRoot.querySelector('.list-content');
+    if (scrollContainer) {
+      requestAnimationFrame(() => {
+        scrollContainer.scrollTop = this._savedScrollPos;
+        this._savedScrollPos = null;
+      });
+    }
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -41,6 +105,25 @@ class RwlListView extends HTMLElement {
       this._systemId = newValue;
       this._loadGames();
     }
+  }
+
+  set systemId(id) {
+    if (id !== this._systemId) {
+      this._systemId = id;
+
+      // Restore scroll position if available
+      const savedPos = sessionStorage.getItem(`rwl-list-scroll-${id}`);
+      if (savedPos) {
+        this._savedScrollPos = parseInt(savedPos, 10);
+      }
+
+      this._loadSectionSize();
+      this._loadGames();
+    }
+  }
+
+  get systemId() {
+    return this._systemId;
   }
 
   set games(data) {
@@ -59,7 +142,7 @@ class RwlListView extends HTMLElement {
       const response = await api.getGames(this._systemId, {
         sortBy: this._sortBy,
         order: this._sortOrder,
-        limit: 1000
+        limit: 10000
       });
       this._games = response.games || [];
     } catch (error) {
@@ -69,6 +152,20 @@ class RwlListView extends HTMLElement {
 
     this._loading = false;
     this._renderGames();
+
+    // Update game count
+    const gameCount = this.shadowRoot.querySelector('.game-count');
+    if (gameCount) {
+      gameCount.textContent = `${this._games.length} games`;
+    }
+
+    // Update initial background
+    if (this._games.length > 0) {
+      this._updateBackground(this._games[this._selectedIndex]);
+    }
+
+    // Restore scroll position after render
+    requestAnimationFrame(() => this._restoreScrollPosition());
   }
 
   _bindEvents() {
@@ -204,6 +301,36 @@ class RwlListView extends HTMLElement {
         row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
     });
+
+    // Update background with selected game's screenshot
+    const game = this._games[this._selectedIndex];
+    this._updateBackground(game);
+
+    // Update alphabet bar highlight
+    this._updateCurrentLetter();
+  }
+
+  _updateBackground(game) {
+    const bgImage = this.shadowRoot.querySelector('.bg-image');
+    if (!bgImage) return;
+
+    if (game) {
+      const imgUrl = `/api/media/game/${game.id}/screenshot`;
+
+      // Preload image before swapping to prevent flash
+      const preloader = new Image();
+      preloader.onload = () => {
+        bgImage.style.backgroundImage = `url('${imgUrl}')`;
+        bgImage.classList.add('visible');
+      };
+      preloader.onerror = () => {
+        bgImage.style.backgroundImage = `url('${imgUrl}')`;
+        bgImage.classList.add('visible');
+      };
+      preloader.src = imgUrl;
+    } else {
+      bgImage.classList.remove('visible');
+    }
   }
 
   _formatRating(rating) {
@@ -388,22 +515,35 @@ class RwlListView extends HTMLElement {
       <style>
         :host {
           display: block;
-          height: 100%;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
           overflow: hidden;
         }
 
-        .list-container {
+        .list-wrapper {
           position: relative;
+          width: 100%;
           height: 100%;
+        }
+
+        .list-container {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 50px;
           display: flex;
           flex-direction: column;
-          background: rgba(0,0,0,0.4);
+          background: var(--content-overlay, rgba(0,0,0,0.4));
         }
 
         .list-header {
           padding: var(--spacing-md, 1rem);
-          background: rgba(0,0,0,0.6);
-          border-bottom: 1px solid rgba(255,255,255,0.1);
+          background: var(--content-overlay-dark, rgba(0,0,0,0.6));
+          border-bottom: 1px solid var(--content-border, rgba(255,255,255,0.1));
         }
 
         .list-content {
@@ -421,7 +561,7 @@ class RwlListView extends HTMLElement {
         .games-table thead {
           position: sticky;
           top: 0;
-          background: rgba(0,0,0,0.9);
+          background: var(--table-header-background, rgba(0,0,0,0.9));
           z-index: 10;
         }
 
@@ -459,14 +599,14 @@ class RwlListView extends HTMLElement {
         }
 
         .games-table tbody tr:hover {
-          background: rgba(255,0,102,0.1);
+          background: var(--selection-hover-bg, rgba(255,0,102,0.1));
         }
 
         .games-table tbody tr.selected {
-          background: rgba(255,0,102,0.2);
+          background: var(--selection-hover-bg, rgba(255,0,102,0.2));
           box-shadow:
             inset 4px 0 0 var(--color-primary, #ff0066),
-            0 0 20px rgba(255,0,102,0.2);
+            0 0 20px var(--selection-glow-rgba, rgba(255,0,102,0.2));
         }
 
         .games-table td {
@@ -483,15 +623,15 @@ class RwlListView extends HTMLElement {
 
         .game-thumb,
         .game-thumb-placeholder {
-          width: 40px;
-          height: 40px;
+          width: var(--icon-size, 40px);
+          height: var(--icon-size, 40px);
           border-radius: var(--radius-sm, 4px);
           object-fit: cover;
           flex-shrink: 0;
         }
 
         .game-thumb-placeholder {
-          background: rgba(255,255,255,0.1);
+          background: var(--content-overlay-dark, rgba(255,255,255,0.1));
           display: flex;
           align-items: center;
           justify-content: center;
@@ -541,7 +681,7 @@ class RwlListView extends HTMLElement {
         .spinner {
           width: 40px;
           height: 40px;
-          border: 3px solid rgba(255,255,255,0.2);
+          border: 3px solid var(--spinner-track, rgba(255,255,255,0.2));
           border-top-color: var(--color-primary, #ff0066);
           border-radius: 50%;
           animation: spin 1s linear infinite;
@@ -585,7 +725,7 @@ class RwlListView extends HTMLElement {
           flex-direction: column;
           gap: 1px;
           padding: var(--spacing-xs, 0.25rem);
-          background: rgba(0, 0, 0, 0.7);
+          background: var(--alphabet-bar-background, rgba(0, 0, 0, 0.7));
           border-radius: var(--radius-md, 8px);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
@@ -621,14 +761,85 @@ class RwlListView extends HTMLElement {
         }
 
         .alpha-letter.has-games:hover {
-          background: rgba(255, 0, 102, 0.3);
+          background: var(--selection-hover-bg, rgba(255, 0, 102, 0.3));
           color: #fff;
         }
 
         .alpha-letter.active {
-          background: var(--color-primary, #ff0066);
-          color: #fff;
-          box-shadow: 0 0 10px rgba(255, 0, 102, 0.5);
+          background: var(--alphabet-letter-active-bg, var(--color-primary, #ff0066));
+          color: var(--alphabet-letter-active-color, #fff);
+          box-shadow: 0 0 10px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
+        }
+
+        /* Dynamic Background */
+        .bg-layer {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        .bg-image {
+          position: absolute;
+          top: -5%;
+          left: -5%;
+          width: 110%;
+          height: 110%;
+          background-size: cover;
+          background-position: center;
+          filter: blur(25px) brightness(0.5);
+          opacity: 0;
+          transition: opacity 0.5s ease, background-image 0.5s ease;
+        }
+
+        .bg-image.visible {
+          opacity: 1;
+        }
+
+        .bg-gradient {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.7) 100%);
+        }
+
+        /* Toolbar */
+        .toolbar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 50px;
+          background: var(--toolbar-background, rgba(20, 20, 20, 0.95));
+          border-top: 1px solid var(--toolbar-border, #333);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          padding: 0 16px;
+          z-index: 150;
+        }
+
+        .toolbar label {
+          color: #888;
+          font-size: 14px;
+        }
+
+        .toolbar input[type="range"] {
+          width: 150px;
+          cursor: pointer;
+          accent-color: var(--color-primary, #ff0066);
+        }
+
+        .game-count {
+          color: #888;
+          font-size: 12px;
+          margin-left: auto;
         }
 
         /* Mobile */
@@ -652,15 +863,50 @@ class RwlListView extends HTMLElement {
         }
       </style>
 
-      <div class="list-container">
-        <div class="list-content">
-          <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Loading games...</p>
+      <div class="list-wrapper">
+        <div class="bg-layer">
+          <div class="bg-image"></div>
+          <div class="bg-gradient"></div>
+        </div>
+
+        <div class="list-container">
+          <div class="list-content">
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading games...</p>
+            </div>
           </div>
+        </div>
+
+        <div class="toolbar">
+          <label>🔍</label>
+          <input type="range" id="size-slider" min="24" max="80" value="${this._iconSize}" title="Adjust icon size">
+          <span class="game-count"></span>
         </div>
       </div>
     `;
+
+    // Bind slider
+    const slider = this.shadowRoot.getElementById('size-slider');
+    if (slider) {
+      slider.oninput = (e) => this._onSliderChange(e);
+    }
+
+    // Apply initial icon size
+    this._applyIconSize();
+  }
+
+  _onSliderChange(e) {
+    this._iconSize = parseInt(e.target.value, 10);
+    this._saveSectionSize();
+    this._applyIconSize();
+  }
+
+  _applyIconSize() {
+    const container = this.shadowRoot.querySelector('.list-container');
+    if (container) {
+      container.style.setProperty('--icon-size', `${this._iconSize}px`);
+    }
   }
 }
 

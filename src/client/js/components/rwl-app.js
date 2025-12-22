@@ -5,6 +5,7 @@
 
 import { state } from '../state.js';
 import { router } from '../router.js';
+import { themeService } from '../theme-service.js';
 
 class RwlApp extends HTMLElement {
   constructor() {
@@ -13,6 +14,8 @@ class RwlApp extends HTMLElement {
     this._currentRoute = null;
     this._config = null;
     this._currentSystemId = null;
+    this._currentSystemName = null;
+    this._currentGameName = null;
     this._unsubscribers = [];
   }
 
@@ -54,6 +57,26 @@ class RwlApp extends HTMLElement {
       state.on('navigate', (data) => {
         if (data.systemId) {
           this._currentSystemId = data.systemId;
+          this._currentSystemName = data.systemName || data.systemId;
+        }
+      })
+    );
+
+    // Track system selection for breadcrumbs
+    this._unsubscribers.push(
+      state.on('systemHighlighted', (system) => {
+        if (system) {
+          this._currentSystemId = system.id;
+          this._currentSystemName = system.fullname || system.name || system.id;
+        }
+      })
+    );
+
+    // Track game selection for breadcrumbs
+    this._unsubscribers.push(
+      state.on('gameSelected', (game) => {
+        if (game) {
+          this._currentGameName = game.name || 'Game';
         }
       })
     );
@@ -80,7 +103,104 @@ class RwlApp extends HTMLElement {
 
   _handleRoute(route) {
     this._currentRoute = route;
+    this._updateSidebarVisibility();
+    this._updateBreadcrumbs();
     this._renderContent();
+  }
+
+  _isHomeScreen() {
+    const route = this._currentRoute;
+    return !route || route.path === '/' || route.path === '';
+  }
+
+  _shouldShowSidebar() {
+    const homeSettings = themeService.getHomeSettings();
+
+    // Sidebar mode: always show sidebar
+    // Carousel mode: never show sidebar (use breadcrumbs instead)
+    return homeSettings.style === 'sidebar';
+  }
+
+  _updateSidebarVisibility() {
+    const sidebar = this.shadowRoot.querySelector('rwl-sidebar');
+    if (sidebar) {
+      sidebar.style.display = this._shouldShowSidebar() ? '' : 'none';
+    }
+  }
+
+  _updateBreadcrumbs() {
+    const breadcrumbs = this.shadowRoot.querySelector('.breadcrumbs');
+    if (!breadcrumbs) return;
+
+    const homeSettings = themeService.getHomeSettings();
+
+    // Breadcrumbs only show in carousel mode (never in sidebar mode)
+    // They're hidden on home screen since there's nothing to navigate back to
+    if (homeSettings.style !== 'carousel' || this._isHomeScreen()) {
+      breadcrumbs.style.display = 'none';
+      return;
+    }
+
+    const route = this._currentRoute;
+    let crumbs = [];
+
+    // Build breadcrumb trail
+    if (route?.path === '/system/:id') {
+      crumbs = [
+        { label: 'Home', path: '/' },
+        { label: this._currentSystemName || route.params.id, path: null }
+      ];
+    } else if (route?.path === '/game/:id') {
+      crumbs = [
+        { label: 'Home', path: '/' }
+      ];
+      if (this._currentSystemId) {
+        crumbs.push({ label: this._currentSystemName || this._currentSystemId, path: `/system/${this._currentSystemId}` });
+      }
+      crumbs.push({ label: this._currentGameName || 'Game', path: null });
+    } else if (route?.path === '/search') {
+      crumbs = [
+        { label: 'Home', path: '/' },
+        { label: 'Search', path: null }
+      ];
+    } else if (route?.path === '/settings') {
+      crumbs = [
+        { label: 'Home', path: '/' },
+        { label: 'Settings', path: null }
+      ];
+    } else if (route?.path === '/collections') {
+      crumbs = [
+        { label: 'Home', path: '/' },
+        { label: 'Collections', path: null }
+      ];
+    } else if (route?.path === '/collection/:id') {
+      crumbs = [
+        { label: 'Home', path: '/' },
+        { label: 'Collections', path: '/collections' },
+        { label: route.params.id, path: null }
+      ];
+    }
+
+    if (crumbs.length === 0) {
+      breadcrumbs.style.display = 'none';
+      return;
+    }
+
+    breadcrumbs.style.display = 'flex';
+    breadcrumbs.innerHTML = crumbs.map((crumb, i) => {
+      if (crumb.path) {
+        return `<button class="crumb" data-path="${crumb.path}">${crumb.label}</button>${i < crumbs.length - 1 ? '<span class="separator">›</span>' : ''}`;
+      }
+      return `<span class="crumb current">${crumb.label}</span>`;
+    }).join('');
+
+    // Add click handlers for breadcrumb navigation
+    breadcrumbs.querySelectorAll('button.crumb').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const path = btn.dataset.path;
+        if (path) router.navigate(path);
+      });
+    });
   }
 
   _applyTheme() {
@@ -123,64 +243,100 @@ class RwlApp extends HTMLElement {
   }
 
   _renderHome(container) {
+    const homeSettings = themeService.getHomeSettings();
+
+    // Carousel mode: show the graphical system carousel
+    if (homeSettings.style === 'carousel') {
+      container.innerHTML = `<rwl-system-carousel></rwl-system-carousel>`;
+      return;
+    }
+
+    // Sidebar mode: show welcome screen with instructions
     container.innerHTML = `
       <div class="home-view">
-        <div class="welcome-section animate__animated animate__fadeIn">
-          <h2 class="welcome-title">Welcome</h2>
+        <div class="welcome-section">
+          <h1 class="welcome-title">Welcome</h1>
           <p class="welcome-text">
-            Select a system from the sidebar to browse your game library,
-            or use the search to find specific games.
+            Select a system from the sidebar to browse your game library, or use the search to find a specific game.
           </p>
-          <div class="quick-actions">
-            <button class="quick-btn" id="quick-search">
-              <span class="btn-icon">🔍</span>
-              <span>Search Games</span>
-            </button>
-            <button class="quick-btn" id="quick-random">
-              <span class="btn-icon">🎲</span>
-              <span>Random Game</span>
+          <div class="welcome-actions">
+            <button class="action-btn search-action" aria-label="Search games">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              </svg>
+              Search Games
             </button>
           </div>
         </div>
       </div>
     `;
 
-    // Bind quick action buttons
-    container.querySelector('#quick-search')?.addEventListener('click', () => {
+    // Bind search button
+    container.querySelector('.search-action')?.addEventListener('click', () => {
       router.navigate('/search');
-    });
-
-    container.querySelector('#quick-random')?.addEventListener('click', async () => {
-      // Navigate to a random game
-      try {
-        const response = await fetch('/api/games/list/random');
-        const data = await response.json();
-        if (data.games && data.games.length > 0) {
-          router.navigate(`/game/${data.games[0].id}`);
-        }
-      } catch (error) {
-        console.error('Failed to get random game:', error);
-      }
     });
   }
 
   _renderSystemView(container, systemId) {
-    // Use wheel view by default, grid view if configured
-    const viewType = this._config?.defaultView || 'wheel';
+    // Get view type from per-system localStorage, fallback to theme default
+    const storedView = localStorage.getItem(`rwl-view-type-${systemId}`);
+    const viewType = storedView || themeService.getDefaultView('system') || this._config?.defaultView || 'wheel';
 
-    if (viewType === 'grid') {
-      container.innerHTML = `<rwl-grid-view></rwl-grid-view>`;
-      const gridView = container.querySelector('rwl-grid-view');
-      if (gridView) {
-        gridView.systemId = systemId;
-      }
-    } else {
-      // Default to wheel view
-      container.innerHTML = `<rwl-wheel-view></rwl-wheel-view>`;
-      const wheelView = container.querySelector('rwl-wheel-view');
-      if (wheelView) {
-        wheelView.systemId = systemId;
-      }
+    container.innerHTML = `
+      <div class="system-view-container">
+        <div class="view-toolbar">
+          <rwl-view-toggle system-id="${systemId}" view="${viewType}"></rwl-view-toggle>
+        </div>
+        <div class="view-content"></div>
+      </div>
+    `;
+
+    const viewContent = container.querySelector('.view-content');
+    const viewToggle = container.querySelector('rwl-view-toggle');
+
+    // Also set systemId property for proper initialization
+    if (viewToggle) {
+      viewToggle.systemId = systemId;
+    }
+
+    // Render the selected view
+    this._renderViewType(viewContent, viewType, systemId);
+
+    // Listen for view changes
+    viewToggle?.addEventListener('viewchange', (e) => {
+      const newView = e.detail.view;
+      this._renderViewType(viewContent, newView, systemId);
+    });
+  }
+
+  _renderViewType(container, viewType, systemId) {
+    switch (viewType) {
+      case 'grid':
+        container.innerHTML = `<rwl-grid-view></rwl-grid-view>`;
+        const gridView = container.querySelector('rwl-grid-view');
+        if (gridView) gridView.systemId = systemId;
+        break;
+      case 'list':
+        container.innerHTML = `<rwl-list-view></rwl-list-view>`;
+        const listView = container.querySelector('rwl-list-view');
+        if (listView) listView.systemId = systemId;
+        break;
+      case 'spin':
+        container.innerHTML = `<rwl-spin-wheel></rwl-spin-wheel>`;
+        const spinView = container.querySelector('rwl-spin-wheel');
+        if (spinView) spinView.systemId = systemId;
+        break;
+      case 'spinner':
+        container.innerHTML = `<rwl-spinner-view></rwl-spinner-view>`;
+        const spinnerView = container.querySelector('rwl-spinner-view');
+        if (spinnerView) spinnerView.systemId = systemId;
+        break;
+      case 'wheel':
+      default:
+        container.innerHTML = `<rwl-wheel-view></rwl-wheel-view>`;
+        const wheelView = container.querySelector('rwl-wheel-view');
+        if (wheelView) wheelView.systemId = systemId;
+        break;
     }
   }
 
@@ -263,11 +419,15 @@ class RwlApp extends HTMLElement {
           flex: 1;
           overflow: hidden;
           position: relative;
+          display: flex;
+          flex-direction: column;
         }
 
         #main-content {
           width: 100%;
-          height: 100%;
+          flex: 1;
+          position: relative;
+          overflow: hidden;
         }
 
         /* Home view styles */
@@ -285,7 +445,7 @@ class RwlApp extends HTMLElement {
         }
 
         .welcome-title {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           font-size: var(--font-size-2xl, 2rem);
           color: var(--color-primary, #ff0066);
           margin: 0 0 var(--spacing-lg, 1.5rem) 0;
@@ -297,6 +457,37 @@ class RwlApp extends HTMLElement {
           font-size: var(--font-size-base, 1rem);
           line-height: 1.6;
           margin-bottom: var(--spacing-xl, 2rem);
+        }
+
+        .welcome-actions {
+          display: flex;
+          gap: var(--spacing-md, 1rem);
+          justify-content: center;
+        }
+
+        .action-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm, 0.5rem);
+          padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+          background: var(--color-primary, #ff0066);
+          border: none;
+          border-radius: var(--radius-lg, 12px);
+          color: var(--color-text, #fff);
+          font-size: var(--font-size-base, 1rem);
+          cursor: pointer;
+          transition: all var(--transition-normal, 250ms);
+          box-shadow: 0 4px 15px rgba(255, 0, 102, 0.3);
+        }
+
+        .action-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(255, 0, 102, 0.4);
+        }
+
+        .action-btn svg {
+          width: 20px;
+          height: 20px;
         }
 
         .quick-actions {
@@ -345,7 +536,7 @@ class RwlApp extends HTMLElement {
         }
 
         .not-found h2 {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           color: var(--color-primary, #ff0066);
           margin-bottom: var(--spacing-md, 1rem);
         }
@@ -368,6 +559,77 @@ class RwlApp extends HTMLElement {
         rwl-screensaver {
           position: fixed;
           z-index: var(--z-screensaver, 9999);
+        }
+
+        /* Breadcrumbs - positioned at top of content area without overlapping */
+        .breadcrumbs {
+          display: none;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          background: var(--breadcrumb-background, rgba(0, 0, 0, 0.5));
+          backdrop-filter: blur(10px);
+          font-size: 0.85rem;
+          flex-shrink: 0;
+        }
+
+        .breadcrumbs .crumb {
+          color: var(--color-text-muted, #888);
+          text-decoration: none;
+          transition: color 0.15s ease;
+          background: none;
+          border: none;
+          font: inherit;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .breadcrumbs button.crumb:hover {
+          color: var(--color-primary, #ff0066);
+        }
+
+        .breadcrumbs button.crumb:focus-visible {
+          outline: 2px solid var(--color-primary, #ff0066);
+          outline-offset: 2px;
+          border-radius: 2px;
+        }
+
+        .breadcrumbs .crumb.current {
+          color: var(--color-text, #fff);
+          font-weight: 500;
+        }
+
+        .breadcrumbs .separator {
+          color: var(--color-text-muted, #666);
+          font-size: 0.9em;
+        }
+
+        /* System view container with toolbar */
+        .system-view-container {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          position: relative;
+        }
+
+        .view-toolbar {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          z-index: 100;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 6px 10px;
+          background: var(--toolbar-background, rgba(0, 0, 0, 0.6));
+          border-radius: 8px;
+          backdrop-filter: blur(10px);
+        }
+
+        .view-content {
+          flex: 1;
+          position: relative;
+          overflow: hidden;
         }
 
         /* Mobile responsive */
@@ -397,6 +659,7 @@ class RwlApp extends HTMLElement {
           <rwl-sidebar></rwl-sidebar>
 
           <div class="content-area">
+            <div class="breadcrumbs"></div>
             <div id="main-content">
               <!-- Dynamic content rendered here -->
             </div>

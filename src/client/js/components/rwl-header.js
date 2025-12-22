@@ -24,9 +24,17 @@ class RwlHeader extends HTMLElement {
       state.subscribe('config', () => this._updateArcadeName())
     );
 
+    // Listen for connection state changes
+    this._unsubscribers.push(
+      state.subscribe('connected', (connected) => this._updateConnectionStatus(connected))
+    );
+
     // Listen for fullscreen changes
     document.addEventListener('fullscreenchange', this._boundFullscreenHandler);
     document.addEventListener('webkitfullscreenchange', this._boundFullscreenHandler);
+
+    // Initial connection status
+    this._updateConnectionStatus(state.get('connected'));
   }
 
   disconnectedCallback() {
@@ -44,6 +52,31 @@ class RwlHeader extends HTMLElement {
     const nameEl = this.shadowRoot.querySelector('.arcade-name');
     if (nameEl && config?.arcadeName) {
       nameEl.textContent = config.arcadeName;
+    }
+  }
+
+  _updateConnectionStatus(connected) {
+    const statusContainer = this.shadowRoot.querySelector('.connection-status');
+    const dot = this.shadowRoot.querySelector('.status-dot');
+    const text = this.shadowRoot.querySelector('.connection-status span:last-child');
+
+    if (!statusContainer) return;
+
+    if (connected) {
+      statusContainer.style.color = 'var(--color-success, #00ff66)';
+      if (dot) {
+        dot.style.background = 'var(--color-success, #00ff66)';
+        dot.style.boxShadow = '0 0 8px var(--color-success, #00ff66)';
+      }
+      if (text) text.textContent = 'Connected';
+    } else {
+      statusContainer.style.color = '#ff3333';
+      if (dot) {
+        dot.style.background = '#ff3333';
+        dot.style.boxShadow = '0 0 8px #ff3333';
+        dot.style.animation = 'none'; // Stop pulsing when disconnected
+      }
+      if (text) text.textContent = 'Disconnected';
     }
   }
 
@@ -117,8 +150,8 @@ class RwlHeader extends HTMLElement {
         :host {
           display: block;
           height: var(--header-height, 64px);
-          background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
-          border-bottom: 2px solid var(--color-primary, #ff0066);
+          background: var(--header-background, linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%));
+          border-bottom: 2px solid var(--header-border-color, var(--color-primary, #ff0066));
           position: relative;
           z-index: var(--z-header, 200);
           /* Glassmorphism effect with Safari fallback */
@@ -144,7 +177,7 @@ class RwlHeader extends HTMLElement {
         .home-btn {
           background: none;
           border: none;
-          color: var(--color-text, #fff);
+          color: var(--header-text-color, var(--color-text, #fff));
           cursor: pointer;
           padding: var(--spacing-sm, 0.5rem);
           border-radius: var(--radius-md, 8px);
@@ -152,7 +185,7 @@ class RwlHeader extends HTMLElement {
         }
 
         .home-btn:hover {
-          background: rgba(255,255,255,0.1);
+          background: var(--header-btn-background-hover, rgba(255,255,255,0.1));
         }
 
         .home-btn svg {
@@ -161,12 +194,12 @@ class RwlHeader extends HTMLElement {
         }
 
         .arcade-name {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           font-size: var(--font-size-lg, 1.25rem);
           color: var(--color-primary, #ff0066);
-          text-shadow:
-            0 0 10px rgba(255, 0, 102, 0.5),
-            0 0 20px rgba(255, 0, 102, 0.3);
+          text-shadow: var(--arcade-name-glow,
+            0 0 10px var(--arcade-name-glow-color, rgba(255, 0, 102, 0.5)),
+            0 0 20px var(--arcade-name-glow-color, rgba(255, 0, 102, 0.3)));
           margin: 0;
           letter-spacing: 0.05em;
         }
@@ -187,11 +220,11 @@ class RwlHeader extends HTMLElement {
           display: flex;
           align-items: center;
           gap: var(--spacing-xs, 0.25rem);
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
+          background: var(--header-btn-background, rgba(255,255,255,0.1));
+          border: 1px solid var(--header-btn-border, rgba(255,255,255,0.2));
           border-radius: var(--radius-md, 8px);
           padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
-          color: var(--color-text, #fff);
+          color: var(--header-text-color, var(--color-text, #fff));
           font-family: var(--font-body);
           font-size: var(--font-size-sm, 0.75rem);
           cursor: pointer;
@@ -199,7 +232,7 @@ class RwlHeader extends HTMLElement {
         }
 
         .header-btn:hover {
-          background: rgba(255,255,255,0.2);
+          background: var(--header-btn-background-hover, rgba(255,255,255,0.2));
           border-color: var(--color-primary, #ff0066);
         }
 
@@ -253,8 +286,8 @@ class RwlHeader extends HTMLElement {
 
       <div class="header-container">
         <div class="header-left">
-          <button class="home-btn" title="Home">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+          <button class="home-btn" title="Home" aria-label="Go to home screen">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
             </svg>
           </button>
@@ -266,27 +299,27 @@ class RwlHeader extends HTMLElement {
         </div>
 
         <div class="header-right">
-          <div class="connection-status">
-            <span class="status-dot"></span>
+          <div class="connection-status" role="status" aria-live="polite" aria-label="Server connection status">
+            <span class="status-dot" aria-hidden="true"></span>
             <span>Connected</span>
           </div>
 
-          <button class="header-btn search-btn" title="Search (Y)">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+          <button class="header-btn search-btn" title="Search (Y)" aria-label="Open search">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
             <span>Search</span>
           </button>
 
-          <button class="header-btn fullscreen-btn" title="Fullscreen (F11)">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+          <button class="header-btn fullscreen-btn" title="Fullscreen (F11)" aria-label="Toggle fullscreen mode">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
             </svg>
             <span>Fullscreen</span>
           </button>
 
-          <button class="header-btn settings-btn" title="Settings">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+          <button class="header-btn settings-btn" title="Settings" aria-label="Open settings">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
             </svg>
             <span>Settings</span>

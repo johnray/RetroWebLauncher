@@ -73,15 +73,35 @@ export class KeyboardHandler {
 
   _isInputFocused(target) {
     const tagName = target.tagName.toLowerCase();
-    return (
-      tagName === 'input' ||
-      tagName === 'textarea' ||
-      target.isContentEditable
-    );
+
+    // Direct check
+    if (tagName === 'input' || tagName === 'textarea' || target.isContentEditable) {
+      return true;
+    }
+
+    // Check activeElement (for Shadow DOM inputs)
+    const active = document.activeElement;
+    if (active) {
+      // Check if activeElement has a shadowRoot with a focused input
+      if (active.shadowRoot) {
+        const shadowActive = active.shadowRoot.activeElement;
+        if (shadowActive) {
+          const shadowTag = shadowActive.tagName.toLowerCase();
+          if (shadowTag === 'input' || shadowTag === 'textarea' || shadowActive.isContentEditable) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
   }
 
   _handleKey(key, event) {
-    // Navigation keys
+    // Check if we're in search mode - if so, only allow nav keys and pass chars through
+    const inSearchMode = this._isInSearchMode();
+
+    // Navigation keys - always work
     switch (key) {
       case 'ArrowUp':
         this._startDirectionRepeat('up', key);
@@ -105,23 +125,16 @@ export class KeyboardHandler {
         return true;
 
       case 'Escape':
-      case 'Backspace':
         this._manager.back('keyboard');
         return true;
 
-      case 'f':
-      case 'F':
-        this._manager.favorite('keyboard');
-        return true;
-
-      case 'y':
-      case 'Y':
-        this._manager.search('keyboard');
-        return true;
-
-      case 'm':
-      case 'M':
-        this._manager.menu('keyboard');
+      case 'Backspace':
+        // In search mode, backspace deletes characters
+        if (inSearchMode) {
+          this._manager.emit('input:back', null, 'keyboard');
+        } else {
+          this._manager.back('keyboard');
+        }
         return true;
 
       case 'PageUp':
@@ -143,14 +156,53 @@ export class KeyboardHandler {
       case 'F11':
         this._toggleFullscreen();
         return true;
+    }
+
+    // In search mode, all printable characters go to search input
+    if (inSearchMode) {
+      if (key.length === 1) {
+        this._manager.character(key.toLowerCase(), 'keyboard');
+        return true;
+      }
+      return false;
+    }
+
+    // Shortcut keys - only when NOT in search mode
+    switch (key) {
+      case 'f':
+      case 'F':
+        this._manager.favorite('keyboard');
+        return true;
+
+      case 'y':
+      case 'Y':
+        this._manager.search('keyboard');
+        return true;
+
+      case 'm':
+      case 'M':
+        this._manager.menu('keyboard');
+        return true;
 
       default:
-        // Alphanumeric keys for quick search/jump
+        // Alphanumeric keys for quick jump (not in search)
         if (key.length === 1 && /[a-zA-Z0-9]/.test(key)) {
           this._manager.character(key.toLowerCase(), 'keyboard');
           return true;
         }
     }
+
+    return false;
+  }
+
+  _isInSearchMode() {
+    // Check current route
+    const path = window.location.hash || '';
+    if (path.includes('/search')) return true;
+
+    // Check if search component is visible
+    const searchEl = document.querySelector('rwl-search');
+    if (searchEl && searchEl.offsetParent !== null) return true;
 
     return false;
   }

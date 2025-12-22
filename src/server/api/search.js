@@ -24,7 +24,7 @@ router.get('/', (req, res) => {
     }
 
     // Validate and sanitize options
-    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 50, 100));
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || 100, 500));
     const systemId = req.query.system ? String(req.query.system).slice(0, 50) : null;
 
     const options = {

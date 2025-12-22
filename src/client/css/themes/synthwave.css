@@ -1,0 +1,716 @@
+/**
+ * RetroWebLauncher - Synthwave Theme
+ * Retro-futuristic 80s aesthetic with sunset gradients, neon grids, and chrome effects
+ * Inspired by synthwave/outrun/retrowave visual style
+ */
+
+[data-theme="synthwave"] {
+  /* Colors - Synthwave sunset palette */
+  --color-primary: #f72585;
+  --color-primary-hover: #ff4d9d;
+  --color-secondary: #4cc9f0;
+  --color-accent: #7209b7;
+  --color-tertiary: #3a0ca3;
+
+  --color-background: #0d0221;
+  --color-surface: #150734;
+  --color-surface-elevated: #1f0c47;
+
+  --color-text: #ffffff;
+  --color-text-muted: #9d8eb8;
+  --color-text-secondary: #c9b8e0;
+
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f72585;
+
+  /* Sunset gradient - the signature synthwave look */
+  --gradient-sunset: linear-gradient(180deg,
+    #0d0221 0%,
+    #240046 20%,
+    #3c096c 35%,
+    #7b2cbf 50%,
+    #9d4edd 60%,
+    #c77dff 70%,
+    #ff6b9d 80%,
+    #ffd93d 95%
+  );
+
+  --gradient-primary: linear-gradient(135deg, #f72585 0%, #7209b7 50%, #4cc9f0 100%);
+  --gradient-chrome: linear-gradient(135deg, #4cc9f0 0%, #f72585 25%, #7209b7 50%, #4cc9f0 75%, #f72585 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(31, 12, 71, 0.9) 0%, rgba(13, 2, 33, 0.95) 100%);
+
+  /* Typography - Orbitron for synthwave futuristic look, VT323 as retro fallback */
+  --font-display: 'Orbitron', 'VT323', 'Courier New', monospace;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Font sizes */
+  --font-size-xs: 0.625rem;
+  --font-size-sm: 0.75rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.5rem;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows - Intense neon glow */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 30px rgba(247, 37, 133, 0.5), 0 0 60px rgba(76, 201, 240, 0.3);
+  --shadow-glow-intense: 0 0 40px rgba(247, 37, 133, 0.7), 0 0 80px rgba(114, 9, 183, 0.5), 0 0 120px rgba(76, 201, 240, 0.3);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 500ms ease;
+  --transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Focus */
+  --focus-ring-color: #f72585;
+  --focus-ring-width: 3px;
+
+  /* Layout */
+  --header-height: 64px;
+  --sidebar-width: 280px;
+
+  /* Z-index */
+  --z-sidebar: 100;
+  --z-header: 200;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-screensaver: 9999;
+}
+
+/* ============================================
+   BODY - SUNSET GRADIENT WITH STARS
+   ============================================ */
+[data-theme="synthwave"] body {
+  background: linear-gradient(180deg,
+    #0d0221 0%,
+    #150734 40%,
+    #240046 60%,
+    #3c096c 80%,
+    #7b2cbf 100%
+  );
+  background-attachment: fixed;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Starfield layer */
+[data-theme="synthwave"] body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 50%;
+  background-image:
+    radial-gradient(1px 1px at 10% 10%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 35% 15%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(2px 2px at 50% 25%, #fff, transparent),
+    radial-gradient(1px 1px at 65% 10%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 80% 35%, #fff, transparent),
+    radial-gradient(1px 1px at 90% 20%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 5% 40%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(2px 2px at 25% 45%, #fff, transparent),
+    radial-gradient(1px 1px at 45% 38%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 70% 42%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 95% 48%, #fff, transparent);
+  background-size: 200px 100px;
+  animation: stars-twinkle 4s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: -2;
+}
+
+@keyframes stars-twinkle {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* Horizon sun glow */
+[data-theme="synthwave"] body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: radial-gradient(
+    ellipse 150% 100% at 50% 100%,
+    rgba(255, 107, 157, 0.4) 0%,
+    rgba(255, 217, 61, 0.2) 20%,
+    rgba(247, 37, 133, 0.15) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================
+   NEON GRID FLOOR - THE SIGNATURE EFFECT
+   ============================================ */
+[data-theme="synthwave"] .grid-floor,
+[data-theme="synthwave"] rwl-system-carousel,
+[data-theme="synthwave"] rwl-wheel-view {
+  position: relative;
+}
+
+[data-theme="synthwave"] .grid-floor::after,
+[data-theme="synthwave"] rwl-system-carousel::after,
+[data-theme="synthwave"] rwl-wheel-view::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -50%;
+  right: -50%;
+  height: 45%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 60px,
+      rgba(247, 37, 133, 0.4) 60px,
+      rgba(247, 37, 133, 0.4) 61px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 60px,
+      rgba(76, 201, 240, 0.3) 60px,
+      rgba(76, 201, 240, 0.3) 61px
+    ),
+    linear-gradient(to top, rgba(247, 37, 133, 0.1), transparent);
+  transform: perspective(400px) rotateX(75deg);
+  transform-origin: bottom;
+  animation: grid-scroll 4s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+}
+
+@keyframes grid-scroll {
+  0% { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 60px 0, 0 60px, 0 0; }
+}
+
+/* ============================================
+   CHROME / HOLOGRAPHIC TEXT EFFECT
+   ============================================ */
+[data-theme="synthwave"] .chrome-text {
+  background: linear-gradient(
+    180deg,
+    #fff 0%,
+    #4cc9f0 20%,
+    #f72585 40%,
+    #7209b7 60%,
+    #4cc9f0 80%,
+    #fff 100%
+  );
+  background-size: 100% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: chrome-shift 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(247, 37, 133, 0.5));
+}
+
+@keyframes chrome-shift {
+  0%, 100% { background-position: 0% 0%; }
+  50% { background-position: 0% 100%; }
+}
+
+/* Neon text glow */
+[data-theme="synthwave"] .neon-text {
+  color: #f72585;
+  text-shadow:
+    0 0 5px #f72585,
+    0 0 10px #f72585,
+    0 0 20px #f72585,
+    0 0 40px #7209b7,
+    0 0 80px #7209b7;
+  animation: neon-flicker 3s ease-in-out infinite;
+}
+
+@keyframes neon-flicker {
+  0%, 100% {
+    text-shadow:
+      0 0 5px #f72585,
+      0 0 10px #f72585,
+      0 0 20px #f72585,
+      0 0 40px #7209b7;
+  }
+  50% {
+    text-shadow:
+      0 0 10px #f72585,
+      0 0 20px #f72585,
+      0 0 40px #f72585,
+      0 0 80px #7209b7,
+      0 0 120px #4cc9f0;
+  }
+}
+
+/* Cyan neon variant */
+[data-theme="synthwave"] .neon-cyan {
+  color: #4cc9f0;
+  text-shadow:
+    0 0 5px #4cc9f0,
+    0 0 10px #4cc9f0,
+    0 0 20px #4cc9f0,
+    0 0 40px #3a0ca3;
+}
+
+/* ============================================
+   NEON BORDERS
+   ============================================ */
+[data-theme="synthwave"] .neon-border {
+  border: 2px solid #f72585;
+  box-shadow:
+    0 0 5px #f72585,
+    0 0 10px #f72585,
+    0 0 20px rgba(247, 37, 133, 0.5),
+    inset 0 0 5px rgba(247, 37, 133, 0.3);
+  animation: border-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes border-pulse {
+  0% {
+    box-shadow:
+      0 0 5px #f72585,
+      0 0 10px #f72585,
+      inset 0 0 5px rgba(247, 37, 133, 0.2);
+  }
+  100% {
+    box-shadow:
+      0 0 10px #f72585,
+      0 0 20px #f72585,
+      0 0 40px rgba(247, 37, 133, 0.5),
+      inset 0 0 10px rgba(247, 37, 133, 0.4);
+  }
+}
+
+/* Animated gradient border */
+[data-theme="synthwave"] .gradient-border {
+  position: relative;
+  background: var(--color-surface);
+}
+
+[data-theme="synthwave"] .gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    var(--border-angle, 0deg),
+    #f72585 0%,
+    #7209b7 25%,
+    #4cc9f0 50%,
+    #7209b7 75%,
+    #f72585 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-rotate 3s linear infinite;
+}
+
+@keyframes border-rotate {
+  to { --border-angle: 360deg; }
+}
+
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ============================================
+   CARD EFFECTS - HOLOGRAPHIC HOVER
+   ============================================ */
+[data-theme="synthwave"] .card-hover {
+  transition: all var(--transition-normal);
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  position: relative;
+}
+
+[data-theme="synthwave"] .card-hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(247, 37, 133, 0) 0%,
+    rgba(247, 37, 133, 0.1) 50%,
+    rgba(76, 201, 240, 0.1) 100%
+  );
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+}
+
+[data-theme="synthwave"] .card-hover:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(247, 37, 133, 0.3),
+    0 0 80px rgba(76, 201, 240, 0.2);
+}
+
+[data-theme="synthwave"] .card-hover:hover::before {
+  opacity: 1;
+}
+
+/* Holographic shimmer effect */
+[data-theme="synthwave"] .holographic {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="synthwave"] .holographic::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 20%,
+    rgba(247, 37, 133, 0.1) 30%,
+    rgba(76, 201, 240, 0.15) 40%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(76, 201, 240, 0.15) 60%,
+    rgba(247, 37, 133, 0.1) 70%,
+    transparent 80%
+  );
+  transform: translateX(-100%) rotate(45deg);
+  animation: holographic-sweep 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes holographic-sweep {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
+
+/* ============================================
+   BUTTONS - NEON ARCADE STYLE
+   ============================================ */
+[data-theme="synthwave"] .btn-neon {
+  background: transparent;
+  border: 2px solid #f72585;
+  color: #f72585;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+  box-shadow: 0 0 10px rgba(247, 37, 133, 0.3);
+}
+
+[data-theme="synthwave"] .btn-neon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #f72585 0%, #7209b7 100%);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+[data-theme="synthwave"] .btn-neon:hover {
+  color: #fff;
+  box-shadow:
+    0 0 20px rgba(247, 37, 133, 0.5),
+    0 0 40px rgba(247, 37, 133, 0.3),
+    inset 0 0 20px rgba(247, 37, 133, 0.2);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="synthwave"] .btn-neon:hover::before {
+  opacity: 1;
+}
+
+[data-theme="synthwave"] .btn-neon span {
+  position: relative;
+  z-index: 1;
+}
+
+/* Filled neon button */
+[data-theme="synthwave"] .btn-filled {
+  background: linear-gradient(135deg, #f72585 0%, #7209b7 100%);
+  border: none;
+  color: #fff;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow:
+    0 4px 15px rgba(247, 37, 133, 0.4),
+    0 0 20px rgba(247, 37, 133, 0.2);
+  transition: all var(--transition-normal);
+}
+
+[data-theme="synthwave"] .btn-filled:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px rgba(247, 37, 133, 0.5),
+    0 0 40px rgba(247, 37, 133, 0.3),
+    0 0 60px rgba(76, 201, 240, 0.2);
+}
+
+/* ============================================
+   SUN / SUNSET DECORATIVE ELEMENT
+   ============================================ */
+[data-theme="synthwave"] .synthwave-sun {
+  position: relative;
+  width: 200px;
+  height: 100px;
+  overflow: hidden;
+}
+
+[data-theme="synthwave"] .synthwave-sun::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: linear-gradient(
+    180deg,
+    #ffd93d 0%,
+    #ff6b9d 30%,
+    #f72585 60%,
+    #7209b7 100%
+  );
+  box-shadow:
+    0 0 60px rgba(255, 107, 157, 0.8),
+    0 0 120px rgba(247, 37, 133, 0.5);
+}
+
+/* Horizontal scan lines through sun */
+[data-theme="synthwave"] .synthwave-sun::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 4px,
+    rgba(13, 2, 33, 0.8) 4px,
+    rgba(13, 2, 33, 0.8) 8px
+  );
+}
+
+/* ============================================
+   SCANLINES OVERLAY (OPTIONAL CRT EFFECT)
+   ============================================ */
+[data-theme="synthwave"] .scanlines::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.05) 2px,
+    rgba(0, 0, 0, 0.05) 4px
+  );
+  pointer-events: none;
+  z-index: 9990;
+}
+
+/* ============================================
+   VHS / CHROMATIC ABERRATION
+   ============================================ */
+[data-theme="synthwave"] .chromatic {
+  position: relative;
+}
+
+[data-theme="synthwave"] .chromatic::before,
+[data-theme="synthwave"] .chromatic::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+[data-theme="synthwave"] .chromatic::before {
+  color: #4cc9f0;
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+  transform: translate(-2px, 0);
+  opacity: 0.8;
+}
+
+[data-theme="synthwave"] .chromatic::after {
+  color: #f72585;
+  clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%);
+  transform: translate(2px, 0);
+  opacity: 0.8;
+}
+
+/* ============================================
+   LOADING / SPINNER
+   ============================================ */
+[data-theme="synthwave"] .spinner-synthwave {
+  width: 50px;
+  height: 50px;
+  border: 3px solid transparent;
+  border-top-color: #f72585;
+  border-right-color: #4cc9f0;
+  border-radius: 50%;
+  animation: spin-glow 1s linear infinite;
+  box-shadow:
+    0 0 15px rgba(247, 37, 133, 0.5),
+    inset 0 0 15px rgba(76, 201, 240, 0.3);
+}
+
+@keyframes spin-glow {
+  0% {
+    transform: rotate(0deg);
+    box-shadow:
+      0 0 15px rgba(247, 37, 133, 0.5),
+      inset 0 0 15px rgba(76, 201, 240, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(247, 37, 133, 0.7),
+      inset 0 0 25px rgba(76, 201, 240, 0.5);
+  }
+  100% {
+    transform: rotate(360deg);
+    box-shadow:
+      0 0 15px rgba(247, 37, 133, 0.5),
+      inset 0 0 15px rgba(76, 201, 240, 0.3);
+  }
+}
+
+/* ============================================
+   GLITCH EFFECT
+   ============================================ */
+[data-theme="synthwave"] .glitch {
+  position: relative;
+  animation: glitch-skew 2s infinite linear alternate-reverse;
+}
+
+[data-theme="synthwave"] .glitch::before,
+[data-theme="synthwave"] .glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+[data-theme="synthwave"] .glitch::before {
+  color: #4cc9f0;
+  animation: glitch-1 0.3s infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+  transform: translate(-2px);
+}
+
+[data-theme="synthwave"] .glitch::after {
+  color: #f72585;
+  animation: glitch-2 0.3s infinite;
+  clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+  transform: translate(2px);
+}
+
+@keyframes glitch-skew {
+  0%, 100% { transform: skew(0deg); }
+  20% { transform: skew(-0.5deg); }
+  40% { transform: skew(0.5deg); }
+  60% { transform: skew(-0.3deg); }
+  80% { transform: skew(0.3deg); }
+}
+
+@keyframes glitch-1 {
+  0%, 100% { transform: translate(-2px, 0); }
+  20% { transform: translate(2px, 0); }
+  40% { transform: translate(-1px, 1px); }
+  60% { transform: translate(1px, -1px); }
+  80% { transform: translate(-2px, 0); }
+}
+
+@keyframes glitch-2 {
+  0%, 100% { transform: translate(2px, 0); }
+  20% { transform: translate(-2px, 0); }
+  40% { transform: translate(1px, -1px); }
+  60% { transform: translate(-1px, 1px); }
+  80% { transform: translate(2px, 0); }
+}
+
+/* ============================================
+   PALM TREES SILHOUETTE (DECORATIVE)
+   ============================================ */
+[data-theme="synthwave"] .palm-silhouette {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 200px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50'%3E%3Cpath d='M10 50 L10 30 Q5 25 0 30 Q5 20 10 25 Q8 15 15 20 Q10 10 20 15 Q15 5 25 10 L25 50' fill='%230d0221'/%3E%3Cpath d='M90 50 L90 35 Q95 30 100 35 Q95 25 90 30 Q92 20 85 25 Q90 15 80 20 Q85 10 75 15 L75 50' fill='%230d0221'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+  background-size: 400px 200px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ============================================
+   FLOATING ANIMATION
+   ============================================ */
+[data-theme="synthwave"] .float {
+  animation: synthwave-float 4s ease-in-out infinite;
+}
+
+@keyframes synthwave-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+/* ============================================
+   PULSE RING EFFECT
+   ============================================ */
+[data-theme="synthwave"] .pulse-ring {
+  position: relative;
+}
+
+[data-theme="synthwave"] .pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border: 2px solid #f72585;
+  border-radius: inherit;
+  animation: ring-pulse 2s ease-out infinite;
+}
+
+@keyframes ring-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}

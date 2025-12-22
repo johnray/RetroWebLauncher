@@ -16,6 +16,7 @@ class RwlSearch extends HTMLElement {
     this._loading = false;
     this._selectedIndex = -1;
     this._debounceTimer = null;
+    this._searchVersion = 0; // Tracks current search to ignore stale responses
     this._showOnScreenKeyboard = false;
     this._unsubscribers = [];
   }
@@ -30,6 +31,7 @@ class RwlSearch extends HTMLElement {
 
   disconnectedCallback() {
     clearTimeout(this._debounceTimer);
+    this._searchVersion++; // Invalidate any pending searches
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
   }
@@ -195,8 +197,12 @@ class RwlSearch extends HTMLElement {
   _debounceSearch() {
     clearTimeout(this._debounceTimer);
 
+    // Increment version to invalidate any pending search responses
+    this._searchVersion++;
+
     if (this._query.length < 2) {
       this._results = [];
+      this._loading = false;
       this._renderResults();
       return;
     }
@@ -209,19 +215,32 @@ class RwlSearch extends HTMLElement {
   async _performSearch() {
     if (this._query.length < 2) return;
 
+    // Capture the current version before the async operation
+    const searchVersion = this._searchVersion;
+    const searchQuery = this._query;
+
     this._loading = true;
     this._renderResults();
 
     try {
-      const response = await api.search(this._query);
+      const response = await api.search(searchQuery);
+
+      // Check if a newer search has been initiated - if so, ignore this response
+      if (searchVersion !== this._searchVersion) return;
+
       this._results = response.results || response.games || [];
       this._selectedIndex = this._results.length > 0 ? 0 : -1;
     } catch (error) {
+      // Check if a newer search has been initiated
+      if (searchVersion !== this._searchVersion) return;
       console.error('Search failed:', error);
       this._results = [];
     } finally {
-      this._loading = false;
-      this._renderResults();
+      // Only update UI if this is still the current search
+      if (searchVersion === this._searchVersion) {
+        this._loading = false;
+        this._renderResults();
+      }
     }
   }
 
@@ -299,6 +318,10 @@ class RwlSearch extends HTMLElement {
             >
               <div class="result-image">
                 ${imageUrl ? `<img src="${imageUrl}" alt="" loading="lazy" />` : '<span>🎮</span>'}
+                <div class="system-badge" title="${safeSystem}">
+                  <img src="/api/media/system/${game.systemId}/logo" alt="${safeSystem}" onerror="this.parentElement.classList.add('text-fallback'); this.style.display='none'; this.nextElementSibling.style.display='block';">
+                  <span class="badge-text" style="display:none;">${this._escapeHtml((game.systemId || '').substring(0, 3).toUpperCase())}</span>
+                </div>
               </div>
               <div class="result-info">
                 <div class="result-name">${safeName}</div>
@@ -341,7 +364,7 @@ class RwlSearch extends HTMLElement {
         }
 
         .search-title {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           font-size: var(--font-size-lg, 1.25rem);
           color: var(--color-primary, #ff0066);
           margin: 0 0 var(--spacing-md, 1rem) 0;
@@ -368,8 +391,8 @@ class RwlSearch extends HTMLElement {
         .search-input {
           width: 100%;
           padding: var(--spacing-md, 1rem) var(--spacing-md, 1rem) var(--spacing-md, 1rem) 48px;
-          background: rgba(255,255,255,0.1);
-          border: 2px solid rgba(255,255,255,0.2);
+          background: var(--content-input-background, rgba(255,255,255,0.1));
+          border: 2px solid var(--content-input-border, rgba(255,255,255,0.2));
           border-radius: var(--radius-lg, 12px);
           color: var(--color-text, #fff);
           font-size: var(--font-size-lg, 1.25rem);
@@ -436,7 +459,7 @@ class RwlSearch extends HTMLElement {
           align-items: center;
           gap: var(--spacing-md, 1rem);
           padding: var(--spacing-sm, 0.5rem);
-          background: rgba(255,255,255,0.05);
+          background: var(--content-overlay-dark, rgba(255,255,255,0.05));
           border-radius: var(--radius-md, 8px);
           cursor: pointer;
           transition: background var(--transition-fast, 150ms);
@@ -444,11 +467,11 @@ class RwlSearch extends HTMLElement {
 
         .result-item:hover,
         .result-item.selected {
-          background: rgba(255,0,102,0.2);
+          background: var(--selection-hover-bg, rgba(255,0,102,0.2));
         }
 
         .result-item.selected {
-          outline: 2px solid var(--color-primary, #ff0066);
+          outline: var(--selection-border-width, 2px) solid var(--selection-border-color, var(--color-primary, #ff0066));
         }
 
         .result-image {
@@ -456,22 +479,58 @@ class RwlSearch extends HTMLElement {
           height: 60px;
           border-radius: var(--radius-sm, 4px);
           overflow: hidden;
-          background: rgba(0,0,0,0.4);
+          background: var(--game-card-image-bg, rgba(0,0,0,0.4));
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          position: relative;
         }
 
-        .result-image img {
+        .result-image > img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
 
-        .result-image span {
+        .result-image > span {
           font-size: 1.5rem;
           opacity: 0.3;
+        }
+
+        /* System badge overlay */
+        .system-badge {
+          position: absolute;
+          bottom: 2px;
+          right: 2px;
+          width: 22px;
+          height: 22px;
+          background: var(--badge-background, rgba(0, 0, 0, 0.85));
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          box-shadow: var(--badge-shadow, 0 1px 3px rgba(0,0,0,0.5));
+        }
+
+        .system-badge img {
+          max-width: 18px;
+          max-height: 18px;
+          object-fit: contain;
+          filter: brightness(1.2);
+        }
+
+        .system-badge.text-fallback {
+          padding: 2px;
+        }
+
+        .system-badge .badge-text {
+          font-size: 7px;
+          font-weight: bold;
+          color: #fff;
+          text-transform: uppercase;
+          letter-spacing: -0.5px;
         }
 
         .result-info {
@@ -529,7 +588,7 @@ class RwlSearch extends HTMLElement {
         .spinner {
           width: 16px;
           height: 16px;
-          border: 2px solid rgba(255,255,255,0.2);
+          border: 2px solid var(--spinner-track, rgba(255,255,255,0.2));
           border-top-color: var(--color-primary, #ff0066);
           border-radius: 50%;
           animation: spin 1s linear infinite;
@@ -543,7 +602,7 @@ class RwlSearch extends HTMLElement {
         .on-screen-keyboard {
           margin-top: var(--spacing-lg, 1.5rem);
           padding: var(--spacing-md, 1rem);
-          background: rgba(0,0,0,0.6);
+          background: var(--content-overlay, rgba(0,0,0,0.6));
           border-radius: var(--radius-lg, 12px);
         }
 
@@ -558,8 +617,8 @@ class RwlSearch extends HTMLElement {
           min-width: 40px;
           height: 40px;
           padding: 0 var(--spacing-sm, 0.5rem);
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
+          background: var(--button-secondary-bg, rgba(255,255,255,0.1));
+          border: 1px solid var(--button-secondary-border, rgba(255,255,255,0.2));
           border-radius: var(--radius-sm, 4px);
           color: var(--color-text, #fff);
           font-size: var(--font-size-sm, 0.75rem);
@@ -569,7 +628,7 @@ class RwlSearch extends HTMLElement {
         }
 
         .osk-key:hover {
-          background: rgba(255,255,255,0.2);
+          background: var(--button-secondary-hover, rgba(255,255,255,0.2));
         }
 
         .osk-key:active {

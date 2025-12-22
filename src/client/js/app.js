@@ -6,6 +6,7 @@ import { api } from './api.js';
 import { state } from './state.js';
 import { router } from './router.js';
 import { inputManager } from './input/manager.js';
+import { themeService } from './theme-service.js';
 
 class App {
   constructor() {
@@ -36,6 +37,10 @@ class App {
       // Initialize state
       state.set('config', this.config);
       state.set('connected', true);
+
+      // Initialize theme service
+      this.updateLoadingStatus('Loading theme...');
+      await themeService.init();
 
       // Load components
       this.updateLoadingStatus('Loading components...');
@@ -70,9 +75,23 @@ class App {
       state.set('connected', true);
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('WebSocket disconnected');
+    this.socket.on('disconnect', (reason) => {
+      console.log('WebSocket disconnected:', reason);
       state.set('connected', false);
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.warn('WebSocket connection error:', error.message);
+      state.set('connected', false);
+    });
+
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log('WebSocket reconnected after', attemptNumber, 'attempts');
+      state.set('connected', true);
+    });
+
+    this.socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('WebSocket reconnection attempt:', attemptNumber);
     });
 
     this.socket.on('status', (data) => {
@@ -108,6 +127,10 @@ class App {
       './components/rwl-grid-view.js',
       './components/rwl-list-view.js',
       './components/rwl-wheel-view.js',
+      './components/rwl-spin-wheel.js',
+      './components/rwl-spinner-view.js',
+      './components/rwl-system-carousel.js',
+      './components/rwl-view-toggle.js',
       './components/rwl-game-detail.js',
       './components/rwl-video-player.js',
       './components/rwl-pdf-viewer.js',

@@ -78,7 +78,7 @@ router.get('/:id/games', (req, res) => {
 
     const options = {
       page: parseInt(req.query.page) || 1,
-      limit: Math.min(parseInt(req.query.limit) || 50, 200),
+      limit: parseInt(req.query.limit) || 10000, // No artificial limit - let client decide
       sortBy: req.query.sort || 'name',
       order: req.query.order || 'asc'
     };

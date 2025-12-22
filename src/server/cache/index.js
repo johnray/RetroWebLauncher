@@ -123,43 +123,7 @@ async function cacheGamelists(systems) {
   return cachedPaths;
 }
 
-// Progress file for external monitoring (PowerShell startup script)
-const PROGRESS_FILE = path.join(__dirname, '..', '..', '..', 'data', 'startup-progress.json');
-
-/**
- * Write progress to file for external monitoring
- */
-function writeProgress(percent, message, details = {}) {
-  try {
-    const progressData = {
-      percent,
-      message,
-      timestamp: Date.now(),
-      ...details
-    };
-    // Ensure data directory exists
-    const dataDir = path.dirname(PROGRESS_FILE);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progressData), 'utf8');
-  } catch (err) {
-    // Silently ignore - progress file is optional
-  }
-}
-
-/**
- * Clear progress file
- */
-function clearProgressFile() {
-  try {
-    if (fs.existsSync(PROGRESS_FILE)) {
-      fs.unlinkSync(PROGRESS_FILE);
-    }
-  } catch (err) {
-    // Silently ignore
-  }
-}
+// Progress tracking removed - startup is fast enough now
 
 // In-memory storage
 let systemsMap = new Map();       // id -> system
@@ -208,29 +172,14 @@ async function fullScan(progressCallback = null) {
   scanInProgress = true;
   const startTime = Date.now();
 
-  // Clear any old progress file
-  clearProgressFile();
-
   try {
-    // Report progress - writes to console, callback, and progress file
-    const progress = (message, pct, details = {}) => {
-      console.log(`[${pct}%] ${message}`);
-      writeProgress(pct, message, details);
-      if (progressCallback) {
-        progressCallback({ message, percent: pct, ...details });
-      }
-    };
-
-    progress('Starting full library scan...', 0);
+    console.log('Starting library scan...');
 
     // Parse systems from es_systems.cfg
-    progress('Parsing systems configuration...', 5);
     const systems = await parseSystems();
-
-    progress(`Found ${systems.length} systems`, 8, { systemCount: systems.length });
+    console.log(`Found ${systems.length} systems`);
 
     // Clear existing data and gamelist cache
-    progress('Clearing old cache...', 10);
     clearCache();
     clearGamelistCache();
 
@@ -238,9 +187,7 @@ async function fullScan(progressCallback = null) {
     const accessibleSystems = systems.filter(s => s.accessible);
 
     // Copy gamelists from network to local cache (parallel)
-    progress('Copying gamelists to local cache...', 12);
     const cachedGamelists = await cacheGamelists(accessibleSystems);
-    progress(`Cached ${cachedGamelists.size} gamelists locally`, 18, { cachedCount: cachedGamelists.size });
 
     // Build a map of system ID to system object for quick lookup
     const systemMap = new Map();
@@ -251,9 +198,8 @@ async function fullScan(progressCallback = null) {
     // ONLY process systems that have cached gamelists (have games)
     const systemsWithGames = Array.from(cachedGamelists.keys());
     let totalGames = 0;
-    let processedCount = 0;
 
-    progress(`Parsing ${systemsWithGames.length} gamelists (${PARSE_CONCURRENCY} parallel)...`, 20);
+    console.log(`Parsing ${systemsWithGames.length} gamelists (${PARSE_CONCURRENCY} parallel)...`);
 
     // Parse gamelists in parallel from LOCAL CACHE (not network!)
     const parseResults = await parallelLimit(systemsWithGames, PARSE_CONCURRENCY, async (systemId) => {
@@ -263,19 +209,9 @@ async function fullScan(progressCallback = null) {
       try {
         // Parse from LOCAL CACHE only - never reads from network
         const games = await parseGamelistFromFile(cachedPath, system.resolvedPath || system.path, system.id);
-
-        processedCount++;
-        const pct = Math.floor(20 + (processedCount / systemsWithGames.length) * 70);
-        progress(`Parsed ${system.fullname} (${games.length} games)`, pct, {
-          currentSystem: system.fullname,
-          systemIndex: processedCount,
-          totalSystems: systemsWithGames.length
-        });
-
         return { systemId, system, games, success: true };
       } catch (error) {
         console.error(`Error scanning ${system.id}:`, error.message);
-        processedCount++;
         return { systemId, system, games: [], success: false };
       }
     });
@@ -311,21 +247,10 @@ async function fullScan(progressCallback = null) {
       }
     }
 
-    progress('Building search index...', 95, { gamesFound: totalGames });
-    // No separate index needed - we search the in-memory array directly
-
     const duration = Date.now() - startTime;
     lastScanTime = new Date();
 
-    progress('Scan complete!', 100, {
-      gamesFound: totalGames,
-      systemCount: accessibleSystems.length,
-      duration
-    });
     console.log(`Scan complete: ${totalGames} games from ${accessibleSystems.length} systems in ${duration}ms`);
-
-    // Clear progress file after successful completion
-    clearProgressFile();
 
     return {
       success: true,
@@ -336,7 +261,6 @@ async function fullScan(progressCallback = null) {
     };
   } catch (error) {
     console.error('Scan failed:', error);
-    writeProgress(-1, `Error: ${error.message}`, { error: true });
     throw error;
   } finally {
     scanInProgress = false;

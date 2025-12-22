@@ -32,6 +32,9 @@ Desktop.ini
 *.swo
 *~
 
+# AI assistant notes
+CLAUDE.md
+
 # Build output
 dist/
 build/

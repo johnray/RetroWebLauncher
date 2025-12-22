@@ -1,0 +1,252 @@
+{
+  "name": "Dark Modern",
+  "description": "Clean, minimalist dark theme with subtle animations and soft glows",
+  "version": "1.0.0",
+
+  "home": {
+    "style": "sidebar",
+    "showSidebar": true,
+    "showBreadcrumbs": false
+  },
+
+  "views": {
+    "systemSelector": "carousel",
+    "systemDefault": "grid",
+    "collectionDefault": "grid",
+    "searchDefault": "grid",
+    "recentlyPlayedDefault": "grid"
+  },
+
+  "ui": {
+    "showViewToggle": true,
+    "showSystemBadges": true,
+    "showGameCount": true,
+    "showConnectionStatus": true,
+    "showNavButtons": true,
+    "animationsEnabled": true
+  },
+
+  "effects": {
+    "particlesEnabled": false,
+    "scanlineEffect": false,
+    "crtEffect": false,
+    "chromaticAberration": false,
+    "gridFloorEffect": false,
+    "chromeTextEffect": false
+  },
+
+  "backgrounds": {
+    "systemSelector": {
+      "enabled": true,
+      "type": "gradient",
+      "blur": 0,
+      "opacity": 1
+    },
+    "gameList": {
+      "enabled": true,
+      "type": "selected",
+      "blur": 30,
+      "brightness": 0.25,
+      "opacity": 1,
+      "fadeInDuration": 400,
+      "videoEnabled": false,
+      "videoMuted": true,
+      "videoLoop": true
+    },
+    "gameDetail": {
+      "enabled": true,
+      "type": "artwork",
+      "fallbackToVideo": true,
+      "blur": 20,
+      "brightness": 0.3,
+      "opacity": 1,
+      "preferredArtwork": ["fanart", "screenshot", "thumbnail"]
+    }
+  },
+
+  "selection": {
+    "glowEffect": true,
+    "glowColor": "#6366f1",
+    "glowIntensity": 0.4,
+    "glowSpread": 15,
+    "scaleOnHover": 1.03,
+    "showBackgroundPreview": true,
+    "backgroundPreviewBlur": 30,
+    "backgroundPreviewBrightness": 0.25,
+    "backgroundPreviewOpacity": 1
+  },
+
+  "carousel": {
+    "cardStyle": "flat",
+    "reflectionEnabled": false,
+    "rotationAngle": 8,
+    "perspective": 1200,
+    "neonBorder": false,
+    "shadowEnabled": true,
+    "layout": {
+      "position": "bottom",
+      "detailsPosition": "above",
+      "controlsPosition": "bottom"
+    },
+    "sizing": {
+      "defaultCardSize": 300,
+      "minCardSize": 150,
+      "maxCardSize": 500,
+      "cardAspectRatio": 1.36,
+      "cardGap": 0.1
+    },
+    "details": {
+      "showCrtTv": true,
+      "crtWidth": 300,
+      "showRating": true,
+      "showPlayCount": true,
+      "showDescription": true,
+      "maxDescriptionLines": 3
+    }
+  },
+
+  "wheel": {
+    "itemSpacing": 20,
+    "curve3d": true,
+    "fadeEdges": true,
+    "visibleItems": 7
+  },
+
+  "spinWheel": {
+    "layout": {
+      "wheelPosition": "right",
+      "detailsPosition": "left",
+      "controlsPosition": "bottom"
+    },
+    "sizing": {
+      "defaultCardSize": 280,
+      "minCardSize": 200,
+      "maxCardSize": 500,
+      "itemHeight": 0.35,
+      "imageWidth": 0.28,
+      "imageHeight": 0.38
+    },
+    "wheel": {
+      "visibleItems": 5,
+      "angleStep": 20,
+      "translateZFactor": 35,
+      "opacityFalloff": 0.22,
+      "scaleFalloff": 0.10
+    },
+    "details": {
+      "showCrtTv": true,
+      "crtWidth": 320,
+      "showRating": true,
+      "showPlayCount": true,
+      "showDescription": true
+    }
+  },
+
+  "spinner": {
+    "visibleItems": 9,
+    "radius": 300,
+    "cardWidth": 90,
+    "cardHeight": 125,
+    "angleStep": 16,
+    "selectedScale": 1.15,
+    "layout": {
+      "wheelPosition": "right",
+      "detailsPosition": "left",
+      "controlsPosition": "bottom"
+    },
+    "sizing": {
+      "defaultSize": 140,
+      "minSize": 80,
+      "maxSize": 220,
+      "baseRadius": 190,
+      "cardWidthFactor": 0.85,
+      "cardHeightFactor": 1.2
+    },
+    "pointer": {
+      "style": "arrow",
+      "size": 35,
+      "color": "#6366f1",
+      "glowEnabled": true,
+      "glowIntensity": 0.5,
+      "position": "left"
+    },
+    "details": {
+      "showCrtTv": true,
+      "crtWidth": 350,
+      "showRating": true,
+      "showPlayCount": true,
+      "showLastPlayed": true,
+      "showDescription": true
+    }
+  },
+
+  "crtTv": {
+    "enabled": true,
+    "scanlineEffect": false,
+    "scanlineOpacity": 0.1,
+    "vignetteEffect": true,
+    "vignetteIntensity": 0.3,
+    "borderRadius": 12,
+    "frameStyle": "minimal",
+    "frameColor": "#27272a",
+    "ledIndicator": false,
+    "autoplayVideo": true,
+    "videoFallbackToScreenshot": true,
+    "aspectRatio": "4/3"
+  },
+
+  "zoomSlider": {
+    "width": "calc(33vw - 200px)",
+    "minWidth": 150,
+    "maxWidth": 300
+  },
+
+  "grid": {
+    "cardBorderRadius": 12,
+    "hoverScale": 1.03,
+    "showTitle": true,
+    "aspectRatio": "3/4",
+    "sizing": {
+      "defaultCardSize": 150,
+      "minCardSize": 80,
+      "maxCardSize": 300
+    }
+  },
+
+  "list": {
+    "showThumbnails": true,
+    "stripedRows": true,
+    "compactMode": false,
+    "showRatings": true,
+    "sizing": {
+      "defaultIconSize": 40,
+      "minIconSize": 24,
+      "maxIconSize": 80
+    }
+  },
+
+  "colors": {
+    "primary": "#6366f1",
+    "secondary": "#8b5cf6",
+    "accent": "#22d3ee",
+    "background": "#09090b",
+    "surface": "#18181b",
+    "surfaceHover": "#27272a",
+    "text": "#fafafa",
+    "textMuted": "#71717a",
+    "success": "#22c55e",
+    "warning": "#eab308",
+    "error": "#ef4444"
+  },
+
+  "fonts": {
+    "heading": "'Inter', sans-serif",
+    "body": "'Inter', sans-serif",
+    "mono": "'Fira Code', monospace"
+  },
+
+  "spacing": {
+    "cardGap": 16,
+    "sectionPadding": 20
+  }
+}

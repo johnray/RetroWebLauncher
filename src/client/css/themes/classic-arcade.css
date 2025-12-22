@@ -27,8 +27,8 @@
   --gradient-primary: linear-gradient(135deg, #ff0066 0%, #ff00ff 50%, #00ffff 100%);
   --gradient-surface: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
 
-  /* Typography */
-  --font-display: 'Press Start 2P', monospace;
+  /* Typography - VT323 is a cleaner, more readable retro terminal font */
+  --font-display: 'VT323', 'Courier New', monospace;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Font sizes */
@@ -81,6 +81,93 @@
   --z-modal: 500;
   --z-toast: 600;
   --z-screensaver: 9999;
+
+  /* Selection styling */
+  --selection-border-width: 3px;
+  --selection-border-color: #ff0066;
+  --selection-glow-color: #ff0066;
+  --selection-glow-rgba: rgba(255, 0, 102, 0.4);
+  --selection-glow-secondary: rgba(0, 255, 255, 0.2);
+  --selection-hover-bg: rgba(255, 0, 102, 0.15);
+
+  /* Navigation buttons (controls bar) */
+  --nav-btn-bg: rgba(255, 0, 102, 0.15);
+  --nav-btn-border: rgba(255, 0, 102, 0.4);
+  --nav-btn-color: #ff0066;
+  --nav-btn-hover-bg: rgba(255, 0, 102, 0.3);
+  --counter-color: #ff0066;
+
+  /* Controls/toolbar bar */
+  --controls-bar-bg: rgba(15, 15, 15, 0.95);
+  --controls-bar-border-color: #333;
+  --toolbar-background: rgba(15, 15, 15, 0.95);
+  --toolbar-border: #333;
+
+  /* Alphabet bar */
+  --alphabet-bar-background: rgba(0, 0, 0, 0.8);
+  --alphabet-bar-border: transparent;
+  --alphabet-letter-color: rgba(255, 255, 255, 0.7);
+  --alphabet-letter-muted: rgba(255, 255, 255, 0.25);
+  --alphabet-letter-active-bg: #ff0066;
+  --alphabet-letter-active-color: #ffffff;
+
+  /* Arcade name glow - intense neon pink */
+  --arcade-name-glow: 0 0 10px rgba(255, 0, 102, 0.5), 0 0 20px rgba(255, 0, 102, 0.3);
+  --arcade-name-glow-color: rgba(255, 0, 102, 0.5);
+
+  /* Breadcrumb bar */
+  --breadcrumb-background: rgba(0, 0, 0, 0.5);
+
+  /* Carousel reflection gradient - dark fade */
+  --carousel-reflection-gradient: linear-gradient(0deg, rgba(10, 10, 10, 1) 0%, transparent 100%);
+
+  /* CRT LED off state */
+  --crt-led-off: #333;
+
+  /* Game count badge */
+  --game-count-badge-bg: rgba(255, 0, 102, 0.9);
+  --game-count-badge-color: #ffffff;
+  --badge-glow: rgba(255, 0, 102, 0.4);
+
+  /* Settings panel */
+  --settings-background: rgba(0, 0, 0, 0.9);
+  --settings-section-bg: rgba(255, 255, 255, 0.05);
+  --settings-border: rgba(255, 0, 102, 0.3);
+  --settings-title-color: #ff0066;
+  --settings-label-color: #ffffff;
+  --settings-desc-color: #888888;
+  --settings-input-bg: rgba(0, 0, 0, 0.4);
+  --settings-input-border: rgba(255, 255, 255, 0.2);
+
+  /* Game cards */
+  --game-card-background: #1a1a1a;
+  --game-card-border: rgba(255, 255, 255, 0.1);
+  --game-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --game-card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --game-card-image-bg: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+
+  /* CRT/Video frame */
+  --crt-frame-background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  --crt-frame-border: transparent;
+  --crt-screen-background: #000;
+  --crt-led-on: #0f0;
+
+  /* View backgrounds */
+  --view-background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+  --bg-brightness: 0.4;
+  --bg-gradient-overlay:
+    radial-gradient(ellipse at center bottom, transparent 0%, rgba(10,10,10,0.9) 70%),
+    linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%);
+
+  /* System carousel */
+  --system-card-background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --system-card-border: rgba(255, 255, 255, 0.1);
+  --system-info-background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+  --system-name-color: #ffffff;
+  --system-meta-color: #888888;
+
+  /* Spinner */
+  --spinner-track: #333;
 }
 
 /* ============================================

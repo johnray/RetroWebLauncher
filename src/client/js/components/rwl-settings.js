@@ -6,6 +6,7 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { router } from '../router.js';
+import { themeService } from '../theme-service.js';
 
 class RwlSettings extends HTMLElement {
   constructor() {
@@ -40,12 +41,23 @@ class RwlSettings extends HTMLElement {
   async _loadThemesDropdown() {
     try {
       const response = await fetch('/api/themes');
+      if (!response.ok) {
+        console.error('Failed to fetch themes:', response.status);
+        return; // Keep default options
+      }
+
       const data = await response.json();
 
       const select = this.shadowRoot.querySelector('#theme');
       if (!select) return;
 
-      // Clear existing options
+      // Only proceed if we have valid themes data
+      if (!data.themes || !Array.isArray(data.themes) || data.themes.length === 0) {
+        console.warn('No themes returned from API, keeping defaults');
+        return;
+      }
+
+      // Clear existing options only if we have new data
       select.innerHTML = '';
 
       // Add built-in themes first
@@ -56,7 +68,9 @@ class RwlSettings extends HTMLElement {
         const option = document.createElement('option');
         option.value = theme.id;
         option.textContent = theme.name;
-        if (this._config.theme === theme.id) option.selected = true;
+        if (this._config.theme === theme.id || data.currentTheme === theme.id) {
+          option.selected = true;
+        }
         select.appendChild(option);
       });
 
@@ -69,14 +83,19 @@ class RwlSettings extends HTMLElement {
           const option = document.createElement('option');
           option.value = theme.id;
           option.textContent = `${theme.name}${theme.isAiGenerated ? ' (AI)' : ''}`;
-          if (this._config.theme === theme.id) option.selected = true;
+          if (this._config.theme === theme.id || data.currentTheme === theme.id) {
+            option.selected = true;
+          }
           optgroup.appendChild(option);
         });
 
         select.appendChild(optgroup);
       }
+
+      console.log('Loaded themes:', data.themes.length);
     } catch (error) {
       console.error('Failed to load themes dropdown:', error);
+      // Keep existing default options on error
     }
   }
 
@@ -159,6 +178,11 @@ class RwlSettings extends HTMLElement {
       this._config[parent][child] = value;
     } else {
       this._config[key] = value;
+    }
+
+    // Apply theme changes immediately for instant preview
+    if (key === 'theme') {
+      themeService.loadThemeSettings(value);
     }
 
     this._dirty = true;
@@ -277,10 +301,21 @@ class RwlSettings extends HTMLElement {
   async _loadCustomThemes() {
     try {
       const response = await fetch('/api/themes');
+      if (!response.ok) {
+        console.error('Failed to fetch themes:', response.status);
+        return;
+      }
+
       const data = await response.json();
 
       const grid = this.shadowRoot.querySelector('.themes-grid');
       if (!grid) return;
+
+      // Handle missing or invalid themes data
+      if (!data.themes || !Array.isArray(data.themes)) {
+        grid.innerHTML = '<p class="no-themes">Unable to load themes</p>';
+        return;
+      }
 
       const customThemes = data.themes.filter(t => !t.isBuiltIn);
 
@@ -369,18 +404,8 @@ class RwlSettings extends HTMLElement {
           <select id="theme" name="theme" class="setting-select">
             <option value="classic-arcade" ${config.theme === 'classic-arcade' ? 'selected' : ''}>Classic Arcade</option>
             <option value="dark-modern" ${config.theme === 'dark-modern' ? 'selected' : ''}>Dark & Modern</option>
-          </select>
-        </div>
-
-        <div class="setting-item">
-          <label class="setting-label" for="defaultView">
-            <span class="label-text">Default View</span>
-            <span class="label-desc">How games are displayed by default</span>
-          </label>
-          <select id="defaultView" name="defaultView" class="setting-select">
-            <option value="wheel" ${config.defaultView === 'wheel' ? 'selected' : ''}>Wheel (3D Carousel)</option>
-            <option value="grid" ${config.defaultView === 'grid' ? 'selected' : ''}>Grid</option>
-            <option value="list" ${config.defaultView === 'list' ? 'selected' : ''}>List</option>
+            <option value="synthwave" ${config.theme === 'synthwave' ? 'selected' : ''}>Synthwave</option>
+            <option value="clean-light" ${config.theme === 'clean-light' ? 'selected' : ''}>Clean Light</option>
           </select>
         </div>
       </section>
@@ -575,7 +600,7 @@ class RwlSettings extends HTMLElement {
         <h3 class="section-title">About</h3>
         <div class="about-info">
           <p><strong>RetroWebLauncher</strong></p>
-          <p class="version">Version 1.0.0</p>
+          <p class="version">Version ${config.version || '1.0.0'}</p>
           <p class="credits">A modern web frontend for Retrobat</p>
         </div>
       </section>
@@ -594,7 +619,7 @@ class RwlSettings extends HTMLElement {
         .settings-container {
           height: 100%;
           overflow-y: auto;
-          background: rgba(0,0,0,0.8);
+          background: var(--settings-background, rgba(0,0,0,0.8));
         }
 
         .settings-wrapper {
@@ -634,27 +659,28 @@ class RwlSettings extends HTMLElement {
         }
 
         .settings-title {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           font-size: var(--font-size-xl, 1.5rem);
-          color: var(--color-primary, #ff0066);
+          color: var(--settings-title-color, var(--color-primary, #ff0066));
           margin: 0;
         }
 
         .settings-section {
-          background: rgba(255,255,255,0.05);
+          background: var(--settings-section-bg, rgba(255,255,255,0.05));
           border-radius: var(--radius-lg, 12px);
           padding: var(--spacing-lg, 1.5rem);
           margin-bottom: var(--spacing-lg, 1.5rem);
+          border: 1px solid var(--settings-border, transparent);
         }
 
         .section-title {
           font-size: var(--font-size-sm, 0.75rem);
-          color: var(--color-primary, #ff0066);
+          color: var(--settings-title-color, var(--color-primary, #ff0066));
           text-transform: uppercase;
           letter-spacing: 0.1em;
           margin: 0 0 var(--spacing-lg, 1.5rem) 0;
           padding-bottom: var(--spacing-sm, 0.5rem);
-          border-bottom: 1px solid rgba(255,0,102,0.3);
+          border-bottom: 1px solid var(--settings-border, rgba(255,0,102,0.3));
         }
 
         .setting-item {
@@ -678,21 +704,21 @@ class RwlSettings extends HTMLElement {
 
         .label-text {
           font-size: var(--font-size-sm, 0.75rem);
-          color: var(--color-text, #fff);
+          color: var(--settings-label-color, var(--color-text, #fff));
           font-weight: 500;
         }
 
         .label-desc {
           font-size: var(--font-size-xs, 0.625rem);
-          color: var(--color-text-muted, #888);
+          color: var(--settings-desc-color, var(--color-text-muted, #888));
         }
 
         .setting-input,
         .setting-select {
           width: 250px;
           padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
-          background: rgba(0,0,0,0.4);
-          border: 1px solid rgba(255,255,255,0.2);
+          background: var(--settings-input-bg, rgba(0,0,0,0.4));
+          border: 1px solid var(--settings-input-border, rgba(255,255,255,0.2));
           border-radius: var(--radius-md, 8px);
           color: var(--color-text, #fff);
           font-size: var(--font-size-sm, 0.75rem);
@@ -795,7 +821,7 @@ class RwlSettings extends HTMLElement {
           position: sticky;
           bottom: 0;
           padding: var(--spacing-md, 1rem);
-          background: linear-gradient(transparent, rgba(0,0,0,0.9) 30%);
+          background: var(--settings-footer-background, linear-gradient(transparent, rgba(0,0,0,0.9) 30%));
           display: flex;
           justify-content: flex-end;
         }

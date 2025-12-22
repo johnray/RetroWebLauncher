@@ -238,6 +238,66 @@ router.put('/:id', (req, res) => {
 });
 
 /**
+ * GET /api/themes/:id/settings
+ * Get settings/config JSON for a specific theme
+ */
+router.get('/:id/settings', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const themeName = req.params.id;
+    const themesDir = path.join(__dirname, '..', '..', '..', 'themes');
+    const filePath = path.join(themesDir, `${themeName}.json`);
+
+    // Default theme settings if JSON doesn't exist
+    const defaultSettings = {
+      name: themeName,
+      views: {
+        systemSelector: 'carousel',
+        systemDefault: 'wheel',
+        collectionDefault: 'grid',
+        searchDefault: 'grid',
+        recentlyPlayedDefault: 'grid'
+      },
+      ui: {
+        showViewToggle: true,
+        showSystemBadges: true,
+        showGameCount: true,
+        showConnectionStatus: true,
+        animationsEnabled: true,
+        particlesEnabled: false,
+        scanlineEffect: false,
+        crtEffect: false
+      },
+      backgrounds: {
+        systemSelector: { type: 'gradient', blur: 0 },
+        gameList: { type: 'selected', blur: 20, opacity: 0.3, fadeInDuration: 500 },
+        gameDetail: { type: 'artwork', fallbackToVideo: true, blur: 15, opacity: 0.4 }
+      },
+      selection: {
+        glowEffect: true,
+        glowColor: '#ff0066',
+        glowIntensity: 0.5,
+        scaleOnHover: 1.05,
+        showBackgroundPreview: true,
+        backgroundPreviewBlur: 25,
+        backgroundPreviewOpacity: 0.25
+      }
+    };
+
+    if (fs.existsSync(filePath)) {
+      const settings = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      res.json({ settings, found: true });
+    } else {
+      res.json({ settings: defaultSettings, found: false });
+    }
+  } catch (error) {
+    console.error('Error getting theme settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/themes/:id/css
  * Get CSS for a specific theme
  */

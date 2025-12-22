@@ -1,0 +1,560 @@
+/**
+ * RetroWebLauncher - Clean Light Theme
+ * Modern light design with soft shadows, clean typography, and subtle gradients
+ * Optimized for readability and a fresh, professional look
+ */
+
+[data-theme="clean-light"] {
+  /* Colors - Vibrant but professional palette */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-secondary: #0891b2;
+  --color-accent: #f59e0b;
+
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f1f5f9;
+
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-text-secondary: #475569;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  /* Gradients - Subtle and clean */
+  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
+  --gradient-surface: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+
+  /* Typography - Modern and clean */
+  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Font sizes */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Border radius - Softer, more rounded */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows - Soft and subtle for light backgrounds */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.2), 0 4px 15px rgba(0, 0, 0, 0.1);
+  --shadow-glow-intense: 0 0 30px rgba(37, 99, 235, 0.3), 0 8px 25px rgba(0, 0, 0, 0.15);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Focus */
+  --focus-ring-color: #2563eb;
+  --focus-ring-width: 3px;
+
+  /* Layout */
+  --header-height: 64px;
+  --sidebar-width: 280px;
+
+  /* Header styling for light theme */
+  --header-background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+  --header-border-color: rgba(0, 0, 0, 0.08);
+  --header-text-color: #1e293b;
+  --header-btn-background: rgba(0, 0, 0, 0.05);
+  --header-btn-background-hover: rgba(0, 0, 0, 0.1);
+  --header-btn-border: rgba(0, 0, 0, 0.1);
+
+  /* Arcade name glow - subtle blue for light theme */
+  --arcade-name-glow: 0 1px 2px rgba(37, 99, 235, 0.15);
+  --arcade-name-glow-color: rgba(37, 99, 235, 0.2);
+
+  /* Sidebar styling for light theme */
+  --sidebar-background: #ffffff;
+  --sidebar-border-color: rgba(0, 0, 0, 0.08);
+  --sidebar-text-color: #1e293b;
+  --sidebar-item-hover: rgba(0, 0, 0, 0.05);
+  --sidebar-item-selected: rgba(37, 99, 235, 0.1);
+  --sidebar-group-header-color: #64748b;
+
+  /* Content area backgrounds for light theme */
+  --content-background: #f8fafc;
+  --content-surface: #ffffff;
+  --content-overlay: rgba(255, 255, 255, 0.9);
+  --content-overlay-dark: rgba(0, 0, 0, 0.05);
+  --content-card-background: #ffffff;
+  --content-card-border: rgba(0, 0, 0, 0.08);
+  --content-input-background: #ffffff;
+  --content-input-border: rgba(0, 0, 0, 0.15);
+  --content-scrollbar-track: rgba(0, 0, 0, 0.05);
+  --content-scrollbar-thumb: rgba(0, 0, 0, 0.2);
+
+  /* CRT/Video frame for light theme */
+  --crt-frame-background: linear-gradient(145deg, #e2e8f0, #f1f5f9);
+  --crt-frame-border: rgba(0, 0, 0, 0.1);
+  --crt-screen-background: #1e293b;
+  --crt-led-on: #22c55e;
+
+  /* Game card styling for light theme */
+  --game-card-background: #ffffff;
+  --game-card-border: rgba(0, 0, 0, 0.08);
+  --game-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --game-card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --game-card-title-background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  --game-card-badge-background: rgba(0, 0, 0, 0.6);
+  --game-card-image-bg: #e2e8f0;
+  --game-card-no-image-bg: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  --game-card-title-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  --grid-hover-scale: 1.03;
+
+  /* Badge styling for light theme */
+  --badge-background: rgba(255, 255, 255, 0.9);
+  --badge-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+
+  /* Toolbar/controls bar for light theme */
+  --toolbar-background: rgba(255, 255, 255, 0.95);
+  --toolbar-border: rgba(0, 0, 0, 0.08);
+
+  /* Breadcrumb bar for light theme */
+  --breadcrumb-background: rgba(255, 255, 255, 0.9);
+
+  /* Carousel reflection gradient for light theme - subtle white fade */
+  --carousel-reflection-gradient: linear-gradient(0deg, rgba(248, 250, 252, 1) 0%, transparent 100%);
+
+  /* CRT LED off state for light theme */
+  --crt-led-off: #cbd5e1;
+
+  /* Spinner styling */
+  --spinner-track: rgba(0, 0, 0, 0.15);
+
+  /* Table styling */
+  --table-header-background: rgba(248, 250, 252, 0.98);
+
+  /* Content borders */
+  --content-border: rgba(0, 0, 0, 0.08);
+  --content-scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+
+  /* Button styling for light theme */
+  --button-secondary-bg: rgba(0, 0, 0, 0.05);
+  --button-secondary-hover: rgba(0, 0, 0, 0.1);
+  --button-secondary-border: rgba(0, 0, 0, 0.1);
+  --button-active-bg: rgba(37, 99, 235, 0.1);
+  --button-active-border: rgba(37, 99, 235, 0.3);
+
+  /* Selection/hover styling */
+  --selection-hover-bg: rgba(37, 99, 235, 0.1);
+
+  /* Alphabet/controls bar for light theme */
+  --controls-bar-background: rgba(255, 255, 255, 0.95);
+  --controls-bar-border: rgba(0, 0, 0, 0.08);
+  --alphabet-bar-background: rgba(255, 255, 255, 0.95);
+
+  /* Selection styling - themeable with pulse */
+  --selection-border-width: 3px;
+  --selection-border-color: var(--color-primary);
+  --selection-glow-color: var(--color-primary);
+  --selection-glow-rgba: rgba(37, 99, 235, 0.35);
+  --selection-glow-secondary: rgba(8, 145, 178, 0.2);
+  --selection-glow-spread: 15px;
+  --selection-glow-opacity: 0.3;
+  --selection-pulse-enabled: 1;
+  --selection-pulse-duration: 2s;
+
+  /* View backgrounds for light theme */
+  --view-background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  --bg-brightness: 0.85;
+  --bg-gradient-overlay:
+    radial-gradient(ellipse at center bottom, transparent 0%, rgba(255,255,255,0.7) 70%),
+    linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 30%, transparent 60%, rgba(255,255,255,0.5) 100%);
+
+  /* System carousel cards for light theme */
+  --system-card-background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%);
+  --system-card-border: rgba(0, 0, 0, 0.1);
+  --system-info-background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.8) 100%);
+  --system-name-color: #1e293b;
+  --system-meta-color: #64748b;
+
+  /* Controls bar for carousel views - light theme */
+  --controls-bar-bg: rgba(255, 255, 255, 0.98);
+  --controls-bar-border-color: rgba(0, 0, 0, 0.08);
+  --nav-btn-bg: rgba(37, 99, 235, 0.1);
+  --nav-btn-border: rgba(37, 99, 235, 0.3);
+  --nav-btn-color: #2563eb;
+  --nav-btn-hover-bg: rgba(37, 99, 235, 0.2);
+  --counter-color: #2563eb;
+
+  /* Alphabet/letter picker for light theme */
+  --alphabet-letter-color: #1e293b;
+  --alphabet-letter-muted: #94a3b8;
+  --alphabet-letter-active-bg: #2563eb;
+  --alphabet-letter-active-color: #ffffff;
+  --alphabet-bar-bg: rgba(255, 255, 255, 0.95);
+  --alphabet-bar-border: rgba(0, 0, 0, 0.1);
+
+  /* Badge colors for light theme - classy blue tones, no pink */
+  --game-count-badge-bg: rgba(37, 99, 235, 0.9);
+  --game-count-badge-color: #ffffff;
+  --badge-glow: rgba(37, 99, 235, 0.3);
+
+  /* Active/selected card glow - blue only, no pink */
+  --active-card-glow: 0 0 30px rgba(37, 99, 235, 0.3), 0 10px 30px rgba(0, 0, 0, 0.15);
+  --active-card-border: #2563eb;
+
+  /* Settings panel for light theme */
+  --settings-background: #ffffff;
+  --settings-section-bg: rgba(248, 250, 252, 0.8);
+  --settings-border: rgba(0, 0, 0, 0.08);
+  --settings-title-color: #2563eb;
+  --settings-label-color: #1e293b;
+  --settings-desc-color: #64748b;
+  --settings-input-bg: #ffffff;
+  --settings-input-border: rgba(0, 0, 0, 0.15);
+  --settings-footer-background: linear-gradient(transparent, rgba(255, 255, 255, 0.95) 30%);
+
+  /* Z-index */
+  --z-sidebar: 100;
+  --z-header: 200;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-screensaver: 9999;
+}
+
+/* ============================================
+   BODY - CLEAN GRADIENT BACKGROUND
+   ============================================ */
+[data-theme="clean-light"] body {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+/* Subtle pattern overlay */
+[data-theme="clean-light"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(37, 99, 235, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(8, 145, 178, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================
+   CARD STYLES - CLEAN ELEVATED LOOK
+   ============================================ */
+[data-theme="clean-light"] .card,
+[data-theme="clean-light"] .panel {
+  background: var(--color-surface);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg);
+}
+
+[data-theme="clean-light"] .card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* Card with accent border */
+[data-theme="clean-light"] .card-accent {
+  border-left: 4px solid var(--color-primary);
+}
+
+/* ============================================
+   BUTTON STYLES
+   ============================================ */
+[data-theme="clean-light"] .btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: all var(--transition-normal);
+}
+
+[data-theme="clean-light"] .btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+[data-theme="clean-light"] .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="clean-light"] .btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="clean-light"] .btn-secondary:hover {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ============================================
+   NEON/GLOW EFFECTS (Adapted for light theme)
+   ============================================ */
+[data-theme="clean-light"] .neon-text {
+  color: var(--color-primary);
+  text-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
+[data-theme="clean-light"] .neon-border {
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="clean-light"] .glow-hover:hover {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Note: Header and sidebar styling is done via CSS variables defined above:
+   --header-background, --header-border-color, --header-text-color, etc.
+   --sidebar-background, --sidebar-border-color, --sidebar-text-color, etc.
+   These variables pierce Shadow DOM; direct selectors like [data-theme] rwl-header do not. */
+
+/* ============================================
+   INPUT AND FORM ELEMENTS
+   ============================================ */
+[data-theme="clean-light"] input,
+[data-theme="clean-light"] select,
+[data-theme="clean-light"] textarea {
+  background: var(--color-surface);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+[data-theme="clean-light"] input:focus,
+[data-theme="clean-light"] select:focus,
+[data-theme="clean-light"] textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  outline: none;
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+[data-theme="clean-light"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="clean-light"] ::-webkit-scrollbar-track {
+  background: var(--color-surface-elevated);
+  border-radius: var(--radius-full);
+}
+
+[data-theme="clean-light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-full);
+}
+
+[data-theme="clean-light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   GAME CARDS - LIGHT STYLE
+   ============================================ */
+[data-theme="clean-light"] .game-card {
+  background: var(--color-surface);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+}
+
+[data-theme="clean-light"] .game-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--color-primary);
+}
+
+[data-theme="clean-light"] .game-card.active {
+  box-shadow: var(--shadow-glow-intense);
+  border-color: var(--color-primary);
+}
+
+/* ============================================
+   CAROUSEL - LIGHT ADAPTATION
+   ============================================ */
+[data-theme="clean-light"] .carousel-container {
+  background: linear-gradient(180deg, var(--color-surface-elevated) 0%, var(--color-background) 100%);
+}
+
+[data-theme="clean-light"] .controls-bar {
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+/* ============================================
+   CRT TV FRAME - MODERN LIGHT VERSION
+   ============================================ */
+[data-theme="clean-light"] .crt-frame {
+  background: linear-gradient(145deg, #e2e8f0, #f8fafc);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="clean-light"] .crt-screen {
+  background: #1e293b;
+  border-radius: 8px;
+}
+
+/* ============================================
+   ALPHABET BAR
+   ============================================ */
+[data-theme="clean-light"] .alphabet-bar {
+  background: var(--color-surface);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="clean-light"] .alpha-letter {
+  color: var(--color-text-muted);
+}
+
+[data-theme="clean-light"] .alpha-letter.has-games {
+  color: var(--color-text);
+}
+
+[data-theme="clean-light"] .alpha-letter.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+[data-theme="clean-light"] .spinner {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: var(--color-primary);
+}
+
+/* ============================================
+   BADGES AND TAGS
+   ============================================ */
+[data-theme="clean-light"] .badge {
+  background: var(--color-primary);
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+[data-theme="clean-light"] .badge-secondary {
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   TOOLTIPS
+   ============================================ */
+[data-theme="clean-light"] .tooltip::after {
+  background: var(--color-text);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   RATINGS
+   ============================================ */
+[data-theme="clean-light"] .rating-stars {
+  color: #fbbf24;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   SELECTION HIGHLIGHT
+   ============================================ */
+[data-theme="clean-light"] ::selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: var(--color-text);
+}
+
+/* ============================================
+   SELECTION PULSE ANIMATION
+   ============================================ */
+@keyframes selection-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2),
+                0 0 15px rgba(37, 99, 235, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.3),
+                0 0 25px rgba(37, 99, 235, 0.5);
+  }
+}
+
+[data-theme="clean-light"] .card:focus,
+[data-theme="clean-light"] .game-card.active,
+[data-theme="clean-light"] .wheel-item.active .item-card,
+[data-theme="clean-light"] .result-item.selected {
+  animation: selection-pulse var(--selection-pulse-duration, 2s) ease-in-out infinite;
+}
+
+/* ============================================
+   TYPOGRAPHY ENHANCEMENTS
+   ============================================ */
+[data-theme="clean-light"] h1,
+[data-theme="clean-light"] h2,
+[data-theme="clean-light"] h3 {
+  color: var(--color-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="clean-light"] .display-text {
+  font-family: var(--font-display);
+  color: var(--color-primary);
+  font-size: 1.4em;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 768px) {
+  [data-theme="clean-light"] .card {
+    box-shadow: var(--shadow-sm);
+  }
+
+  [data-theme="clean-light"] .card:hover {
+    box-shadow: var(--shadow-md);
+    transform: none;
+  }
+}

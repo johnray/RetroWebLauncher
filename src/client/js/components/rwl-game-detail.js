@@ -224,6 +224,9 @@ class RwlGameDetail extends HTMLElement {
     const hasImage = game.image || game.thumbnail || game.screenshot;
     const hasManual = !!game.manual;
 
+    // Prioritize video: show video first if available, otherwise image
+    const defaultTab = hasVideo ? 'video' : 'image';
+
     content.innerHTML = `
       <div class="detail-header">
         <button class="back-btn" title="Back (Escape)">
@@ -237,24 +240,32 @@ class RwlGameDetail extends HTMLElement {
       <div class="detail-body">
         <div class="media-section">
           <div class="media-tabs">
-            ${hasImage ? '<button class="media-tab active" data-tab="image">Image</button>' : ''}
-            ${hasVideo ? '<button class="media-tab" data-tab="video">Video</button>' : ''}
+            ${hasVideo ? `<button class="media-tab ${defaultTab === 'video' ? 'active' : ''}" data-tab="video">Video</button>` : ''}
+            ${hasImage ? `<button class="media-tab ${defaultTab === 'image' ? 'active' : ''}" data-tab="image">Image</button>` : ''}
             ${hasManual ? '<button class="media-tab" data-tab="manual">Manual</button>' : ''}
           </div>
 
           <div class="media-content">
+            ${hasVideo ? `
+              <div class="media-panel ${defaultTab === 'video' ? 'active' : ''}" data-panel="video">
+                <div class="crt-frame">
+                  <div class="crt-screen">
+                    <rwl-video-player src="${this._getMediaUrl('video')}" autoplay></rwl-video-player>
+                  </div>
+                  <div class="crt-details">
+                    <div class="crt-led"></div>
+                    <div class="crt-brand">RetroTV</div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
             ${hasImage ? `
-              <div class="media-panel active" data-panel="image">
+              <div class="media-panel ${defaultTab === 'image' ? 'active' : ''}" data-panel="image">
                 <img
                   src="${this._getMediaUrl('image')}"
                   alt="${game.name}"
                 />
-              </div>
-            ` : ''}
-
-            ${hasVideo ? `
-              <div class="media-panel" data-panel="video">
-                <rwl-video-player src="${this._getMediaUrl('video')}"></rwl-video-player>
               </div>
             ` : ''}
 
@@ -368,7 +379,7 @@ class RwlGameDetail extends HTMLElement {
         .detail-container {
           height: 100%;
           overflow-y: auto;
-          background: rgba(0,0,0,0.8);
+          background: var(--content-background, rgba(0,0,0,0.8));
         }
 
         .detail-content {
@@ -390,7 +401,7 @@ class RwlGameDetail extends HTMLElement {
           justify-content: center;
           width: 40px;
           height: 40px;
-          background: rgba(255,255,255,0.1);
+          background: var(--button-secondary-bg, rgba(255,255,255,0.1));
           border: none;
           border-radius: var(--radius-md, 8px);
           color: var(--color-text, #fff);
@@ -399,7 +410,7 @@ class RwlGameDetail extends HTMLElement {
         }
 
         .back-btn:hover {
-          background: rgba(255,255,255,0.2);
+          background: var(--button-secondary-hover, rgba(255,255,255,0.2));
         }
 
         .back-btn svg {
@@ -408,7 +419,7 @@ class RwlGameDetail extends HTMLElement {
         }
 
         .game-title {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           font-size: var(--font-size-xl, 1.5rem);
           color: var(--color-primary, #ff0066);
           margin: 0;
@@ -435,7 +446,7 @@ class RwlGameDetail extends HTMLElement {
 
         .media-tab {
           padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
-          background: rgba(255,255,255,0.1);
+          background: var(--button-secondary-bg, rgba(255,255,255,0.1));
           border: none;
           border-radius: var(--radius-sm, 4px) var(--radius-sm, 4px) 0 0;
           color: var(--color-text-muted, #888);
@@ -445,18 +456,18 @@ class RwlGameDetail extends HTMLElement {
         }
 
         .media-tab:hover {
-          background: rgba(255,255,255,0.15);
+          background: var(--button-secondary-hover, rgba(255,255,255,0.15));
           color: var(--color-text, #fff);
         }
 
         .media-tab.active {
-          background: rgba(255,0,102,0.3);
+          background: var(--button-active-bg, rgba(255,0,102,0.3));
           color: var(--color-primary, #ff0066);
         }
 
         .media-content {
           flex: 1;
-          background: rgba(0,0,0,0.4);
+          background: var(--content-surface, rgba(0,0,0,0.4));
           border-radius: var(--radius-lg, 12px);
           overflow: hidden;
           min-height: 400px;
@@ -492,6 +503,81 @@ class RwlGameDetail extends HTMLElement {
 
         .no-media p {
           color: var(--color-text-muted, #888);
+        }
+
+        /* CRT Frame Styling */
+        .crt-frame {
+          background: var(--crt-frame-background, linear-gradient(145deg, #2a2a2a, #1a1a1a));
+          border: 3px solid var(--crt-frame-border, transparent);
+          border-radius: 20px;
+          padding: 20px;
+          box-shadow:
+            0 10px 40px rgba(0, 0, 0, 0.5),
+            inset 0 2px 0 rgba(255, 255, 255, 0.1);
+          position: relative;
+          width: 100%;
+          max-width: 640px;
+        }
+
+        .crt-screen {
+          background: var(--crt-screen-background, #000);
+          border-radius: 12px;
+          overflow: hidden;
+          position: relative;
+          aspect-ratio: 4/3;
+        }
+
+        .crt-screen::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.15) 0px,
+            rgba(0, 0, 0, 0.15) 1px,
+            transparent 1px,
+            transparent 3px
+          );
+          pointer-events: none;
+          border-radius: 12px;
+        }
+
+        .crt-screen rwl-video-player {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+
+        .crt-details {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 12px;
+          padding: 0 8px;
+        }
+
+        .crt-led {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--crt-led-on, #0f0);
+          box-shadow: 0 0 8px var(--crt-led-on, #0f0);
+          animation: led-blink 2s ease-in-out infinite;
+        }
+
+        @keyframes led-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+
+        .crt-brand {
+          font-family: var(--font-display, 'VT323', monospace);
+          font-size: 0.7rem;
+          color: var(--color-text-muted, #888);
+          letter-spacing: 0.1em;
         }
 
         /* Info Section */
@@ -548,8 +634,8 @@ class RwlGameDetail extends HTMLElement {
           align-items: center;
           gap: var(--spacing-xs, 0.25rem);
           padding: var(--spacing-md, 1rem);
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
+          background: var(--button-secondary-bg, rgba(255,255,255,0.1));
+          border: 1px solid var(--button-secondary-border, rgba(255,255,255,0.2));
           border-radius: var(--radius-md, 8px);
           color: var(--color-text, #fff);
           font-size: var(--font-size-sm, 0.75rem);
@@ -558,12 +644,12 @@ class RwlGameDetail extends HTMLElement {
         }
 
         .favorite-btn:hover {
-          background: rgba(255,255,255,0.2);
+          background: var(--button-secondary-hover, rgba(255,255,255,0.2));
         }
 
         .favorite-btn.active {
-          border-color: rgba(255,0,102,0.5);
-          background: rgba(255,0,102,0.2);
+          border-color: var(--button-active-border, rgba(255,0,102,0.5));
+          background: var(--button-active-bg, rgba(255,0,102,0.2));
         }
 
         .game-metadata {
@@ -625,7 +711,7 @@ class RwlGameDetail extends HTMLElement {
         .spinner {
           width: 20px;
           height: 20px;
-          border: 2px solid rgba(255,255,255,0.2);
+          border: 2px solid var(--spinner-track, rgba(255,255,255,0.2));
           border-top-color: var(--color-primary, #ff0066);
           border-radius: 50%;
           animation: spin 1s linear infinite;

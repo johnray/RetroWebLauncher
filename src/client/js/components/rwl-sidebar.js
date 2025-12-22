@@ -190,8 +190,8 @@ class RwlSidebar extends HTMLElement {
           display: block;
           width: var(--sidebar-width, 280px);
           height: 100%;
-          background: rgba(0,0,0,0.6);
-          border-right: 1px solid rgba(255,255,255,0.1);
+          background: var(--sidebar-background, rgba(0,0,0,0.6));
+          border-right: 1px solid var(--sidebar-border-color, rgba(255,255,255,0.1));
           overflow-y: auto;
           overflow-x: hidden;
         }
@@ -201,7 +201,7 @@ class RwlSidebar extends HTMLElement {
         }
 
         .section-title {
-          font-family: var(--font-display, 'Press Start 2P', monospace);
+          font-family: var(--font-display, 'VT323', monospace);
           font-size: var(--font-size-xs, 0.625rem);
           color: var(--color-primary, #ff0066);
           text-transform: uppercase;
@@ -217,7 +217,7 @@ class RwlSidebar extends HTMLElement {
 
         .group-header {
           font-size: var(--font-size-xs, 0.625rem);
-          color: var(--color-text-muted, #888);
+          color: var(--sidebar-group-header-color, var(--color-text-muted, #888));
           text-transform: uppercase;
           letter-spacing: 0.1em;
           margin-bottom: var(--spacing-xs, 0.25rem);
@@ -237,18 +237,18 @@ class RwlSidebar extends HTMLElement {
 
         .system-item:hover,
         .collection-item:hover {
-          background: rgba(255,255,255,0.1);
+          background: var(--sidebar-item-hover, rgba(255,255,255,0.1));
         }
 
         .system-item:focus-visible,
         .collection-item:focus-visible {
           outline: 2px solid var(--color-primary, #ff0066);
           outline-offset: -2px;
-          background: rgba(255,0,102,0.2);
+          background: var(--sidebar-item-selected, rgba(255,0,102,0.2));
         }
 
         .system-item.selected {
-          background: rgba(255,0,102,0.3);
+          background: var(--sidebar-item-selected, rgba(255,0,102,0.3));
           border-left: 3px solid var(--color-primary, #ff0066);
         }
 
@@ -256,7 +256,7 @@ class RwlSidebar extends HTMLElement {
         .collection-name {
           flex: 1;
           font-size: var(--font-size-sm, 0.75rem);
-          color: var(--color-text, #fff);
+          color: var(--sidebar-text-color, var(--color-text, #fff));
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;

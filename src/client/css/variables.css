@@ -19,7 +19,7 @@
   --color-error: #ff3333;
 
   /* Typography */
-  --font-display: 'Press Start 2P', monospace;
+  --font-display: 'VT323', 'Courier New', monospace;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-size-xs: 0.625rem;
   --font-size-sm: 0.75rem;

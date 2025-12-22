@@ -940,21 +940,18 @@ function Start-ServerProcess {
 
         # Wait for server to start listening
         Write-Host ""
-        Write-Info "Starting server (scanning library, this may take up to 5 minutes)..."
+        Write-Info "Starting server..."
         Write-Host ""
 
         $timeout = $script:StartTimeoutSeconds
         $elapsed = 0
         $started = $false
-        $barWidth = 40
-        $progressFile = Join-Path $script:ScriptDir "data\startup-progress.json"
-        $lastMessage = "Initializing..."
-        $lastPercent = 0
-        $gamesFound = 0
+        $spinChars = @('|', '/', '-', '\')
+        $spinIndex = 0
 
         while ($elapsed -lt $timeout -and -not $started) {
-            Start-Sleep -Milliseconds 500
-            $elapsed += 0.5
+            Start-Sleep -Milliseconds 250
+            $elapsed += 0.25
 
             # Check if process died
             $process.Refresh()
@@ -968,55 +965,14 @@ function Start-ServerProcess {
             $started = Test-PortInUse -Port $port
 
             if (-not $Silent -and -not $started) {
-                # Try to read progress from server's progress file
-                try {
-                    if (Test-Path $progressFile) {
-                        $progressJson = Get-Content $progressFile -Raw -ErrorAction SilentlyContinue
-                        if ($progressJson) {
-                            $progress = $progressJson | ConvertFrom-Json -ErrorAction SilentlyContinue
-                            if ($progress) {
-                                if ($progress.percent -ge 0) { $lastPercent = $progress.percent }
-                                if ($progress.message) { $lastMessage = $progress.message }
-                                if ($progress.gamesFound) { $gamesFound = $progress.gamesFound }
-                            }
-                        }
-                    }
-                } catch {
-                    # Ignore read errors
-                }
-
-                # Calculate progress bar based on actual progress
-                $percent = [math]::Max($lastPercent, 0)
-                $filled = [math]::Floor(($percent / 100) * $barWidth)
-                $empty = $barWidth - $filled
-                $bar = ("=" * $filled) + ("-" * $empty)
-
-                # Build status message
-                $status = $lastMessage
-                if ($gamesFound -gt 0) {
-                    $status = "$lastMessage ($gamesFound games)"
-                }
-
-                # Truncate long messages to fixed width
-                $maxStatusLen = 45
-                if ($status.Length -gt $maxStatusLen) {
-                    $status = $status.Substring(0, $maxStatusLen - 3) + "..."
-                }
-                # Pad to fixed width to overwrite previous content
-                $status = $status.PadRight($maxStatusLen)
-
-                # Build progress line with fixed width (clears old content)
-                $percentStr = $percent.ToString().PadLeft(3)
-                Write-Host "`r  [$bar] $percentStr% - $status" -NoNewline
+                # Simple spinner animation
+                $spin = $spinChars[$spinIndex % 4]
+                $spinIndex++
+                Write-Host "`r  $spin Waiting for server to be ready..." -NoNewline
             }
         }
 
-        if (-not $Silent) { Write-Host "" }
-
-        # Clean up progress file
-        if (Test-Path $progressFile) {
-            Remove-Item $progressFile -Force -ErrorAction SilentlyContinue
-        }
+        if (-not $Silent) { Write-Host "`r                                          " }
 
         if ($started) {
             Write-Log "Server started successfully on port $port" -Level INFO
@@ -1047,7 +1003,7 @@ function Start-ServerProcess {
             if ($OpenBrowser -and -not $Silent) {
                 Start-Sleep -Milliseconds 500
                 try {
-                    Start-Process "http://localhost:$port"
+                    Start-Process "http://localhost:$port" | Out-Null
                     Write-Log "Opened browser" -Level INFO
                 }
                 catch {
@@ -1320,7 +1276,6 @@ function Invoke-Install {
 
     # Step 4: Install
     Write-Step "Installing Dependencies"
-    Write-Info "This may take 1-5 minutes depending on your connection."
     Write-Host ""
     Write-Log "Running npm install" -Level INFO
 
@@ -1677,7 +1632,7 @@ function Invoke-InstallToDirectory {
         Write-Host ""
 
         $newScript = Join-Path $targetDir "rwl.ps1"
-        Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$newScript`" setup" -WorkingDirectory $targetDir
+        Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$newScript`" setup" -WorkingDirectory $targetDir | Out-Null
 
         Write-Info "Setup launched in new window. You can close this window."
         return $true  # Signal to exit current script
@@ -2862,18 +2817,18 @@ function Show-Menu {
         $choice = Read-Host
 
         switch ($choice) {
-            "1" { Invoke-Start; Pause-ForUser }
-            "2" { Invoke-Stop; Pause-ForUser }
-            "3" { Invoke-Restart; Pause-ForUser }
-            "4" { Invoke-Status; Pause-ForUser }
-            "5" { Invoke-Setup; Pause-ForUser }
-            "6" { Invoke-Install; Pause-ForUser }
-            "7" { Invoke-Config; Pause-ForUser }
+            "1" { $null = Invoke-Start; Pause-ForUser }
+            "2" { $null = Invoke-Stop; Pause-ForUser }
+            "3" { $null = Invoke-Restart; Pause-ForUser }
+            "4" { $null = Invoke-Status; Pause-ForUser }
+            "5" { $null = Invoke-Setup; Pause-ForUser }
+            "6" { $null = Invoke-Install; Pause-ForUser }
+            "7" { $null = Invoke-Config; Pause-ForUser }
             "8" {
                 $p = Get-ServerPort
-                Start-Process "http://localhost:$p"
+                Start-Process "http://localhost:$p" | Out-Null
             }
-            "9" { Invoke-Dev }
+            "9" { $null = Invoke-Dev }
             "0" { return }
             "q" { return }
             "Q" { return }

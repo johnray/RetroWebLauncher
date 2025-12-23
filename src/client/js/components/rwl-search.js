@@ -7,10 +7,351 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { router } from '../router.js';
 
-class RwlSearch extends HTMLElement {
+const { LitElement, html, css } = window.Lit;
+
+class RwlSearch extends LitElement {
+  static properties = {
+    _query: { state: true },
+    _results: { state: true },
+    _loading: { state: true },
+    _selectedIndex: { state: true },
+    _showOnScreenKeyboard: { state: true }
+  };
+
+  static styles = css`
+    :host {
+      display: block;
+      height: 100%;
+    }
+
+    .search-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: var(--spacing-lg, 1.5rem);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .search-header {
+      margin-bottom: var(--spacing-lg, 1.5rem);
+    }
+
+    .search-title {
+      font-family: var(--font-display, 'VT323', monospace);
+      font-size: var(--font-size-lg, 1.25rem);
+      color: var(--color-primary, #ff0066);
+      margin: 0 0 var(--spacing-md, 1rem) 0;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: var(--spacing-md, 1rem);
+      color: var(--color-text-muted, #888);
+      pointer-events: none;
+    }
+
+    .search-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: var(--spacing-md, 1rem) var(--spacing-md, 1rem) var(--spacing-md, 1rem) 48px;
+      background: var(--content-input-background, rgba(255,255,255,0.1));
+      border: 2px solid var(--content-input-border, rgba(255,255,255,0.2));
+      border-radius: var(--radius-lg, 12px);
+      color: var(--color-text, #fff);
+      font-size: var(--font-size-lg, 1.25rem);
+      outline: none;
+      transition: border-color var(--transition-fast, 150ms);
+    }
+
+    .search-input:focus {
+      border-color: var(--color-primary, #ff0066);
+    }
+
+    .search-input::placeholder {
+      color: var(--color-text-muted, #888);
+    }
+
+    .clear-btn {
+      position: absolute;
+      right: var(--spacing-sm, 0.5rem);
+      padding: var(--spacing-sm, 0.5rem);
+      background: none;
+      border: none;
+      color: var(--color-text-muted, #888);
+      cursor: pointer;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity var(--transition-fast, 150ms);
+    }
+
+    .clear-btn.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .clear-btn:hover {
+      color: var(--color-text, #fff);
+    }
+
+    .clear-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Results */
+    .search-results {
+      flex: 1;
+      overflow-y: auto;
+      margin-top: var(--spacing-md, 1rem);
+    }
+
+    .results-count {
+      font-size: var(--font-size-sm, 0.75rem);
+      color: var(--color-text-muted, #888);
+      margin-bottom: var(--spacing-sm, 0.5rem);
+    }
+
+    .results-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs, 0.25rem);
+    }
+
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md, 1rem);
+      padding: var(--spacing-sm, 0.5rem);
+      background: var(--content-overlay-dark, rgba(255,255,255,0.05));
+      border-radius: var(--radius-md, 8px);
+      cursor: pointer;
+      transition: background var(--transition-fast, 150ms);
+    }
+
+    .result-item:hover,
+    .result-item.selected {
+      background: var(--selection-hover-bg, rgba(255,0,102,0.2));
+    }
+
+    .result-item.selected {
+      outline: var(--selection-border-width, 2px) solid var(--selection-border-color, var(--color-primary, #ff0066));
+    }
+
+    .result-image {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-sm, 4px);
+      overflow: hidden;
+      background: var(--game-card-image-bg, rgba(0,0,0,0.4));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .result-image > img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .result-image > span {
+      font-size: 1.5rem;
+      opacity: 0.3;
+    }
+
+    /* System badge overlay */
+    .system-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 22px;
+      height: 22px;
+      background: var(--badge-background, rgba(0, 0, 0, 0.85));
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow: var(--badge-shadow, 0 1px 3px rgba(0,0,0,0.5));
+    }
+
+    .system-badge img {
+      max-width: 18px;
+      max-height: 18px;
+      object-fit: contain;
+      filter: brightness(1.2);
+    }
+
+    .system-badge.text-fallback {
+      padding: 2px;
+    }
+
+    .system-badge .badge-text {
+      font-size: 7px;
+      font-weight: bold;
+      color: var(--badge-text-color, #fff);
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+    }
+
+    .result-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .result-name {
+      font-size: var(--font-size-base, 1rem);
+      color: var(--color-text, #fff);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-system {
+      font-size: var(--font-size-xs, 0.625rem);
+      color: var(--color-text-muted, #888);
+      margin-top: 2px;
+    }
+
+    .result-favorite {
+      flex-shrink: 0;
+    }
+
+    .search-hint,
+    .no-results,
+    .loading-results {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-xl, 2rem);
+      text-align: center;
+    }
+
+    .no-results-icon {
+      font-size: 3rem;
+      margin-bottom: var(--spacing-md, 1rem);
+      opacity: 0.5;
+    }
+
+    .search-hint p,
+    .no-results p {
+      color: var(--color-text-muted, #888);
+      margin: 0;
+    }
+
+    .loading-results {
+      flex-direction: row;
+      gap: var(--spacing-sm, 0.5rem);
+      color: var(--color-text-muted, #888);
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--spinner-track, rgba(255,255,255,0.2));
+      border-top-color: var(--color-primary, #ff0066);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* On-Screen Keyboard */
+    .on-screen-keyboard {
+      margin-top: var(--spacing-lg, 1.5rem);
+      padding: var(--spacing-md, 1rem);
+      background: var(--content-overlay, rgba(0,0,0,0.6));
+      border-radius: var(--radius-lg, 12px);
+    }
+
+    .osk-row {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-xs, 0.25rem);
+      margin-bottom: var(--spacing-xs, 0.25rem);
+    }
+
+    .osk-key {
+      min-width: 40px;
+      height: 40px;
+      padding: 0 var(--spacing-sm, 0.5rem);
+      background: var(--button-secondary-bg, rgba(255,255,255,0.1));
+      border: 1px solid var(--button-secondary-border, rgba(255,255,255,0.2));
+      border-radius: var(--radius-sm, 4px);
+      color: var(--color-text, #fff);
+      font-size: var(--font-size-sm, 0.75rem);
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all var(--transition-fast, 150ms);
+    }
+
+    .osk-key:hover {
+      background: var(--button-secondary-hover, rgba(255,255,255,0.2));
+    }
+
+    .osk-key:active {
+      background: var(--color-primary, #ff0066);
+      transform: scale(0.95);
+    }
+
+    .osk-key.wide {
+      min-width: 80px;
+    }
+
+    .osk-key.extra-wide {
+      min-width: 200px;
+    }
+
+    /* Scrollbar */
+    .search-results::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .search-results::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .search-results::-webkit-scrollbar-thumb {
+      background: var(--content-scrollbar-thumb, rgba(255,255,255,0.2));
+      border-radius: 3px;
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .search-container {
+        padding: var(--spacing-md, 1rem);
+      }
+
+      .search-title {
+        font-size: var(--font-size-base, 1rem);
+      }
+
+      .osk-key {
+        min-width: 30px;
+        height: 36px;
+        font-size: var(--font-size-xs, 0.625rem);
+      }
+    }
+  `;
+
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
     this._query = '';
     this._results = [];
     this._loading = false;
@@ -22,7 +363,7 @@ class RwlSearch extends HTMLElement {
   }
 
   connectedCallback() {
-    this._render();
+    super.connectedCallback();
     this._bindEvents();
 
     // Check if we should show on-screen keyboard (touch devices)
@@ -30,10 +371,17 @@ class RwlSearch extends HTMLElement {
   }
 
   disconnectedCallback() {
+    super.disconnectedCallback();
     clearTimeout(this._debounceTimer);
     this._searchVersion++; // Invalidate any pending searches
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
+  }
+
+  firstUpdated() {
+    // Focus input after first render
+    const input = this.shadowRoot.querySelector('.search-input');
+    input?.focus();
   }
 
   _checkTouchDevice() {
@@ -43,42 +391,6 @@ class RwlSearch extends HTMLElement {
   }
 
   _bindEvents() {
-    const input = this.shadowRoot.querySelector('.search-input');
-    const clearBtn = this.shadowRoot.querySelector('.clear-btn');
-    const resultsContainer = this.shadowRoot.querySelector('.search-results');
-
-    // Input events
-    input?.addEventListener('input', (e) => {
-      this._query = e.target.value;
-      this._debounceSearch();
-    });
-
-    input?.addEventListener('keydown', (e) => {
-      this._handleKeydown(e);
-    });
-
-    // Clear button
-    clearBtn?.addEventListener('click', () => {
-      this._clearSearch();
-    });
-
-    // Result click
-    resultsContainer?.addEventListener('click', (e) => {
-      const resultItem = e.target.closest('.result-item');
-      if (resultItem) {
-        const gameId = resultItem.dataset.gameId;
-        this._selectGame(gameId);
-      }
-    });
-
-    // On-screen keyboard
-    this.shadowRoot.addEventListener('click', (e) => {
-      const key = e.target.closest('.osk-key');
-      if (key) {
-        this._handleOskKey(key.dataset.key);
-      }
-    });
-
     // Input manager
     this._unsubscribers.push(
       state.on('input:character', (char) => {
@@ -90,7 +402,6 @@ class RwlSearch extends HTMLElement {
       state.on('input:back', () => {
         if (this._query.length > 0) {
           this._query = this._query.slice(0, -1);
-          this._updateInput();
           this._debounceSearch();
         } else {
           router.back();
@@ -123,6 +434,11 @@ class RwlSearch extends HTMLElement {
     return div.innerHTML;
   }
 
+  _handleInput(e) {
+    this._query = e.target.value;
+    this._debounceSearch();
+  }
+
   _handleKeydown(e) {
     switch (e.key) {
       case 'ArrowDown':
@@ -146,8 +462,12 @@ class RwlSearch extends HTMLElement {
     }
   }
 
-  _handleOskKey(key) {
-    switch (key) {
+  _handleOskKey(e) {
+    const key = e.target.closest('.osk-key');
+    if (!key) return;
+
+    const keyValue = key.dataset.key;
+    switch (keyValue) {
       case 'backspace':
         this._query = this._query.slice(0, -1);
         break;
@@ -158,40 +478,27 @@ class RwlSearch extends HTMLElement {
         this._query = '';
         break;
       default:
-        this._query += key;
+        this._query += keyValue;
     }
 
-    this._updateInput();
     this._debounceSearch();
   }
 
   _appendCharacter(char) {
     this._query += char;
-    this._updateInput();
     this._debounceSearch();
-  }
-
-  _updateInput() {
-    const input = this.shadowRoot.querySelector('.search-input');
-    if (input) {
-      input.value = this._query;
-    }
-
-    const clearBtn = this.shadowRoot.querySelector('.clear-btn');
-    if (clearBtn) {
-      clearBtn.classList.toggle('visible', this._query.length > 0);
-    }
   }
 
   _clearSearch() {
     this._query = '';
     this._results = [];
     this._selectedIndex = -1;
-    this._updateInput();
-    this._renderResults();
 
-    const input = this.shadowRoot.querySelector('.search-input');
-    input?.focus();
+    // Focus input after update
+    this.updateComplete.then(() => {
+      const input = this.shadowRoot.querySelector('.search-input');
+      input?.focus();
+    });
   }
 
   _debounceSearch() {
@@ -203,7 +510,6 @@ class RwlSearch extends HTMLElement {
     if (this._query.length < 2) {
       this._results = [];
       this._loading = false;
-      this._renderResults();
       return;
     }
 
@@ -220,7 +526,6 @@ class RwlSearch extends HTMLElement {
     const searchQuery = this._query;
 
     this._loading = true;
-    this._renderResults();
 
     try {
       const response = await api.search(searchQuery);
@@ -239,7 +544,6 @@ class RwlSearch extends HTMLElement {
       // Only update UI if this is still the current search
       if (searchVersion === this._searchVersion) {
         this._loading = false;
-        this._renderResults();
       }
     }
   }
@@ -252,15 +556,23 @@ class RwlSearch extends HTMLElement {
       Math.min(this._results.length - 1, this._selectedIndex + delta)
     );
 
-    this._renderResults();
-
-    // Scroll into view
-    const selected = this.shadowRoot.querySelector('.result-item.selected');
-    selected?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Scroll into view after update
+    this.updateComplete.then(() => {
+      const selected = this.shadowRoot.querySelector('.result-item.selected');
+      selected?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }
 
   _selectGame(gameId) {
     router.navigate(`/game/${gameId}`);
+  }
+
+  _handleResultClick(e) {
+    const resultItem = e.target.closest('.result-item');
+    if (resultItem) {
+      const gameId = resultItem.dataset.gameId;
+      this._selectGame(gameId);
+    }
   }
 
   _getImageUrl(game) {
@@ -270,56 +582,66 @@ class RwlSearch extends HTMLElement {
     return '';
   }
 
-  _renderResults() {
-    const container = this.shadowRoot.querySelector('.search-results');
-    if (!container) return;
+  _handleImageError(e) {
+    const systemBadge = e.target.closest('.system-badge');
+    if (systemBadge) {
+      systemBadge.classList.add('text-fallback');
+      e.target.style.display = 'none';
+      const textBadge = systemBadge.querySelector('.badge-text');
+      if (textBadge) {
+        textBadge.style.display = 'block';
+      }
+    }
+  }
 
+  _renderResultsContent() {
     if (this._loading) {
-      container.innerHTML = `
+      return html`
         <div class="loading-results">
           <span class="spinner"></span>
           <span>Searching...</span>
         </div>
       `;
-      return;
     }
 
     if (this._query.length < 2) {
-      container.innerHTML = `
+      return html`
         <div class="search-hint">
           <p>Enter at least 2 characters to search</p>
         </div>
       `;
-      return;
     }
 
     if (this._results.length === 0) {
-      container.innerHTML = `
+      return html`
         <div class="no-results">
           <span class="no-results-icon">🔍</span>
           <p>No games found for "${this._escapeHtml(this._query)}"</p>
         </div>
       `;
-      return;
     }
 
-    container.innerHTML = `
+    return html`
       <div class="results-count">${this._results.length} game${this._results.length !== 1 ? 's' : ''} found</div>
       <div class="results-list">
         ${this._results.map((game, index) => {
           const imageUrl = this._getImageUrl(game);
           const safeName = this._escapeHtml(game.name || 'Unknown');
           const safeSystem = this._escapeHtml(game.systemName || 'Unknown System');
-          return `
+          return html`
             <div
               class="result-item ${index === this._selectedIndex ? 'selected' : ''}"
               data-game-id="${game.id}"
               tabindex="0"
             >
               <div class="result-image">
-                ${imageUrl ? `<img src="${imageUrl}" alt="" loading="lazy" />` : '<span>🎮</span>'}
+                ${imageUrl ? html`<img src="${imageUrl}" alt="" loading="lazy" />` : html`<span>🎮</span>`}
                 <div class="system-badge" title="${safeSystem}">
-                  <img src="/api/media/system/${game.systemId}/logo" alt="${safeSystem}" onerror="this.parentElement.classList.add('text-fallback'); this.style.display='none'; this.nextElementSibling.style.display='block';">
+                  <img
+                    src="/api/media/system/${game.systemId}/logo"
+                    alt="${safeSystem}"
+                    @error=${this._handleImageError}
+                  >
                   <span class="badge-text" style="display:none;">${this._escapeHtml((game.systemId || '').substring(0, 3).toUpperCase())}</span>
                 </div>
               </div>
@@ -327,15 +649,17 @@ class RwlSearch extends HTMLElement {
                 <div class="result-name">${safeName}</div>
                 <div class="result-system">${safeSystem}</div>
               </div>
-              ${game.favorite ? '<span class="result-favorite">❤️</span>' : ''}
+              ${game.favorite ? html`<span class="result-favorite">❤️</span>` : ''}
             </div>
           `;
-        }).join('')}
+        })}
       </div>
     `;
   }
 
-  _render() {
+  _renderOnScreenKeyboard() {
+    if (!this._showOnScreenKeyboard) return '';
+
     const oskRows = [
       ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
       ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
@@ -343,339 +667,26 @@ class RwlSearch extends HTMLElement {
       ['z', 'x', 'c', 'v', 'b', 'n', 'm']
     ];
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          height: 100%;
-        }
+    return html`
+      <div class="on-screen-keyboard" @click=${this._handleOskKey}>
+        ${oskRows.map(row => html`
+          <div class="osk-row">
+            ${row.map(key => html`
+              <button class="osk-key" data-key="${key}">${key}</button>
+            `)}
+          </div>
+        `)}
+        <div class="osk-row">
+          <button class="osk-key wide" data-key="backspace">⌫</button>
+          <button class="osk-key extra-wide" data-key="space">Space</button>
+          <button class="osk-key wide" data-key="clear">Clear</button>
+        </div>
+      </div>
+    `;
+  }
 
-        .search-container {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          padding: var(--spacing-lg, 1.5rem);
-          max-width: 800px;
-          margin: 0 auto;
-        }
-
-        .search-header {
-          margin-bottom: var(--spacing-lg, 1.5rem);
-        }
-
-        .search-title {
-          font-family: var(--font-display, 'VT323', monospace);
-          font-size: var(--font-size-lg, 1.25rem);
-          color: var(--color-primary, #ff0066);
-          margin: 0 0 var(--spacing-md, 1rem) 0;
-        }
-
-        .search-input-wrapper {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .search-icon {
-          position: absolute;
-          left: var(--spacing-md, 1rem);
-          color: var(--color-text-muted, #888);
-          pointer-events: none;
-        }
-
-        .search-icon svg {
-          width: 20px;
-          height: 20px;
-        }
-
-        .search-input {
-          width: 100%;
-          padding: var(--spacing-md, 1rem) var(--spacing-md, 1rem) var(--spacing-md, 1rem) 48px;
-          background: var(--content-input-background, rgba(255,255,255,0.1));
-          border: 2px solid var(--content-input-border, rgba(255,255,255,0.2));
-          border-radius: var(--radius-lg, 12px);
-          color: var(--color-text, #fff);
-          font-size: var(--font-size-lg, 1.25rem);
-          outline: none;
-          transition: border-color var(--transition-fast, 150ms);
-        }
-
-        .search-input:focus {
-          border-color: var(--color-primary, #ff0066);
-        }
-
-        .search-input::placeholder {
-          color: var(--color-text-muted, #888);
-        }
-
-        .clear-btn {
-          position: absolute;
-          right: var(--spacing-sm, 0.5rem);
-          padding: var(--spacing-sm, 0.5rem);
-          background: none;
-          border: none;
-          color: var(--color-text-muted, #888);
-          cursor: pointer;
-          opacity: 0;
-          visibility: hidden;
-          transition: opacity var(--transition-fast, 150ms);
-        }
-
-        .clear-btn.visible {
-          opacity: 1;
-          visibility: visible;
-        }
-
-        .clear-btn:hover {
-          color: var(--color-text, #fff);
-        }
-
-        .clear-btn svg {
-          width: 20px;
-          height: 20px;
-        }
-
-        /* Results */
-        .search-results {
-          flex: 1;
-          overflow-y: auto;
-          margin-top: var(--spacing-md, 1rem);
-        }
-
-        .results-count {
-          font-size: var(--font-size-sm, 0.75rem);
-          color: var(--color-text-muted, #888);
-          margin-bottom: var(--spacing-sm, 0.5rem);
-        }
-
-        .results-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-xs, 0.25rem);
-        }
-
-        .result-item {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-md, 1rem);
-          padding: var(--spacing-sm, 0.5rem);
-          background: var(--content-overlay-dark, rgba(255,255,255,0.05));
-          border-radius: var(--radius-md, 8px);
-          cursor: pointer;
-          transition: background var(--transition-fast, 150ms);
-        }
-
-        .result-item:hover,
-        .result-item.selected {
-          background: var(--selection-hover-bg, rgba(255,0,102,0.2));
-        }
-
-        .result-item.selected {
-          outline: var(--selection-border-width, 2px) solid var(--selection-border-color, var(--color-primary, #ff0066));
-        }
-
-        .result-image {
-          width: 60px;
-          height: 60px;
-          border-radius: var(--radius-sm, 4px);
-          overflow: hidden;
-          background: var(--game-card-image-bg, rgba(0,0,0,0.4));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          position: relative;
-        }
-
-        .result-image > img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .result-image > span {
-          font-size: 1.5rem;
-          opacity: 0.3;
-        }
-
-        /* System badge overlay */
-        .system-badge {
-          position: absolute;
-          bottom: 2px;
-          right: 2px;
-          width: 22px;
-          height: 22px;
-          background: var(--badge-background, rgba(0, 0, 0, 0.85));
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          box-shadow: var(--badge-shadow, 0 1px 3px rgba(0,0,0,0.5));
-        }
-
-        .system-badge img {
-          max-width: 18px;
-          max-height: 18px;
-          object-fit: contain;
-          filter: brightness(1.2);
-        }
-
-        .system-badge.text-fallback {
-          padding: 2px;
-        }
-
-        .system-badge .badge-text {
-          font-size: 7px;
-          font-weight: bold;
-          color: #fff;
-          text-transform: uppercase;
-          letter-spacing: -0.5px;
-        }
-
-        .result-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .result-name {
-          font-size: var(--font-size-base, 1rem);
-          color: var(--color-text, #fff);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .result-system {
-          font-size: var(--font-size-xs, 0.625rem);
-          color: var(--color-text-muted, #888);
-          margin-top: 2px;
-        }
-
-        .result-favorite {
-          flex-shrink: 0;
-        }
-
-        .search-hint,
-        .no-results,
-        .loading-results {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: var(--spacing-xl, 2rem);
-          text-align: center;
-        }
-
-        .no-results-icon {
-          font-size: 3rem;
-          margin-bottom: var(--spacing-md, 1rem);
-          opacity: 0.5;
-        }
-
-        .search-hint p,
-        .no-results p {
-          color: var(--color-text-muted, #888);
-          margin: 0;
-        }
-
-        .loading-results {
-          flex-direction: row;
-          gap: var(--spacing-sm, 0.5rem);
-          color: var(--color-text-muted, #888);
-        }
-
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid var(--spinner-track, rgba(255,255,255,0.2));
-          border-top-color: var(--color-primary, #ff0066);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        /* On-Screen Keyboard */
-        .on-screen-keyboard {
-          margin-top: var(--spacing-lg, 1.5rem);
-          padding: var(--spacing-md, 1rem);
-          background: var(--content-overlay, rgba(0,0,0,0.6));
-          border-radius: var(--radius-lg, 12px);
-        }
-
-        .osk-row {
-          display: flex;
-          justify-content: center;
-          gap: var(--spacing-xs, 0.25rem);
-          margin-bottom: var(--spacing-xs, 0.25rem);
-        }
-
-        .osk-key {
-          min-width: 40px;
-          height: 40px;
-          padding: 0 var(--spacing-sm, 0.5rem);
-          background: var(--button-secondary-bg, rgba(255,255,255,0.1));
-          border: 1px solid var(--button-secondary-border, rgba(255,255,255,0.2));
-          border-radius: var(--radius-sm, 4px);
-          color: var(--color-text, #fff);
-          font-size: var(--font-size-sm, 0.75rem);
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: all var(--transition-fast, 150ms);
-        }
-
-        .osk-key:hover {
-          background: var(--button-secondary-hover, rgba(255,255,255,0.2));
-        }
-
-        .osk-key:active {
-          background: var(--color-primary, #ff0066);
-          transform: scale(0.95);
-        }
-
-        .osk-key.wide {
-          min-width: 80px;
-        }
-
-        .osk-key.extra-wide {
-          min-width: 200px;
-        }
-
-        /* Scrollbar */
-        .search-results::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .search-results::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .search-results::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.2);
-          border-radius: 3px;
-        }
-
-        /* Mobile */
-        @media (max-width: 640px) {
-          .search-container {
-            padding: var(--spacing-md, 1rem);
-          }
-
-          .search-title {
-            font-size: var(--font-size-base, 1rem);
-          }
-
-          .osk-key {
-            min-width: 30px;
-            height: 36px;
-            font-size: var(--font-size-xs, 0.625rem);
-          }
-        }
-      </style>
-
+  render() {
+    return html`
       <div class="search-container">
         <div class="search-header">
           <h2 class="search-title">Search Games</h2>
@@ -689,9 +700,12 @@ class RwlSearch extends HTMLElement {
               type="text"
               class="search-input"
               placeholder="Search for games..."
+              .value=${this._query}
+              @input=${this._handleInput}
+              @keydown=${this._handleKeydown}
               autofocus
             />
-            <button class="clear-btn" title="Clear">
+            <button class="clear-btn ${this._query.length > 0 ? 'visible' : ''}" title="Clear" @click=${this._clearSearch}>
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
               </svg>
@@ -699,28 +713,11 @@ class RwlSearch extends HTMLElement {
           </div>
         </div>
 
-        <div class="search-results">
-          <div class="search-hint">
-            <p>Enter at least 2 characters to search</p>
-          </div>
+        <div class="search-results" @click=${this._handleResultClick}>
+          ${this._renderResultsContent()}
         </div>
 
-        ${this._showOnScreenKeyboard ? `
-          <div class="on-screen-keyboard">
-            ${oskRows.map(row => `
-              <div class="osk-row">
-                ${row.map(key => `
-                  <button class="osk-key" data-key="${key}">${key}</button>
-                `).join('')}
-              </div>
-            `).join('')}
-            <div class="osk-row">
-              <button class="osk-key wide" data-key="backspace">⌫</button>
-              <button class="osk-key extra-wide" data-key="space">Space</button>
-              <button class="osk-key wide" data-key="clear">Clear</button>
-            </div>
-          </div>
-        ` : ''}
+        ${this._renderOnScreenKeyboard()}
       </div>
     `;
   }

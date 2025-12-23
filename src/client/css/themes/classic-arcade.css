@@ -168,6 +168,25 @@
 
   /* Spinner */
   --spinner-track: #333;
+
+  /* Screensaver - inherits theme colors */
+  --screensaver-background: #0a0a0a;
+  --screensaver-star-color: #fff;
+  --screensaver-nebula-primary: rgba(255, 0, 102, 0.15);
+  --screensaver-nebula-secondary: rgba(0, 255, 255, 0.12);
+  --screensaver-nebula-accent: rgba(255, 255, 0, 0.1);
+  --screensaver-nebula-opacity: 0.6;
+  --screensaver-tv-frame: linear-gradient(145deg, #3a3a3a, #1a1a1a);
+  --screensaver-tv-glow: rgba(255, 0, 102, 0.15);
+  --screensaver-tv-border: #222;
+  --screensaver-title-color: #fff;
+  --screensaver-title-glow: #ff0066;
+  --screensaver-subtitle-color: rgba(255, 255, 255, 0.7);
+  --screensaver-hint-color: rgba(255, 255, 255, 0.4);
+  --screensaver-led-color: #00ff66;
+  --screensaver-label-bg: rgba(0, 0, 0, 0.8);
+  --screensaver-label-color: #fff;
+  --screensaver-label-glow: #ff0066;
 }
 
 /* ============================================

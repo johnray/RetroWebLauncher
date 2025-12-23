@@ -97,6 +97,8 @@
   --sidebar-item-hover: rgba(0, 0, 0, 0.05);
   --sidebar-item-selected: rgba(37, 99, 235, 0.1);
   --sidebar-group-header-color: #64748b;
+  --sidebar-section-border: rgba(37, 99, 235, 0.3);
+  --sidebar-count-bg: rgba(0, 0, 0, 0.06);
 
   /* Content area backgrounds for light theme */
   --content-background: #f8fafc;
@@ -238,6 +240,25 @@
   --z-modal: 500;
   --z-toast: 600;
   --z-screensaver: 9999;
+
+  /* Screensaver - elegant light blue atmosphere */
+  --screensaver-background: #1e293b;
+  --screensaver-star-color: rgba(255, 255, 255, 0.9);
+  --screensaver-nebula-primary: rgba(37, 99, 235, 0.15);
+  --screensaver-nebula-secondary: rgba(8, 145, 178, 0.12);
+  --screensaver-nebula-accent: rgba(245, 158, 11, 0.1);
+  --screensaver-nebula-opacity: 0.5;
+  --screensaver-tv-frame: linear-gradient(145deg, #64748b, #475569);
+  --screensaver-tv-glow: rgba(37, 99, 235, 0.2);
+  --screensaver-tv-border: #334155;
+  --screensaver-title-color: #ffffff;
+  --screensaver-title-glow: #2563eb;
+  --screensaver-subtitle-color: rgba(255, 255, 255, 0.7);
+  --screensaver-hint-color: rgba(255, 255, 255, 0.4);
+  --screensaver-led-color: #22c55e;
+  --screensaver-label-bg: rgba(30, 41, 59, 0.9);
+  --screensaver-label-color: #ffffff;
+  --screensaver-label-glow: #2563eb;
 }
 
 /* ============================================

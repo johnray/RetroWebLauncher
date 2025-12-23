@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0a0a0a">
   <title>RetroWebLauncher</title>
 
@@ -19,6 +18,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lit - Web Components Library (BSD-3-Clause License) -->
+  <script type="module">
+    import { LitElement, html, css } from 'https://cdn.jsdelivr.net/npm/lit@3/+esm';
+    import { classMap } from 'https://cdn.jsdelivr.net/npm/lit@3/directives/class-map.js/+esm';
+    import { styleMap } from 'https://cdn.jsdelivr.net/npm/lit@3/directives/style-map.js/+esm';
+    import { repeat } from 'https://cdn.jsdelivr.net/npm/lit@3/directives/repeat.js/+esm';
+    import { unsafeHTML } from 'https://cdn.jsdelivr.net/npm/lit@3/directives/unsafe-html.js/+esm';
+    // Make Lit available globally for components
+    window.Lit = { LitElement, html, css, classMap, styleMap, repeat, unsafeHTML };
+  </script>
 
   <!-- Third-party Libraries (CDN) -->
   <!-- Swiper.js - Touch slider/carousel (MIT License) -->

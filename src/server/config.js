@@ -174,6 +174,35 @@ function clearCache() {
   cachedConfig = null;
 }
 
+/**
+ * Get a specific configuration value by key
+ * Supports dot notation for nested keys (e.g., 'ai.enabled')
+ * @param {string} key - Configuration key
+ * @param {*} defaultValue - Default value if key not found
+ * @returns {*} Configuration value
+ */
+function get(key, defaultValue = undefined) {
+  const config = loadConfig();
+
+  if (!key) {
+    return config;
+  }
+
+  // Support dot notation for nested keys
+  const keys = key.split('.');
+  let value = config;
+
+  for (const k of keys) {
+    if (value && typeof value === 'object' && k in value) {
+      value = value[k];
+    } else {
+      return defaultValue;
+    }
+  }
+
+  return value;
+}
+
 module.exports = {
   loadConfig,
   saveConfig,
@@ -181,6 +210,7 @@ module.exports = {
   validateConfig,
   getRetrobatPaths,
   clearCache,
+  get,
   DEFAULT_CONFIG,
   CONFIG_FILE
 };

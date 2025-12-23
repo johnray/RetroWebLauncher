@@ -7,10 +7,289 @@ import { state } from '../state.js';
 import { router } from '../router.js';
 import { themeService } from '../theme-service.js';
 
-class RwlApp extends HTMLElement {
+const { LitElement, html, css } = window.Lit;
+
+class RwlApp extends LitElement {
+  static properties = {
+    _currentRoute: { state: true },
+    _config: { state: true },
+    _currentSystemId: { state: true },
+    _currentSystemName: { state: true },
+    _currentGameName: { state: true }
+  };
+
+  static styles = css`
+    :host {
+      display: block;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--color-background, #0a0a0a);
+    }
+
+    /* Header */
+    rwl-header {
+      flex-shrink: 0;
+    }
+
+    /* Main area with sidebar and content */
+    .main-area {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    rwl-sidebar {
+      flex-shrink: 0;
+    }
+
+    /* Content */
+    .content-area {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #main-content {
+      width: 100%;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Home view styles */
+    .home-view {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: var(--spacing-xl, 2rem);
+    }
+
+    .welcome-section {
+      text-align: center;
+      max-width: 500px;
+    }
+
+    .welcome-title {
+      font-family: var(--font-display, 'VT323', monospace);
+      font-size: var(--font-size-2xl, 2rem);
+      color: var(--color-primary, #ff0066);
+      margin: 0 0 var(--spacing-lg, 1.5rem) 0;
+      text-shadow: 0 0 30px rgba(255, 0, 102, 0.5);
+    }
+
+    .welcome-text {
+      color: var(--color-text-muted, #888);
+      font-size: var(--font-size-base, 1rem);
+      line-height: 1.6;
+      margin-bottom: var(--spacing-xl, 2rem);
+    }
+
+    .welcome-actions {
+      display: flex;
+      gap: var(--spacing-md, 1rem);
+      justify-content: center;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm, 0.5rem);
+      padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+      background: var(--color-primary, #ff0066);
+      border: none;
+      border-radius: var(--radius-lg, 12px);
+      color: var(--color-text, #fff);
+      font-size: var(--font-size-base, 1rem);
+      cursor: pointer;
+      transition: all var(--transition-normal, 250ms);
+      box-shadow: 0 4px 15px rgba(255, 0, 102, 0.3);
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 0, 102, 0.4);
+    }
+
+    .action-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: var(--spacing-md, 1rem);
+      justify-content: center;
+    }
+
+    .quick-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm, 0.5rem);
+      padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+      background: var(--button-secondary-bg, rgba(255, 255, 255, 0.1));
+      border: 1px solid var(--button-secondary-border, rgba(255, 255, 255, 0.2));
+      border-radius: var(--radius-lg, 12px);
+      color: var(--color-text, #fff);
+      font-size: var(--font-size-sm, 0.75rem);
+      cursor: pointer;
+      transition: all var(--transition-fast, 150ms);
+    }
+
+    .quick-btn:hover {
+      background: var(--button-secondary-hover, rgba(255, 0, 102, 0.2));
+      border-color: var(--color-primary, #ff0066);
+      transform: translateY(-2px);
+    }
+
+    .quick-btn:focus-visible {
+      outline: var(--focus-ring-width, 4px) solid var(--focus-ring-color, #ff0066);
+      outline-offset: 2px;
+    }
+
+    .btn-icon {
+      font-size: 1.25rem;
+    }
+
+    /* Not found */
+    .not-found {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+    }
+
+    .not-found h2 {
+      font-family: var(--font-display, 'VT323', monospace);
+      color: var(--color-primary, #ff0066);
+      margin-bottom: var(--spacing-md, 1rem);
+    }
+
+    .not-found p {
+      color: var(--color-text-muted, #888);
+      margin-bottom: var(--spacing-lg, 1.5rem);
+    }
+
+    .back-btn {
+      padding: var(--spacing-sm, 0.5rem) var(--spacing-lg, 1.5rem);
+      background: var(--color-primary, #ff0066);
+      border: none;
+      border-radius: var(--radius-md, 8px);
+      color: var(--color-text, #fff);
+      cursor: pointer;
+    }
+
+    /* Screensaver overlay */
+    rwl-screensaver {
+      position: fixed;
+      z-index: var(--z-screensaver, 9999);
+    }
+
+    /* Breadcrumbs - positioned at top of content area without overlapping */
+    .breadcrumbs {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--breadcrumb-background, rgba(0, 0, 0, 0.5));
+      backdrop-filter: blur(10px);
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .breadcrumbs .crumb {
+      color: var(--color-text-muted, #888);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      background: none;
+      border: none;
+      font: inherit;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .breadcrumbs button.crumb:hover {
+      color: var(--color-primary, #ff0066);
+    }
+
+    .breadcrumbs button.crumb:focus-visible {
+      outline: 2px solid var(--color-primary, #ff0066);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    .breadcrumbs .crumb.current {
+      color: var(--color-text, #fff);
+      font-weight: 500;
+    }
+
+    .breadcrumbs .separator {
+      color: var(--color-text-muted, #666);
+      font-size: 0.9em;
+    }
+
+    /* System view container with toolbar */
+    .system-view-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+    }
+
+    .view-toolbar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      background: var(--toolbar-background, rgba(0, 0, 0, 0.6));
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+    }
+
+    .view-content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .main-area {
+        flex-direction: column;
+      }
+
+      rwl-sidebar {
+        display: none;
+      }
+
+      .welcome-title {
+        font-size: var(--font-size-lg, 1.25rem);
+      }
+
+      .quick-actions {
+        flex-direction: column;
+      }
+    }
+  `;
+
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
     this._currentRoute = null;
     this._config = null;
     this._currentSystemId = null;
@@ -20,11 +299,12 @@ class RwlApp extends HTMLElement {
   }
 
   connectedCallback() {
-    this._render();
+    super.connectedCallback();
     this._bindEvents();
   }
 
   disconnectedCallback() {
+    super.disconnectedCallback();
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
   }
@@ -103,9 +383,12 @@ class RwlApp extends HTMLElement {
 
   _handleRoute(route) {
     this._currentRoute = route;
-    this._updateSidebarVisibility();
-    this._updateBreadcrumbs();
-    this._renderContent();
+    this.requestUpdate();
+    // Update after render
+    this.updateComplete.then(() => {
+      this._updateSidebarVisibility();
+      this._updateBreadcrumbs();
+    });
   }
 
   _isHomeScreen() {
@@ -208,37 +491,88 @@ class RwlApp extends HTMLElement {
     document.documentElement.setAttribute('data-theme', theme);
   }
 
-  _renderContent() {
-    const content = this.shadowRoot.querySelector('#main-content');
-    if (!content) return;
+  _handleSearchClick() {
+    router.navigate('/search');
+  }
 
+  _handleViewChange(e) {
+    const viewContent = this.shadowRoot.querySelector('.view-content');
+    const systemId = e.target.getAttribute('system-id');
+    const newView = e.detail.view;
+    if (viewContent && systemId) {
+      this._renderViewType(viewContent, newView, systemId);
+    }
+  }
+
+  _renderViewType(container, viewType, systemId) {
+    switch (viewType) {
+      case 'grid':
+        container.innerHTML = `<rwl-grid-view></rwl-grid-view>`;
+        const gridView = container.querySelector('rwl-grid-view');
+        if (gridView) gridView.systemId = systemId;
+        break;
+      case 'list':
+        container.innerHTML = `<rwl-list-view></rwl-list-view>`;
+        const listView = container.querySelector('rwl-list-view');
+        if (listView) listView.systemId = systemId;
+        break;
+      case 'spin':
+        container.innerHTML = `<rwl-spin-wheel></rwl-spin-wheel>`;
+        const spinView = container.querySelector('rwl-spin-wheel');
+        if (spinView) spinView.systemId = systemId;
+        break;
+      case 'spinner':
+        container.innerHTML = `<rwl-spinner-view></rwl-spinner-view>`;
+        const spinnerView = container.querySelector('rwl-spinner-view');
+        if (spinnerView) spinnerView.systemId = systemId;
+        break;
+      case 'wheel':
+      default:
+        container.innerHTML = `<rwl-wheel-view></rwl-wheel-view>`;
+        const wheelView = container.querySelector('rwl-wheel-view');
+        if (wheelView) wheelView.systemId = systemId;
+        break;
+    }
+  }
+
+  updated(changedProperties) {
+    if (changedProperties.has('_currentRoute')) {
+      // Handle view-specific rendering that needs imperative DOM manipulation
+      const content = this.shadowRoot.querySelector('#main-content');
+      if (content) {
+        this._renderContent(content);
+      }
+    }
+  }
+
+  _renderContent(container) {
     const route = this._currentRoute;
 
     // Clear previous content
-    content.innerHTML = '';
+    container.innerHTML = '';
 
     if (!route) {
-      this._renderHome(content);
+      this._renderHome(container);
       return;
     }
 
     // Route matching - use route.params for dynamic segments
     if (route.path === '/' || route.path === '') {
-      this._renderHome(content);
+      this._renderHome(container);
     } else if (route.path === '/system/:id') {
-      this._renderSystemView(content, route.params.id);
+      this._renderSystemView(container, route.params.id);
     } else if (route.path === '/game/:id') {
-      this._renderGameDetail(content, route.params.id);
+      this._renderGameDetail(container, route.params.id);
     } else if (route.path === '/search') {
-      this._renderSearch(content);
+      this._renderSearch(container);
     } else if (route.path === '/settings') {
-      this._renderSettings(content);
+      this._renderSettings(container);
     } else if (route.path === '/collections') {
-      this._renderCollections(content);
+      this._renderCollections(container);
     } else if (route.path === '/collection/:id') {
-      this._renderCollectionView(content, route.params.id);
+      this._renderCollectionView(container, route.params.id);
     } else {
-      this._renderNotFound(content);
+      this._renderNotFound(container);
     }
   }
 
@@ -309,37 +643,6 @@ class RwlApp extends HTMLElement {
     });
   }
 
-  _renderViewType(container, viewType, systemId) {
-    switch (viewType) {
-      case 'grid':
-        container.innerHTML = `<rwl-grid-view></rwl-grid-view>`;
-        const gridView = container.querySelector('rwl-grid-view');
-        if (gridView) gridView.systemId = systemId;
-        break;
-      case 'list':
-        container.innerHTML = `<rwl-list-view></rwl-list-view>`;
-        const listView = container.querySelector('rwl-list-view');
-        if (listView) listView.systemId = systemId;
-        break;
-      case 'spin':
-        container.innerHTML = `<rwl-spin-wheel></rwl-spin-wheel>`;
-        const spinView = container.querySelector('rwl-spin-wheel');
-        if (spinView) spinView.systemId = systemId;
-        break;
-      case 'spinner':
-        container.innerHTML = `<rwl-spinner-view></rwl-spinner-view>`;
-        const spinnerView = container.querySelector('rwl-spinner-view');
-        if (spinnerView) spinnerView.systemId = systemId;
-        break;
-      case 'wheel':
-      default:
-        container.innerHTML = `<rwl-wheel-view></rwl-wheel-view>`;
-        const wheelView = container.querySelector('rwl-wheel-view');
-        if (wheelView) wheelView.systemId = systemId;
-        break;
-    }
-  }
-
   _renderCollections(container) {
     container.innerHTML = `
       <div class="collections-view">
@@ -380,278 +683,8 @@ class RwlApp extends HTMLElement {
     `;
   }
 
-  _render() {
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          height: 100vh;
-          overflow: hidden;
-        }
-
-        .app-layout {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          background: var(--color-background, #0a0a0a);
-        }
-
-        /* Header */
-        rwl-header {
-          flex-shrink: 0;
-        }
-
-        /* Main area with sidebar and content */
-        .main-area {
-          display: flex;
-          flex: 1;
-          overflow: hidden;
-        }
-
-        /* Sidebar */
-        rwl-sidebar {
-          flex-shrink: 0;
-        }
-
-        /* Content */
-        .content-area {
-          flex: 1;
-          overflow: hidden;
-          position: relative;
-          display: flex;
-          flex-direction: column;
-        }
-
-        #main-content {
-          width: 100%;
-          flex: 1;
-          position: relative;
-          overflow: hidden;
-        }
-
-        /* Home view styles */
-        .home-view {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          padding: var(--spacing-xl, 2rem);
-        }
-
-        .welcome-section {
-          text-align: center;
-          max-width: 500px;
-        }
-
-        .welcome-title {
-          font-family: var(--font-display, 'VT323', monospace);
-          font-size: var(--font-size-2xl, 2rem);
-          color: var(--color-primary, #ff0066);
-          margin: 0 0 var(--spacing-lg, 1.5rem) 0;
-          text-shadow: 0 0 30px rgba(255, 0, 102, 0.5);
-        }
-
-        .welcome-text {
-          color: var(--color-text-muted, #888);
-          font-size: var(--font-size-base, 1rem);
-          line-height: 1.6;
-          margin-bottom: var(--spacing-xl, 2rem);
-        }
-
-        .welcome-actions {
-          display: flex;
-          gap: var(--spacing-md, 1rem);
-          justify-content: center;
-        }
-
-        .action-btn {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm, 0.5rem);
-          padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
-          background: var(--color-primary, #ff0066);
-          border: none;
-          border-radius: var(--radius-lg, 12px);
-          color: var(--color-text, #fff);
-          font-size: var(--font-size-base, 1rem);
-          cursor: pointer;
-          transition: all var(--transition-normal, 250ms);
-          box-shadow: 0 4px 15px rgba(255, 0, 102, 0.3);
-        }
-
-        .action-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(255, 0, 102, 0.4);
-        }
-
-        .action-btn svg {
-          width: 20px;
-          height: 20px;
-        }
-
-        .quick-actions {
-          display: flex;
-          gap: var(--spacing-md, 1rem);
-          justify-content: center;
-        }
-
-        .quick-btn {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm, 0.5rem);
-          padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: var(--radius-lg, 12px);
-          color: var(--color-text, #fff);
-          font-size: var(--font-size-sm, 0.75rem);
-          cursor: pointer;
-          transition: all var(--transition-fast, 150ms);
-        }
-
-        .quick-btn:hover {
-          background: rgba(255, 0, 102, 0.2);
-          border-color: var(--color-primary, #ff0066);
-          transform: translateY(-2px);
-        }
-
-        .quick-btn:focus-visible {
-          outline: var(--focus-ring-width, 4px) solid var(--focus-ring-color, #ff0066);
-          outline-offset: 2px;
-        }
-
-        .btn-icon {
-          font-size: 1.25rem;
-        }
-
-        /* Not found */
-        .not-found {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          text-align: center;
-        }
-
-        .not-found h2 {
-          font-family: var(--font-display, 'VT323', monospace);
-          color: var(--color-primary, #ff0066);
-          margin-bottom: var(--spacing-md, 1rem);
-        }
-
-        .not-found p {
-          color: var(--color-text-muted, #888);
-          margin-bottom: var(--spacing-lg, 1.5rem);
-        }
-
-        .back-btn {
-          padding: var(--spacing-sm, 0.5rem) var(--spacing-lg, 1.5rem);
-          background: var(--color-primary, #ff0066);
-          border: none;
-          border-radius: var(--radius-md, 8px);
-          color: var(--color-text, #fff);
-          cursor: pointer;
-        }
-
-        /* Screensaver overlay */
-        rwl-screensaver {
-          position: fixed;
-          z-index: var(--z-screensaver, 9999);
-        }
-
-        /* Breadcrumbs - positioned at top of content area without overlapping */
-        .breadcrumbs {
-          display: none;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 16px;
-          background: var(--breadcrumb-background, rgba(0, 0, 0, 0.5));
-          backdrop-filter: blur(10px);
-          font-size: 0.85rem;
-          flex-shrink: 0;
-        }
-
-        .breadcrumbs .crumb {
-          color: var(--color-text-muted, #888);
-          text-decoration: none;
-          transition: color 0.15s ease;
-          background: none;
-          border: none;
-          font: inherit;
-          cursor: pointer;
-          padding: 0;
-        }
-
-        .breadcrumbs button.crumb:hover {
-          color: var(--color-primary, #ff0066);
-        }
-
-        .breadcrumbs button.crumb:focus-visible {
-          outline: 2px solid var(--color-primary, #ff0066);
-          outline-offset: 2px;
-          border-radius: 2px;
-        }
-
-        .breadcrumbs .crumb.current {
-          color: var(--color-text, #fff);
-          font-weight: 500;
-        }
-
-        .breadcrumbs .separator {
-          color: var(--color-text-muted, #666);
-          font-size: 0.9em;
-        }
-
-        /* System view container with toolbar */
-        .system-view-container {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          position: relative;
-        }
-
-        .view-toolbar {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          z-index: 100;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 6px 10px;
-          background: var(--toolbar-background, rgba(0, 0, 0, 0.6));
-          border-radius: 8px;
-          backdrop-filter: blur(10px);
-        }
-
-        .view-content {
-          flex: 1;
-          position: relative;
-          overflow: hidden;
-        }
-
-        /* Mobile responsive */
-        @media (max-width: 768px) {
-          .main-area {
-            flex-direction: column;
-          }
-
-          rwl-sidebar {
-            display: none;
-          }
-
-          .welcome-title {
-            font-size: var(--font-size-lg, 1.25rem);
-          }
-
-          .quick-actions {
-            flex-direction: column;
-          }
-        }
-      </style>
-
+  render() {
+    return html`
       <div class="app-layout">
         <rwl-header></rwl-header>
 
@@ -669,9 +702,6 @@ class RwlApp extends HTMLElement {
         <rwl-screensaver></rwl-screensaver>
       </div>
     `;
-
-    // Initial content
-    this._renderContent();
   }
 }
 

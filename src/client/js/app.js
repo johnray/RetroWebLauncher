@@ -137,7 +137,9 @@ class App {
       './components/rwl-search.js',
       './components/rwl-settings.js',
       './components/rwl-screensaver.js',
-      './components/rwl-qr-code.js'
+      './components/rwl-qr-code.js',
+      './components/rwl-skeleton.js',
+      './components/rwl-alphabet-bar.js'
     ];
 
     // Load components in parallel for speed

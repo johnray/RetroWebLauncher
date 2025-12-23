@@ -95,6 +95,112 @@
   --z-modal: 500;
   --z-toast: 600;
   --z-screensaver: 9999;
+
+  /* Selection styling */
+  --selection-border-width: 3px;
+  --selection-border-color: #f72585;
+  --selection-glow-color: #f72585;
+  --selection-glow-rgba: rgba(247, 37, 133, 0.5);
+  --selection-glow-secondary: rgba(76, 201, 240, 0.3);
+  --selection-hover-bg: rgba(247, 37, 133, 0.2);
+
+  /* Navigation buttons (controls bar) */
+  --nav-btn-bg: rgba(247, 37, 133, 0.2);
+  --nav-btn-border: rgba(247, 37, 133, 0.5);
+  --nav-btn-color: #f72585;
+  --nav-btn-hover-bg: rgba(247, 37, 133, 0.4);
+  --counter-color: #f72585;
+
+  /* Controls/toolbar bar */
+  --controls-bar-bg: rgba(21, 7, 52, 0.95);
+  --controls-bar-border-color: rgba(247, 37, 133, 0.3);
+  --toolbar-background: rgba(21, 7, 52, 0.95);
+  --toolbar-border: rgba(247, 37, 133, 0.3);
+
+  /* Alphabet bar */
+  --alphabet-bar-background: rgba(21, 7, 52, 0.9);
+  --alphabet-bar-border: rgba(247, 37, 133, 0.2);
+  --alphabet-letter-color: rgba(255, 255, 255, 0.7);
+  --alphabet-letter-muted: rgba(255, 255, 255, 0.25);
+  --alphabet-letter-active-bg: #f72585;
+  --alphabet-letter-active-color: #ffffff;
+
+  /* Arcade name glow - hot pink neon */
+  --arcade-name-glow: 0 0 10px rgba(247, 37, 133, 0.7), 0 0 30px rgba(247, 37, 133, 0.5), 0 0 50px rgba(247, 37, 133, 0.3);
+  --arcade-name-glow-color: rgba(247, 37, 133, 0.7);
+
+  /* Breadcrumb bar */
+  --breadcrumb-background: rgba(21, 7, 52, 0.8);
+
+  /* Carousel reflection gradient */
+  --carousel-reflection-gradient: linear-gradient(0deg, rgba(13, 2, 33, 1) 0%, transparent 100%);
+
+  /* CRT LED off state */
+  --crt-led-off: #3c096c;
+
+  /* Game count badge */
+  --game-count-badge-bg: rgba(247, 37, 133, 0.9);
+  --game-count-badge-color: #ffffff;
+  --badge-glow: rgba(247, 37, 133, 0.5);
+
+  /* Settings panel */
+  --settings-background: rgba(21, 7, 52, 0.95);
+  --settings-section-bg: rgba(255, 255, 255, 0.05);
+  --settings-border: rgba(247, 37, 133, 0.4);
+  --settings-title-color: #f72585;
+  --settings-label-color: #ffffff;
+  --settings-desc-color: #9d8eb8;
+  --settings-input-bg: rgba(0, 0, 0, 0.4);
+  --settings-input-border: rgba(247, 37, 133, 0.3);
+
+  /* Game cards */
+  --game-card-background: #1f0c47;
+  --game-card-border: rgba(247, 37, 133, 0.2);
+  --game-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(247, 37, 133, 0.1);
+  --game-card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 30px rgba(247, 37, 133, 0.3);
+  --game-card-image-bg: linear-gradient(135deg, #240046 0%, #1f0c47 100%);
+
+  /* CRT/Video frame */
+  --crt-frame-background: linear-gradient(145deg, #3c096c, #240046);
+  --crt-frame-border: rgba(247, 37, 133, 0.3);
+  --crt-screen-background: #0d0221;
+  --crt-led-on: #4ade80;
+
+  /* View backgrounds */
+  --view-background: linear-gradient(180deg, #0d0221 0%, #240046 50%, #0d0221 100%);
+  --bg-brightness: 0.5;
+  --bg-gradient-overlay:
+    radial-gradient(ellipse at center bottom, transparent 0%, rgba(13,2,33,0.9) 70%),
+    linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%);
+
+  /* System carousel */
+  --system-card-background: linear-gradient(135deg, #240046 0%, #3c096c 50%, #7b2cbf 100%);
+  --system-card-border: rgba(247, 37, 133, 0.3);
+  --system-info-background: linear-gradient(180deg, rgba(13,2,33,0.9) 0%, transparent 100%);
+  --system-name-color: #ffffff;
+  --system-meta-color: #9d8eb8;
+
+  /* Spinner */
+  --spinner-track: #3c096c;
+
+  /* Screensaver - synthwave sunset atmosphere */
+  --screensaver-background: #0d0221;
+  --screensaver-star-color: rgba(255, 255, 255, 0.9);
+  --screensaver-nebula-primary: rgba(247, 37, 133, 0.18);
+  --screensaver-nebula-secondary: rgba(76, 201, 240, 0.12);
+  --screensaver-nebula-accent: rgba(114, 9, 183, 0.15);
+  --screensaver-nebula-opacity: 0.7;
+  --screensaver-tv-frame: linear-gradient(145deg, #3c096c, #240046);
+  --screensaver-tv-glow: rgba(247, 37, 133, 0.25);
+  --screensaver-tv-border: #7209b7;
+  --screensaver-title-color: #ffffff;
+  --screensaver-title-glow: #f72585;
+  --screensaver-subtitle-color: rgba(255, 255, 255, 0.7);
+  --screensaver-hint-color: rgba(255, 255, 255, 0.4);
+  --screensaver-led-color: #4ade80;
+  --screensaver-label-bg: rgba(13, 2, 33, 0.9);
+  --screensaver-label-color: #ffffff;
+  --screensaver-label-glow: #f72585;
 }
 
 /* ============================================

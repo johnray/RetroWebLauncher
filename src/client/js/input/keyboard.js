@@ -79,18 +79,18 @@ export class KeyboardHandler {
       return true;
     }
 
-    // Check activeElement (for Shadow DOM inputs)
-    const active = document.activeElement;
-    if (active) {
-      // Check if activeElement has a shadowRoot with a focused input
-      if (active.shadowRoot) {
-        const shadowActive = active.shadowRoot.activeElement;
-        if (shadowActive) {
-          const shadowTag = shadowActive.tagName.toLowerCase();
-          if (shadowTag === 'input' || shadowTag === 'textarea' || shadowActive.isContentEditable) {
-            return true;
-          }
-        }
+    // Recursively check Shadow DOM active elements (handles nested shadow DOMs)
+    let active = document.activeElement;
+    while (active) {
+      const activeTag = active.tagName?.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || active.isContentEditable) {
+        return true;
+      }
+      // Traverse into shadow DOM if present
+      if (active.shadowRoot && active.shadowRoot.activeElement) {
+        active = active.shadowRoot.activeElement;
+      } else {
+        break;
       }
     }
 

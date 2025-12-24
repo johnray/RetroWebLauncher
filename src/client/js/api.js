@@ -15,6 +15,7 @@ class ApiClient {
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
     this.cache = new Map();
+    this.pendingRequests = new Map(); // For request deduplication
     this.cacheTimeout = 60000; // 1 minute cache
     this.requestTimeout = 30000; // 30 second timeout
     this.maxRetries = 2;
@@ -72,6 +73,7 @@ class ApiClient {
   }
 
   async get(endpoint, useCache = true) {
+    // Check cache first
     if (useCache && this.cache.has(endpoint)) {
       const cached = this.cache.get(endpoint);
       if (Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -80,13 +82,31 @@ class ApiClient {
       this.cache.delete(endpoint);
     }
 
-    const data = await this.request(endpoint);
-
-    if (useCache) {
-      this.cache.set(endpoint, { data, timestamp: Date.now() });
+    // Request deduplication - return existing promise if request is in flight
+    if (this.pendingRequests.has(endpoint)) {
+      return this.pendingRequests.get(endpoint);
     }
 
-    return data;
+    // Create the request promise
+    const requestPromise = (async () => {
+      try {
+        const data = await this.request(endpoint);
+
+        if (useCache) {
+          this.cache.set(endpoint, { data, timestamp: Date.now() });
+        }
+
+        return data;
+      } finally {
+        // Remove from pending when complete (success or failure)
+        this.pendingRequests.delete(endpoint);
+      }
+    })();
+
+    // Store pending promise for deduplication
+    this.pendingRequests.set(endpoint, requestPromise);
+
+    return requestPromise;
   }
 
   async post(endpoint, data) {

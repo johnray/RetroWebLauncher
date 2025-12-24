@@ -42,11 +42,12 @@ class Router {
    * @param {Object} queryParams - Optional query parameters
    */
   navigate(path, queryParams = {}) {
-    let hash = path;
+    // Strip leading hash if present to avoid double-hash
+    let hash = path.startsWith('#') ? path.slice(1) : path;
 
     if (Object.keys(queryParams).length > 0) {
       const query = new URLSearchParams(queryParams).toString();
-      hash = `${path}?${query}`;
+      hash = `${hash}?${query}`;
     }
 
     window.location.hash = hash;

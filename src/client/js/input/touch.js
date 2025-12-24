@@ -135,19 +135,20 @@ export class TouchHandler {
     }
 
     // Single finger swipe = navigation
+    // Swipe direction = navigation direction (swipe left = go left/previous)
     if (absX > absY) {
       // Horizontal swipe
       if (deltaX < 0) {
-        this._manager.navigate('right', 'touch');
-      } else {
         this._manager.navigate('left', 'touch');
+      } else {
+        this._manager.navigate('right', 'touch');
       }
     } else {
       // Vertical swipe
       if (deltaY < 0) {
-        this._manager.navigate('down', 'touch');
-      } else {
         this._manager.navigate('up', 'touch');
+      } else {
+        this._manager.navigate('down', 'touch');
       }
     }
   }

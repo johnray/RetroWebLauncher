@@ -448,8 +448,7 @@ class RwlGameDetail extends LitElement {
   async _loadGame(gameId) {
     try {
       const response = await api.getGame(gameId);
-      // API returns game properties directly at root level, not wrapped in .game
-      this._game = response;
+      this._game = response.game;
 
       // Set default media tab
       const hasVideo = !!this._game.video;

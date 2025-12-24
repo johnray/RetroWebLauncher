@@ -500,9 +500,12 @@ class RwlSettings extends LitElement {
       this._config = response.config || {};
       this.requestUpdate();
 
+      // Wait for render to complete before querying DOM elements
+      await this.updateComplete;
+
       // Load themes into dropdown and custom themes grid
       await this._loadThemesDropdown();
-      setTimeout(() => this._loadCustomThemes(), 100);
+      await this._loadCustomThemes();
     } catch (error) {
       console.error('Failed to load config:', error);
       this._showError('Failed to load settings');

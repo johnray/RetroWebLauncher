@@ -78,12 +78,14 @@ router.get('/:id', (req, res) => {
     const system = cache.getSystem(game.systemId);
 
     res.json({
-      ...game,
-      system: system ? {
-        id: system.id,
-        name: system.name,
-        fullname: system.fullname
-      } : null
+      game: {
+        ...game,
+        system: system ? {
+          id: system.id,
+          name: system.name,
+          fullname: system.fullname
+        } : null
+      }
     });
   } catch (error) {
     console.error('Error getting game:', error);

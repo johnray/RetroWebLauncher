@@ -384,6 +384,15 @@ class RwlGridView extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this._saveScrollPosition();
+
+    // Clean up scroll handler to prevent memory leak
+    if (this._scrollHandler) {
+      const scrollContainer = this.shadowRoot?.getElementById('scroll-container');
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', this._scrollHandler);
+      }
+      this._scrollHandler = null;
+    }
   }
 
   _saveScrollPosition() {

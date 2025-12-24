@@ -295,7 +295,8 @@ class RwlVideoPlayer extends LitElement {
       this._playing = false;
 
       if (this.src) {
-        this._showPlaceholder = false;
+        // Keep placeholder visible until video can play - prevents flash of black
+        // Placeholder will be hidden in _onCanPlay when video is ready
         // Video element might not exist yet on first update - it's created in render()
         // firstUpdated() will call _bindVideoEvents which triggers initial play
         if (this._video) {
@@ -330,9 +331,9 @@ class RwlVideoPlayer extends LitElement {
     this._bindVideoEvents();
 
     // If src was set before firstUpdated (via attribute), apply it now
+    // Keep placeholder visible until canplay - it will be hidden in event handler
     if (this.src && this._video) {
       this._video.src = this.src;
-      this._showPlaceholder = false;
     }
   }
 
@@ -374,6 +375,8 @@ class RwlVideoPlayer extends LitElement {
     this._video.addEventListener('canplay', () => {
       this._loaded = true;
       this._hasError = false;
+      this._showPlaceholder = false; // Hide placeholder now that video is ready
+      this.requestUpdate();
     });
 
     this._video.addEventListener('loadeddata', () => {

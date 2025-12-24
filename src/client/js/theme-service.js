@@ -10,16 +10,29 @@ class ThemeService {
     this._subscribers = new Map();
     this._backgroundElement = null;
     this._initialized = false;
+    this._initPromise = null;
   }
 
   async init() {
+    // Return existing promise if init is already in progress
+    if (this._initPromise) return this._initPromise;
     if (this._initialized) return;
 
-    // Get current theme from localStorage or default
-    this._currentTheme = localStorage.getItem('rwl-theme') || 'classic-arcade';
-    await this.loadThemeSettings(this._currentTheme);
-    this._createBackgroundLayer();
-    this._initialized = true;
+    // Create and store the promise to prevent concurrent init calls
+    this._initPromise = this._doInit();
+    return this._initPromise;
+  }
+
+  async _doInit() {
+    try {
+      // Get current theme from localStorage or default
+      this._currentTheme = localStorage.getItem('rwl-theme') || 'classic-arcade';
+      await this.loadThemeSettings(this._currentTheme);
+      this._createBackgroundLayer();
+      this._initialized = true;
+    } finally {
+      this._initPromise = null;
+    }
   }
 
   /**

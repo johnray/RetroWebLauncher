@@ -122,10 +122,19 @@ function serveMedia(req, res, type) {
       res.setHeader('Content-Length', chunkSize);
 
       const stream = fs.createReadStream(fullPath, { start, end });
+      stream.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) res.status(500).end();
+      });
       stream.pipe(res);
     } else {
       res.setHeader('Content-Length', stat.size);
-      fs.createReadStream(fullPath).pipe(res);
+      const stream = fs.createReadStream(fullPath);
+      stream.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) res.status(500).end();
+      });
+      stream.pipe(res);
     }
   } catch (error) {
     console.error('Error serving media:', error);

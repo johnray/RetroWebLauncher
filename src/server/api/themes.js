@@ -137,6 +137,12 @@ router.post('/preview', async (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const themeName = req.params.id;
+
+    // Basic input validation
+    if (!/^[a-z0-9-]+$/i.test(themeName)) {
+      return res.status(400).json({ error: 'Invalid theme name' });
+    }
+
     const deleted = themeGenerator.deleteTheme(themeName);
 
     if (deleted) {
@@ -214,6 +220,12 @@ router.post('/create', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const themeName = req.params.id;
+
+    // Basic input validation
+    if (!/^[a-z0-9-]+$/i.test(themeName)) {
+      return res.status(400).json({ error: 'Invalid theme name' });
+    }
+
     const { config: newConfig } = req.body;
 
     if (!newConfig) {
@@ -246,6 +258,12 @@ router.get('/:id/settings', (req, res) => {
     const fs = require('fs');
     const path = require('path');
     const themeName = req.params.id;
+
+    // Basic input validation - theme names should be alphanumeric with hyphens only
+    if (!/^[a-z0-9-]+$/i.test(themeName)) {
+      return res.status(400).json({ error: 'Invalid theme name' });
+    }
+
     const themesDir = path.join(__dirname, '..', '..', '..', 'themes');
     const filePath = path.join(themesDir, `${themeName}.json`);
 
@@ -306,6 +324,12 @@ router.get('/:id/css', (req, res) => {
     const fs = require('fs');
     const path = require('path');
     const themeName = req.params.id;
+
+    // Basic input validation
+    if (!/^[a-z0-9-]+$/i.test(themeName)) {
+      return res.status(400).json({ error: 'Invalid theme name' });
+    }
+
     const themesDir = path.join(__dirname, '..', '..', 'client', 'css', 'themes');
     const filePath = path.join(themesDir, `${themeName}.css`);
 

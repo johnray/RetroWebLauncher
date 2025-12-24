@@ -258,7 +258,6 @@ class RwlSpinWheel extends RwlCarouselBase {
     requestAnimationFrame(() => {
       const track = this.shadowRoot.querySelector('.wheel-track');
       const items = this.shadowRoot.querySelectorAll('.wheel-item');
-      const counter = this.shadowRoot.querySelector('.counter');
 
       if (!track || items.length === 0) return;
 
@@ -295,13 +294,7 @@ class RwlSpinWheel extends RwlCarouselBase {
         item.classList.toggle('hidden', absOffset > visibleItems);
       });
 
-      const gameCount = this.shadowRoot.querySelector('.game-count');
-      if (gameCount) {
-        gameCount.textContent = `${this._games.length} games`;
-      }
-
-      if (counter) counter.textContent = `${this._currentIndex + 1} / ${this._games.length}`;
-
+      // Don't manipulate counter/gameCount text - those are Lit bindings
       this._updateGameDetailsPanel();
       this._updateCurrentLetter();
     });
@@ -384,7 +377,7 @@ class RwlSpinWheel extends RwlCarouselBase {
           <div class="crt-container">
             <div class="crt-frame">
               <div class="crt-screen">
-                <rwl-video-player autoplay loop muted></rwl-video-player>
+                <rwl-video-player autoplay loop muted .src=${this.selectedGame ? `/api/media/game/${this.selectedGame.id}/video` : ''}></rwl-video-player>
               </div>
               <div class="crt-details">
                 <div class="crt-led"></div>
@@ -393,7 +386,7 @@ class RwlSpinWheel extends RwlCarouselBase {
             </div>
           </div>
           <div class="details-content">
-            <h2 class="game-title">Select a game</h2>
+            ${this._renderGameDetails(this.selectedGame)}
           </div>
         </div>
 

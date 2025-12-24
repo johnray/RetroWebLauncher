@@ -408,8 +408,8 @@ class RwlScreensaver extends LitElement {
     this._boundHandleActivity = (e) => this._handleActivity(e);
     this._floatingTvs = [];
     this._lastSpawnTime = 0;
-    this._spawnInterval = 4000; // Spawn new TV every 4 seconds
-    this._maxTvs = 8; // Max TVs on screen
+    this._spawnInterval = 3000; // Spawn new TV every 3 seconds
+    this._maxTvs = 6; // Max bouncing TVs on screen
     this.arcadeName = 'RetroWebLauncher';
   }
 
@@ -597,59 +597,41 @@ class RwlScreensaver extends LitElement {
     const container = this.shadowRoot.querySelector('.floating-tvs');
     if (!container || this._games.length === 0) return;
 
-    // Pick random game
-    const game = this._games[Math.floor(Math.random() * this._games.length)];
+    // Pick random game that hasn't been used recently
+    const availableGames = this._games.filter(g =>
+      !this._floatingTvs.some(tv => tv.gameId === g.id)
+    );
+    const game = availableGames.length > 0
+      ? availableGames[Math.floor(Math.random() * availableGames.length)]
+      : this._games[Math.floor(Math.random() * this._games.length)];
+
     const hasVideo = !!game.video;
 
-    // Random TV size (smaller for more TVs)
-    const size = 140 + Math.random() * 80; // 140-220px width
+    // Random TV size - varied sizes for depth
+    const size = 120 + Math.random() * 100; // 120-220px width
 
-    // Random starting position from edges
-    const side = Math.floor(Math.random() * 4);
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    let startX, startY, endX, endY;
-    const margin = size * 1.5;
+    // Start at random position within screen bounds
+    const margin = size + 20;
+    const x = margin + Math.random() * (vw - margin * 2);
+    const y = margin + Math.random() * (vh - margin * 2 - 100); // Leave room for controls
 
-    switch (side) {
-      case 0: // From top
-        startX = margin + Math.random() * (vw - margin * 2);
-        startY = -size * 1.5;
-        endX = startX + (Math.random() - 0.5) * 300;
-        endY = vh + size;
-        break;
-      case 1: // From right
-        startX = vw + size;
-        startY = margin + Math.random() * (vh - margin * 2);
-        endX = -size * 1.5;
-        endY = startY + (Math.random() - 0.5) * 200;
-        break;
-      case 2: // From bottom
-        startX = margin + Math.random() * (vw - margin * 2);
-        startY = vh + size;
-        endX = startX + (Math.random() - 0.5) * 300;
-        endY = -size * 1.5;
-        break;
-      case 3: // From left
-        startX = -size * 1.5;
-        startY = margin + Math.random() * (vh - margin * 2);
-        endX = vw + size;
-        endY = startY + (Math.random() - 0.5) * 200;
-        break;
-    }
+    // Random velocity - bouncing like DVD logo
+    const speed = 0.8 + Math.random() * 0.8; // 0.8 to 1.6 px/frame
+    const angle = Math.random() * Math.PI * 2;
+    const dx = Math.cos(angle) * speed;
+    const dy = Math.sin(angle) * speed;
 
-    const duration = 15000 + Math.random() * 10000; // 15-25 seconds
-    const rotation = (Math.random() - 0.5) * 15; // -7.5 to 7.5 degrees
-    const rotationEnd = rotation + (Math.random() - 0.5) * 10;
+    const rotation = (Math.random() - 0.5) * 8; // Slight tilt
 
-    // Get theme colors from CSS variables, fallback to defaults
+    // Get theme colors from CSS variables
     const computedStyle = getComputedStyle(document.documentElement);
     const primaryColor = computedStyle.getPropertyValue('--color-primary').trim() || '#ff0066';
     const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim() || '#00ffff';
     const accentColor = computedStyle.getPropertyValue('--color-accent').trim() || '#ff6600';
 
-    // Use theme colors for glow, with some complementary variations
     const glowColors = [primaryColor, secondaryColor, accentColor];
     const glowColor = glowColors[Math.floor(Math.random() * glowColors.length)];
 
@@ -657,14 +639,14 @@ class RwlScreensaver extends LitElement {
     tv.className = 'floating-tv';
     tv.style.cssText = `
       width: ${size}px;
-      left: ${startX}px;
-      top: ${startY}px;
+      left: ${x}px;
+      top: ${y}px;
       transform: rotate(${rotation}deg);
       z-index: ${Math.floor(50 + Math.random() * 50)};
+      opacity: 0;
     `;
 
     const videoUrl = hasVideo ? `/api/media/game/${game.id}/video` : '';
-    const videoId = `tv-video-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     tv.innerHTML = `
       <div class="tv-frame">
@@ -672,7 +654,7 @@ class RwlScreensaver extends LitElement {
         <div class="tv-screen-bezel">
           <div class="tv-screen">
             ${hasVideo ? `
-              <video id="${videoId}" muted loop playsinline autoplay>
+              <video muted loop playsinline autoplay>
                 <source src="${videoUrl}" type="video/mp4">
               </video>
             ` : `
@@ -699,7 +681,6 @@ class RwlScreensaver extends LitElement {
       const video = tv.querySelector('video');
       if (video) {
         video.play().catch(() => {
-          // If video fails, show static
           const screen = tv.querySelector('.tv-screen');
           if (screen) {
             video.remove();
@@ -711,66 +692,118 @@ class RwlScreensaver extends LitElement {
       }
     }
 
-    // Store animation data
+    // Fade in
+    requestAnimationFrame(() => {
+      tv.style.opacity = '1';
+    });
+
+    // Store bouncing TV data
     this._floatingTvs.push({
       element: tv,
-      startX, startY,
-      endX, endY,
-      startRotation: rotation,
-      endRotation: rotationEnd,
-      startTime: performance.now(),
-      duration
+      gameId: game.id,
+      x, y,
+      dx, dy,
+      width: size,
+      height: size * 1.2, // Approximate height based on aspect ratio
+      rotation,
+      rotationSpeed: (Math.random() - 0.5) * 0.02, // Slow rotation on bounce
+      spawnTime: performance.now(),
+      lifespan: 30000 + Math.random() * 20000, // 30-50 seconds before replacement
+      glowColor
     });
   }
 
   _updateTvs() {
     const now = performance.now();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const toRemove = [];
 
     this._floatingTvs.forEach((tv, index) => {
-      const elapsed = now - tv.startTime;
-      const progress = Math.min(elapsed / tv.duration, 1);
+      const age = now - tv.spawnTime;
 
-      if (progress >= 1) {
+      // Remove old TVs to cycle in new ones
+      if (age > tv.lifespan) {
         toRemove.push(index);
-        // Stop video before removing
-        const video = tv.element.querySelector('video');
-        if (video) {
-          video.pause();
-          video.src = '';
-        }
-        tv.element.remove();
+        tv.element.style.opacity = '0';
+        setTimeout(() => {
+          const video = tv.element.querySelector('video');
+          if (video) {
+            video.pause();
+            video.src = '';
+          }
+          tv.element.remove();
+        }, 500);
         return;
       }
 
-      // Eased progress
-      const eased = this._easeInOutCubic(progress);
+      // Update position (bouncing)
+      tv.x += tv.dx;
+      tv.y += tv.dy;
 
-      const x = tv.startX + (tv.endX - tv.startX) * eased;
-      const y = tv.startY + (tv.endY - tv.startY) * eased;
-      const rot = tv.startRotation + (tv.endRotation - tv.startRotation) * eased;
+      // Bounce off edges - with slight randomization for organic feel
+      const leftBound = 20;
+      const rightBound = vw - tv.width - 20;
+      const topBound = 20;
+      const bottomBound = vh - tv.height - 100; // Leave room for exit hint
 
-      // Gentle floating motion
-      const floatY = Math.sin(elapsed / 1000) * 5;
-      const floatX = Math.cos(elapsed / 1500) * 3;
+      if (tv.x <= leftBound) {
+        tv.x = leftBound;
+        tv.dx = Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
+        tv.rotation += (Math.random() - 0.5) * 3;
+        this._flashGlow(tv);
+      } else if (tv.x >= rightBound) {
+        tv.x = rightBound;
+        tv.dx = -Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
+        tv.rotation += (Math.random() - 0.5) * 3;
+        this._flashGlow(tv);
+      }
 
-      // Fade in/out
+      if (tv.y <= topBound) {
+        tv.y = topBound;
+        tv.dy = Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
+        tv.rotation += (Math.random() - 0.5) * 3;
+        this._flashGlow(tv);
+      } else if (tv.y >= bottomBound) {
+        tv.y = bottomBound;
+        tv.dy = -Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
+        tv.rotation += (Math.random() - 0.5) * 3;
+        this._flashGlow(tv);
+      }
+
+      // Gentle floating wobble
+      const wobbleX = Math.sin(now / 1000 + index) * 2;
+      const wobbleY = Math.cos(now / 1200 + index) * 2;
+
+      // Fade effect near end of lifespan
       let opacity = 1;
-      if (progress < 0.1) opacity = progress / 0.1;
-      if (progress > 0.85) opacity = (1 - progress) / 0.15;
+      const fadeOutStart = tv.lifespan - 2000;
+      if (age < 500) {
+        opacity = age / 500;
+      } else if (age > fadeOutStart) {
+        opacity = (tv.lifespan - age) / 2000;
+      }
 
-      tv.element.style.left = `${x + floatX}px`;
-      tv.element.style.top = `${y + floatY}px`;
-      tv.element.style.transform = `rotate(${rot}deg)`;
+      tv.element.style.left = `${tv.x + wobbleX}px`;
+      tv.element.style.top = `${tv.y + wobbleY}px`;
+      tv.element.style.transform = `rotate(${tv.rotation}deg)`;
       tv.element.style.opacity = opacity;
     });
 
-    // Remove completed TVs
+    // Remove expired TVs
     toRemove.reverse().forEach(i => this._floatingTvs.splice(i, 1));
   }
 
-  _easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  _flashGlow(tv) {
+    // Brief flash effect on bounce
+    const glow = tv.element.querySelector('.tv-glow');
+    if (glow) {
+      const originalShadow = glow.style.boxShadow;
+      glow.style.boxShadow = `0 0 50px ${tv.glowColor}, 0 0 100px ${tv.glowColor}`;
+      setTimeout(() => {
+        glow.style.boxShadow = originalShadow;
+      }, 150);
+    }
   }
 
   render() {

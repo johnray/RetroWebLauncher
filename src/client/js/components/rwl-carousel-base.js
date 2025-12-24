@@ -300,7 +300,8 @@ export class RwlCarouselBase extends LitElement {
       align-items: center;
       justify-content: center;
       gap: 30px;
-      z-index: 10;
+      z-index: 200;
+      pointer-events: auto;
     }
 
     .nav-controls {
@@ -310,6 +311,7 @@ export class RwlCarouselBase extends LitElement {
     }
 
     .nav-btn {
+      position: relative;
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -319,6 +321,8 @@ export class RwlCarouselBase extends LitElement {
       font-size: 1rem;
       cursor: pointer;
       transition: all 0.2s;
+      z-index: 1;
+      pointer-events: auto;
     }
 
     .nav-btn:hover {
@@ -470,7 +474,6 @@ export class RwlCarouselBase extends LitElement {
 
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
-    document.removeEventListener('keydown', this._keyHandler);
     this._stopVideo();
   }
 
@@ -551,40 +554,9 @@ export class RwlCarouselBase extends LitElement {
 
   _bindEvents() {
     const navKeys = this._getNavKeys();
-
-    this._keyHandler = (e) => {
-      if (e.key === navKeys.prev) {
-        e.preventDefault();
-        this._navigate(-1);
-      } else if (e.key === navKeys.next) {
-        e.preventDefault();
-        this._navigate(1);
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        this._selectCurrent();
-      } else if (e.key === 'PageUp') {
-        e.preventDefault();
-        this._navigate(-5);
-      } else if (e.key === 'PageDown') {
-        e.preventDefault();
-        this._navigate(5);
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        this._currentIndex = 0;
-        this.requestUpdate();
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        this._currentIndex = this._games.length - 1;
-        this.requestUpdate();
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        this._jumpToLetter(e.key.toUpperCase());
-      }
-    };
-    document.addEventListener('keydown', this._keyHandler);
-
-    // Determine input direction based on nav keys
     const isVertical = navKeys.prev === 'ArrowUp';
 
+    // Listen to centralized input events (keyboard, gamepad, touch all emit these)
     this._unsubscribers.push(
       state.on('input:navigate', (direction) => {
         if (isVertical) {
@@ -599,6 +571,39 @@ export class RwlCarouselBase extends LitElement {
 
     this._unsubscribers.push(
       state.on('input:select', () => this._selectCurrent())
+    );
+
+    // Page navigation (handled by keyboard handler's pageLeft/pageRight)
+    this._unsubscribers.push(
+      state.on('input:pageLeft', () => this._navigate(-5))
+    );
+
+    this._unsubscribers.push(
+      state.on('input:pageRight', () => this._navigate(5))
+    );
+
+    // Home/End navigation
+    this._unsubscribers.push(
+      state.on('input:home', () => {
+        this._currentIndex = 0;
+        this.requestUpdate();
+      })
+    );
+
+    this._unsubscribers.push(
+      state.on('input:end', () => {
+        this._currentIndex = this._games.length - 1;
+        this.requestUpdate();
+      })
+    );
+
+    // Character input for letter jump
+    this._unsubscribers.push(
+      state.on('input:character', (char) => {
+        if (/^[a-z]$/i.test(char)) {
+          this._jumpToLetter(char.toUpperCase());
+        }
+      })
     );
   }
 
@@ -726,46 +731,44 @@ export class RwlCarouselBase extends LitElement {
   }
 
   /**
-   * Build game details HTML string for the details panel
+   * Build game details as Lit template (not HTML string)
+   * This avoids breaking Lit's DOM tracking by using innerHTML
    */
-  _buildGameDetailsHtml(game) {
-    if (!game) return '<h2 class="game-title">Select a game</h2>';
+  _renderGameDetails(game) {
+    const { html } = window.Lit;
+
+    if (!game) {
+      return html`<h2 class="game-title">Select a game</h2>`;
+    }
 
     const rating = this._formatRating(game.rating);
-    const ratingHtml = rating
-      ? `<div class="detail-row"><span class="detail-label">Rating</span><span class="rating-stars">${'★'.repeat(rating.filled)}${'☆'.repeat(rating.empty)}</span></div>`
-      : '';
 
-    return `
+    return html`
       <h2 class="game-title">${game.name || 'Unknown'}</h2>
       <div class="game-meta">
-        ${game.releaseYear ? `<span class="meta-item">${game.releaseYear}</span>` : ''}
-        ${game.genre ? `<span class="meta-item">${game.genre}</span>` : ''}
+        ${game.releaseYear ? html`<span class="meta-item">${game.releaseYear}</span>` : ''}
+        ${game.genre ? html`<span class="meta-item">${game.genre}</span>` : ''}
       </div>
       <div class="details-grid">
-        ${game.developer ? `<div class="detail-row"><span class="detail-label">Developer</span><span class="detail-value">${game.developer}</span></div>` : ''}
-        ${game.publisher ? `<div class="detail-row"><span class="detail-label">Publisher</span><span class="detail-value">${game.publisher}</span></div>` : ''}
-        ${game.players ? `<div class="detail-row"><span class="detail-label">Players</span><span class="detail-value">${game.players}</span></div>` : ''}
-        ${game.region ? `<div class="detail-row"><span class="detail-label">Region</span><span class="detail-value">${game.region}</span></div>` : ''}
-        ${ratingHtml}
-        ${game.playCount ? `<div class="detail-row"><span class="detail-label">Play Count</span><span class="detail-value">${game.playCount}</span></div>` : ''}
+        ${game.developer ? html`<div class="detail-row"><span class="detail-label">Developer</span><span class="detail-value">${game.developer}</span></div>` : ''}
+        ${game.publisher ? html`<div class="detail-row"><span class="detail-label">Publisher</span><span class="detail-value">${game.publisher}</span></div>` : ''}
+        ${game.players ? html`<div class="detail-row"><span class="detail-label">Players</span><span class="detail-value">${game.players}</span></div>` : ''}
+        ${game.region ? html`<div class="detail-row"><span class="detail-label">Region</span><span class="detail-value">${game.region}</span></div>` : ''}
+        ${rating ? html`<div class="detail-row"><span class="detail-label">Rating</span><span class="rating-stars">${'★'.repeat(rating.filled)}${'☆'.repeat(rating.empty)}</span></div>` : ''}
+        ${game.playCount ? html`<div class="detail-row"><span class="detail-label">Play Count</span><span class="detail-value">${game.playCount}</span></div>` : ''}
       </div>
-      ${game.description ? `<p class="game-desc">${game.description}</p>` : ''}
+      ${game.description ? html`<p class="game-desc">${game.description}</p>` : ''}
     `;
   }
 
   /**
    * Update the game details panel with current game info
+   * Note: This updates background and video only - details content should be rendered via Lit
    */
   _updateGameDetailsPanel() {
     const game = this.selectedGame;
-    const detailsPanel = this.shadowRoot?.querySelector('.details-content');
     const bgImage = this.shadowRoot?.querySelector('.bg-image');
     const videoPlayer = this.shadowRoot?.querySelector('rwl-video-player');
-
-    if (detailsPanel) {
-      detailsPanel.innerHTML = this._buildGameDetailsHtml(game);
-    }
 
     if (bgImage && game) {
       this._loadBackgroundImage(bgImage, game.id);
@@ -774,5 +777,8 @@ export class RwlCarouselBase extends LitElement {
     if (videoPlayer && game) {
       videoPlayer.src = `/api/media/game/${game.id}/video`;
     }
+
+    // Request update to re-render details via Lit template
+    this.requestUpdate();
   }
 }

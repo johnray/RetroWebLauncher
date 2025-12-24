@@ -77,6 +77,37 @@
   --header-height: 72px;
   --sidebar-width: 300px;
 
+  /* Header styling */
+  --header-background: linear-gradient(180deg, rgba(12, 15, 14, 0.95) 0%, rgba(20, 25, 24, 0.9) 100%);
+  --header-border-color: #10b981;
+  --header-text-color: #ecfdf5;
+  --header-btn-background: rgba(16, 185, 129, 0.12);
+  --header-btn-border: rgba(16, 185, 129, 0.25);
+  --header-btn-background-hover: rgba(16, 185, 129, 0.25);
+
+  /* Sidebar styling */
+  --sidebar-background: linear-gradient(180deg, rgba(12, 15, 14, 0.95) 0%, rgba(20, 25, 24, 0.9) 100%);
+  --sidebar-border-color: rgba(16, 185, 129, 0.2);
+  --sidebar-section-border: rgba(16, 185, 129, 0.3);
+  --sidebar-item-hover: rgba(16, 185, 129, 0.12);
+  --sidebar-item-selected: rgba(16, 185, 129, 0.2);
+  --sidebar-text-color: #ecfdf5;
+  --sidebar-group-header-color: #6b7b76;
+  --sidebar-count-bg: rgba(16, 185, 129, 0.15);
+
+  /* Content/Panel styling */
+  --content-background: rgba(12, 15, 14, 0.9);
+  --content-surface: rgba(24, 30, 28, 0.8);
+  --content-border: rgba(16, 185, 129, 0.15);
+  --content-overlay-dark: rgba(0, 0, 0, 0.3);
+
+  /* Button styling */
+  --button-secondary-bg: rgba(16, 185, 129, 0.08);
+  --button-secondary-hover: rgba(16, 185, 129, 0.15);
+  --button-secondary-border: rgba(16, 185, 129, 0.2);
+  --button-active-bg: rgba(16, 185, 129, 0.2);
+  --button-active-border: rgba(16, 185, 129, 0.4);
+
   /* Z-index */
   --z-sidebar: 100;
   --z-header: 200;

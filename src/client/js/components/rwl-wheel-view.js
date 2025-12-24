@@ -315,7 +315,7 @@ class RwlWheelView extends RwlCarouselBase {
             </div>
           </div>
           <div class="details-content">
-            <h2 class="game-title">Select a game</h2>
+            ${this._renderGameDetails(this.selectedGame)}
           </div>
         </div>
 
@@ -332,8 +332,8 @@ class RwlWheelView extends RwlCarouselBase {
           <div class="size-control">
             <label>🔍</label>
             <input type="range" id="size-slider"
-                   min="95" max="125"
-                   .value=${Math.min(this._size, 125).toString()}
+                   min="150" max="450"
+                   .value=${this._size}
                    @input=${this._onSliderChange}
                    title="Adjust size">
           </div>

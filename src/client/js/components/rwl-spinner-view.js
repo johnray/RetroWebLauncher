@@ -224,104 +224,49 @@ class RwlSpinnerView extends RwlCarouselBase {
   // Spinner-specific methods
   // ─────────────────────────────────────────────────────────────
 
-  updated(changedProperties) {
-    super.updated(changedProperties);
-
-    // Re-render wheel when games load
-    if (changedProperties.has('_games') && this._games.length > 0) {
-      this._renderWheel();
-    }
-  }
-
   _updateDisplay() {
-    this._updateWheel();
+    // Apply wheel positioning after Lit render
+    requestAnimationFrame(() => this._updateWheelPositions());
   }
 
-  _renderWheel() {
-    const container = this.shadowRoot.querySelector('.wheel-container');
-    if (!container) return;
-
-    if (this._games.length === 0) {
-      container.innerHTML = `
-        <div class="state-message">
-          <span class="icon">🎮</span>
-          <p>No games found</p>
-        </div>
-      `;
-      return;
-    }
-
-    // Build the wheel items
-    let itemsHtml = '';
-    for (let i = 0; i < this._games.length; i++) {
-      const game = this._games[i];
-      const hasImage = game.thumbnail || game.image;
-      const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
-
-      itemsHtml += `
-        <div class="wheel-item" data-index="${i}">
-          <div class="item-card">
-            ${imageUrl ? `<img src="${imageUrl}" alt="${game.name}" loading="lazy">` : `<div class="no-img">🎮</div>`}
-          </div>
-        </div>
-      `;
-    }
-
-    container.innerHTML = `
-      <div class="wheel-arc">
-        ${itemsHtml}
-      </div>
-      <div class="selection-pointer"></div>
-    `;
-
-    // Bind click handlers
-    this.shadowRoot.querySelectorAll('.wheel-item').forEach((item) => {
-      const idx = parseInt(item.dataset.index, 10);
-      item.addEventListener('click', () => this._handleCardClick(idx));
-    });
-
-    // Mouse wheel scrolling
-    container.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      this._navigate(e.deltaY > 0 ? 1 : -1);
-    });
-
-    // Add alphabet bar
-    this._renderAlphabetBarDOM();
-
-    this._updateWheel();
-  }
-
-  _renderAlphabetBarDOM() {
-    const wrapper = this.shadowRoot.querySelector('.spinner-view');
-    if (!wrapper) return;
-
-    const existing = wrapper.querySelector('.alphabet-bar');
-    if (existing) existing.remove();
-
-    if (this._games.length < 20) return;
+  _renderAlphabetBar() {
+    if (this._games.length < 20) return '';
 
     const letters = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
 
-    const bar = document.createElement('div');
-    bar.className = 'alphabet-bar';
-    bar.innerHTML = letters.map(letter => `
-      <button
-        class="alpha-letter ${letter in this._letterIndex ? 'has-games' : ''} ${letter === this._currentLetter ? 'active' : ''}"
-        data-letter="${letter}"
-        title="${letter}"
-      >${letter}</button>
-    `).join('');
-
-    wrapper.appendChild(bar);
-
-    bar.addEventListener('click', (e) => this._handleAlphabetClick(e));
+    return html`
+      <div class="alphabet-bar" @click=${this._handleAlphabetClick}>
+        ${letters.map(letter => html`
+          <button
+            class="alpha-letter ${letter in this._letterIndex ? 'has-games' : ''} ${letter === this._currentLetter ? 'active' : ''}"
+            data-letter="${letter}"
+            title="${letter}"
+          >${letter}</button>
+        `)}
+      </div>
+    `;
   }
 
-  _updateWheel() {
-    const items = this.shadowRoot.querySelectorAll('.wheel-item');
-    const counter = this.shadowRoot.querySelector('.counter');
+  _renderWheelItems() {
+    return this._games.map((game, index) => {
+      const hasImage = game.thumbnail || game.image;
+      const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
 
+      return html`
+        <div class="wheel-item" data-index="${index}" @click=${() => this._handleCardClick(index)}>
+          <div class="item-card">
+            ${imageUrl
+              ? html`<img src="${imageUrl}" alt="${game.name}" loading="lazy">`
+              : html`<div class="no-img">🎮</div>`
+            }
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  _updateWheelPositions() {
+    const items = this.shadowRoot.querySelectorAll('.wheel-item');
     if (items.length === 0) return;
 
     const totalItems = this._games.length;
@@ -378,21 +323,13 @@ class RwlSpinnerView extends RwlCarouselBase {
       item.classList.toggle('active', i === this._currentIndex);
     });
 
-    if (counter) counter.textContent = `${this._currentIndex + 1} / ${this._games.length}`;
-
     this._updateGameDetailsPanel();
     this._updateCurrentLetter();
-    this._updateAlphabetBarHighlight();
   }
 
-  _updateAlphabetBarHighlight() {
-    const bar = this.shadowRoot.querySelector('.alphabet-bar');
-    if (!bar) return;
-
-    bar.querySelectorAll('.alpha-letter').forEach(el => {
-      el.classList.toggle('active', el.dataset.letter === this._currentLetter);
-      el.classList.toggle('has-games', el.dataset.letter in this._letterIndex);
-    });
+  _handleWheelScroll(e) {
+    e.preventDefault();
+    this._navigate(e.deltaY > 0 ? 1 : -1);
   }
 
   render() {
@@ -418,11 +355,11 @@ class RwlSpinnerView extends RwlCarouselBase {
             </div>
           </div>
           <div class="details-content">
-            <h2 class="game-title">Select a game</h2>
+            ${this._renderGameDetails(this.selectedGame)}
           </div>
         </div>
 
-        <div class="wheel-container">
+        <div class="wheel-container" @wheel=${this._handleWheelScroll}>
           ${this._loading ? html`
             <div class="state-message">
               <div class="loading-spinner"></div>
@@ -433,8 +370,15 @@ class RwlSpinnerView extends RwlCarouselBase {
               <span class="icon">🎮</span>
               <p>Select a system to browse games</p>
             </div>
-          ` : ''}
+          ` : html`
+            <div class="wheel-arc">
+              ${this._renderWheelItems()}
+            </div>
+            <div class="selection-pointer"></div>
+          `}
         </div>
+
+        ${this._renderAlphabetBar()}
 
         <div class="controls-bar">
           <div class="nav-controls">

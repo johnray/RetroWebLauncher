@@ -990,8 +990,10 @@ function Start-ServerProcess {
             Write-Host "http://localhost:$port" -ForegroundColor Cyan
 
             if ($ips -and $ips.Count -gt 0) {
-                Write-Host "    Network: " -NoNewline
-                Write-Host "http://$($ips[0]):$port" -ForegroundColor Cyan
+                foreach ($ip in $ips) {
+                    Write-Host "    Network: " -NoNewline
+                    Write-Host "http://${ip}:$port" -ForegroundColor Cyan
+                }
             }
 
             Write-Host ""
@@ -2396,8 +2398,17 @@ function Invoke-Dev {
     Write-Info "Starting in development mode (file watching enabled)"
     Write-Info "Server will auto-restart when files change"
     Write-Host ""
-    Write-Host "  Access: " -NoNewline
+    Write-Host "  Access URLs:" -ForegroundColor White
+    Write-Host "    Local:   " -NoNewline
     Write-Host "http://localhost:$port" -ForegroundColor Cyan
+    $ips = Get-NetworkIPs
+    if ($ips -and $ips.Count -gt 0) {
+        foreach ($ip in $ips) {
+            Write-Host "    Network: " -NoNewline
+            Write-Host "http://${ip}:$port" -ForegroundColor Cyan
+        }
+    }
+    Write-Host ""
     Write-Host "  Press " -NoNewline
     Write-Host "Ctrl+C" -ForegroundColor Yellow -NoNewline
     Write-Host " to stop"

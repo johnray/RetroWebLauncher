@@ -31,14 +31,13 @@ OUTPUT A VALID JSON OBJECT with this exact structure:
   "name": "theme-name-here",
   "displayName": "Theme Name Here",
   "description": "Brief description of the theme",
+  "isLight": false,
   "colors": {
     "primary": "COLOR_PRESET_NAME or #hexcode",
-    "primaryHover": "COLOR_PRESET_NAME or #hexcode",
     "secondary": "COLOR_PRESET_NAME or #hexcode",
     "accent": "COLOR_PRESET_NAME or #hexcode",
     "background": "COLOR_PRESET_NAME or #hexcode",
     "surface": "COLOR_PRESET_NAME or #hexcode",
-    "surfaceElevated": "COLOR_PRESET_NAME or #hexcode",
     "text": "COLOR_PRESET_NAME or #hexcode",
     "textMuted": "COLOR_PRESET_NAME or #hexcode",
     "success": "COLOR_PRESET_NAME or #hexcode",
@@ -56,12 +55,14 @@ OUTPUT A VALID JSON OBJECT with this exact structure:
 }
 
 GUIDELINES:
-1. Choose effects that match the mood (e.g., "scanlines" + "crt-flicker" for retro CRT feel)
-2. Use "intense" or "extreme" glow for vibrant neon themes
-3. Pick fonts that match the era (pixel for 8-bit, futuristic for sci-fi)
-4. Combine multiple effects for maximum visual impact (3-5 effects recommended)
-5. For dark themes, use "pitch-black" or "near-black" backgrounds
-6. Match warning/error colors to the theme's palette
+1. Set "isLight": true for light/bright themes, false for dark themes
+2. Choose effects that match the mood (e.g., "scanlines" + "crt-flicker" for retro CRT feel)
+3. Use "intense" or "extreme" glow for vibrant neon themes, "subtle" for elegant themes
+4. Pick fonts that match the era (pixel for 8-bit, futuristic for sci-fi, modern for clean)
+5. Combine 2-4 effects for visual impact without overwhelming
+6. For dark themes, use dark backgrounds: "pitch-black", "near-black", "dark-gray", "midnight-blue"
+7. For light themes, use light backgrounds: "light-gray", "off-white", "pure-white"
+8. Match warning/error colors to the theme's palette
 
 USER'S THEME DESCRIPTION:
 {DESCRIPTION}

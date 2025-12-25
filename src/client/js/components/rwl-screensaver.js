@@ -126,7 +126,7 @@ class RwlScreensaver extends LitElement {
     /* Individual floating TV */
     .floating-tv {
       position: absolute;
-      transition: opacity 0.5s ease, transform 0.3s ease-out;
+      transition: opacity 0.5s ease;
     }
 
     /* Retro CRT TV Frame - uses theme colors */
@@ -660,7 +660,10 @@ class RwlScreensaver extends LitElement {
     const dx = Math.cos(angle) * speed;
     const dy = Math.sin(angle) * speed;
 
-    const rotation = (Math.random() - 0.5) * 8; // Slight tilt
+    const rotation = (Math.random() - 0.5) * 20; // Initial random tilt
+
+    // Continuous rotation: max 360° in 45 seconds = 8°/s, random direction
+    const rotationSpeed = (Math.random() - 0.5) * 16; // -8 to +8 degrees per second
 
     // Get theme colors from CSS variables
     const computedStyle = getComputedStyle(document.documentElement);
@@ -742,7 +745,8 @@ class RwlScreensaver extends LitElement {
       width: size,
       height: size * 1.2, // Approximate height based on aspect ratio
       rotation,
-      rotationSpeed: (Math.random() - 0.5) * 0.02, // Slow rotation on bounce
+      rotationSpeed, // Continuous rotation in degrees per second
+      lastUpdateTime: performance.now(),
       spawnTime: performance.now(),
       lifespan: 30000 + Math.random() * 20000, // 30-50 seconds before replacement
       glowColor
@@ -786,26 +790,27 @@ class RwlScreensaver extends LitElement {
       if (tv.x <= leftBound) {
         tv.x = leftBound;
         tv.dx = Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       } else if (tv.x >= rightBound) {
         tv.x = rightBound;
         tv.dx = -Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       }
 
       if (tv.y <= topBound) {
         tv.y = topBound;
         tv.dy = Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       } else if (tv.y >= bottomBound) {
         tv.y = bottomBound;
         tv.dy = -Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       }
+
+      // Continuous slow rotation based on time delta
+      const deltaTime = (now - tv.lastUpdateTime) / 1000; // Convert to seconds
+      tv.rotation += tv.rotationSpeed * deltaTime;
+      tv.lastUpdateTime = now;
 
       // Gentle floating wobble
       const wobbleX = Math.sin(now / 1000 + index) * 2;

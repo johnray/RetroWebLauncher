@@ -129,21 +129,21 @@ router.get('/stats', (req, res) => {
 
 /**
  * POST /api/library/rescan
- * Trigger a full library rescan
+ * Trigger a full library rescan and wait for completion
  */
 router.post('/library/rescan', async (req, res) => {
   try {
-    // Start scan in background
-    cache.fullScan().catch(err => {
-      console.error('Background scan failed:', err);
-    });
+    console.log('Starting library rescan via API...');
+    const result = await cache.fullScan();
 
     res.json({
       success: true,
-      message: 'Library scan started'
+      message: 'Library scan complete',
+      systems: result.systems || 0,
+      games: result.games || 0
     });
   } catch (error) {
-    console.error('Error starting rescan:', error);
+    console.error('Error during rescan:', error);
     res.status(500).json({ error: error.message });
   }
 });

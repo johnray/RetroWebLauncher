@@ -98,6 +98,15 @@
   --content-surface: rgba(20, 20, 30, 0.8);
   --content-border: rgba(255, 0, 102, 0.2);
   --content-overlay-dark: rgba(0, 0, 0, 0.4);
+  --content-overlay: rgba(0, 0, 0, 0.6);
+  --content-input-background: rgba(0, 0, 0, 0.4);
+  --content-input-border: rgba(255, 255, 255, 0.2);
+  --content-scrollbar-thumb: rgba(255, 0, 102, 0.4);
+
+  /* Badge styling */
+  --badge-background: rgba(0, 0, 0, 0.85);
+  --badge-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --badge-text-color: #ffffff;
 
   /* Button styling */
   --button-secondary-bg: rgba(255, 0, 102, 0.1);
@@ -105,6 +114,8 @@
   --button-secondary-border: rgba(255, 0, 102, 0.3);
   --button-active-bg: rgba(255, 0, 102, 0.25);
   --button-active-border: rgba(255, 0, 102, 0.5);
+  --button-primary-shadow: rgba(255, 0, 102, 0.3);
+  --button-primary-shadow-hover: rgba(255, 0, 102, 0.4);
 
   /* Z-index */
   --z-sidebar: 100;

@@ -188,7 +188,17 @@ class ApiClient {
   }
 
   async rescanLibrary() {
-    return this.post('/api/config/library/rescan');
+    // Use longer timeout for rescan (5 minutes) since it can take a while
+    const originalTimeout = this.requestTimeout;
+    this.requestTimeout = 300000;
+    try {
+      const result = await this.post('/api/config/library/rescan');
+      // Clear cache after rescan so fresh data is fetched
+      this.clearCache();
+      return result;
+    } finally {
+      this.requestTimeout = originalTimeout;
+    }
   }
 
   async toggleFavorite(gameId) {

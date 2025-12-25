@@ -147,15 +147,16 @@ class RwlSettings extends LitElement {
       cursor: pointer;
     }
 
-    /* Fix for dropdown options visibility in light themes */
+    /* Fix for dropdown options visibility - use explicit dark colors
+       because <option> elements have limited CSS variable support */
     .setting-select option {
-      background: var(--settings-input-bg, #1a1a1a);
-      color: var(--color-text, #fff);
+      background: #1a1a1a;
+      color: #ffffff;
     }
 
     .setting-select optgroup {
-      background: var(--settings-input-bg, #1a1a1a);
-      color: var(--color-text-muted, #888);
+      background: #1a1a1a;
+      color: #888888;
     }
 
     /* Toggle switch */

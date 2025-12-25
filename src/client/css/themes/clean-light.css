@@ -133,6 +133,11 @@
   /* Badge styling for light theme */
   --badge-background: rgba(255, 255, 255, 0.9);
   --badge-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  --badge-text-color: #1e293b;
+
+  /* Primary button shadow */
+  --button-primary-shadow: rgba(37, 99, 235, 0.3);
+  --button-primary-shadow-hover: rgba(37, 99, 235, 0.4);
 
   /* Toolbar/controls bar for light theme */
   --toolbar-background: rgba(255, 255, 255, 0.95);

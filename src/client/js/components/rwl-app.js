@@ -85,7 +85,7 @@ class RwlApp extends LitElement {
       font-size: var(--font-size-2xl, 2rem);
       color: var(--color-primary, #ff0066);
       margin: 0 0 var(--spacing-lg, 1.5rem) 0;
-      text-shadow: 0 0 30px rgba(255, 0, 102, 0.5);
+      text-shadow: 0 0 30px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
     }
 
     .welcome-text {
@@ -113,12 +113,12 @@ class RwlApp extends LitElement {
       font-size: var(--font-size-base, 1rem);
       cursor: pointer;
       transition: all var(--transition-normal, 250ms);
-      box-shadow: 0 4px 15px rgba(255, 0, 102, 0.3);
+      box-shadow: 0 4px 15px var(--button-primary-shadow, rgba(255, 0, 102, 0.3));
     }
 
     .action-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 0, 102, 0.4);
+      box-shadow: 0 6px 20px var(--button-primary-shadow-hover, rgba(255, 0, 102, 0.4));
     }
 
     .action-btn svg {

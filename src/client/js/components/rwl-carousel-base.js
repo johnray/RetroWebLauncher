@@ -410,6 +410,7 @@ export class RwlCarouselBase extends LitElement {
     this._currentLetter = '#';
     this._unsubscribers = [];
     this._size = this._getDefaultSize();
+    this._pendingRaf = null; // Track requestAnimationFrame for cleanup
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -470,6 +471,12 @@ export class RwlCarouselBase extends LitElement {
 
     if (this.systemId && this._games.length > 0) {
       sessionStorage.setItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`, this._currentIndex);
+    }
+
+    // Cancel any pending animation frame
+    if (this._pendingRaf) {
+      cancelAnimationFrame(this._pendingRaf);
+      this._pendingRaf = null;
     }
 
     this._unsubscribers.forEach(unsub => unsub());

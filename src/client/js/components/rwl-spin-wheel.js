@@ -255,7 +255,15 @@ class RwlSpinWheel extends RwlCarouselBase {
   }
 
   _updateWheelAfterRender() {
-    requestAnimationFrame(() => {
+    // Cancel any pending RAF before scheduling a new one
+    if (this._pendingRaf) {
+      cancelAnimationFrame(this._pendingRaf);
+    }
+    // Track RAF for cleanup
+    this._pendingRaf = requestAnimationFrame(() => {
+      this._pendingRaf = null;
+      if (!this.isConnected) return;
+
       const track = this.shadowRoot.querySelector('.wheel-track');
       const items = this.shadowRoot.querySelectorAll('.wheel-item');
 

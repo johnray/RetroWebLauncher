@@ -433,11 +433,22 @@ class RwlScreensaver extends LitElement {
     this._idleTimeout = 60000; // 1 minute default
     this._unsubscribers = [];
     this._boundHandleActivity = (e) => this._handleActivity(e);
+    this._boundAnimate = () => this._animate(); // Bound once to avoid creating closures
+    this._boundOnResize = () => this._onResize(); // Bound resize handler
     this._floatingTvs = [];
+    this._pendingTimeouts = new Set(); // Track all pending timeouts for cleanup
     this._lastSpawnTime = 0;
     this._spawnInterval = 3000; // Spawn new TV every 3 seconds
     this._maxTvs = 6; // Max bouncing TVs on screen
     this.arcadeName = 'RetroWebLauncher';
+    this._floatingTvsContainer = null; // Cache DOM reference
+
+    // Cache viewport dimensions - updated on resize
+    this._viewportWidth = window.innerWidth;
+    this._viewportHeight = window.innerHeight;
+
+    // Cache theme colors - updated when screensaver activates
+    this._glowColors = ['#ff0066', '#00ffff', '#ff6600'];
   }
 
   connectedCallback() {
@@ -445,25 +456,58 @@ class RwlScreensaver extends LitElement {
     this._loadConfig();
     this._bindEvents();
     this._resetIdleTimer();
+    // Listen for resize to update cached viewport dimensions
+    window.addEventListener('resize', this._boundOnResize, { passive: true });
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this._clearTimers();
+
+    // Remove all event listeners
     const exitEvents = ['click', 'keydown', 'touchstart', 'mousemove', 'wheel'];
     exitEvents.forEach(event => {
       document.removeEventListener(event, this._boundHandleActivity);
     });
+    window.removeEventListener('resize', this._boundOnResize);
+
+    // Clean up state subscriptions
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
+
+    // Clear cached references
+    this._floatingTvsContainer = null;
+    this._floatingTvs = [];
   }
 
   async _loadConfig() {
     const config = state.get('config') || {};
-    if (config.attractMode) {
-      this._idleTimeout = (config.attractMode.idleTimeout || 60) * 1000;
-    }
+
+    // Load idle timeout from localStorage (client-side setting)
+    const storedTimeout = localStorage.getItem('rwl-screensaver-timeout');
+    this._idleTimeout = (storedTimeout ? parseInt(storedTimeout, 10) : 60) * 1000;
+
     this.arcadeName = config.arcadeName || 'RetroWebLauncher';
+  }
+
+  _onResize() {
+    // Update cached viewport dimensions
+    this._viewportWidth = window.innerWidth;
+    this._viewportHeight = window.innerHeight;
+  }
+
+  _cacheThemeColors() {
+    // Cache theme colors once per activation instead of per spawn
+    try {
+      const computedStyle = getComputedStyle(document.documentElement);
+      const primaryColor = computedStyle.getPropertyValue('--color-primary').trim() || '#ff0066';
+      const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim() || '#00ffff';
+      const accentColor = computedStyle.getPropertyValue('--color-accent').trim() || '#ff6600';
+      this._glowColors = [primaryColor, secondaryColor, accentColor];
+    } catch (e) {
+      // Fallback colors if getComputedStyle fails
+      this._glowColors = ['#ff0066', '#00ffff', '#ff6600'];
+    }
   }
 
   _bindEvents() {
@@ -511,24 +555,50 @@ class RwlScreensaver extends LitElement {
 
   _clearTimers() {
     clearTimeout(this._idleTimer);
+    this._idleTimer = null;
     clearTimeout(this._videoRotationTimer);
+    this._videoRotationTimer = null;
     if (this._animationFrame) {
       cancelAnimationFrame(this._animationFrame);
+      this._animationFrame = null;
     }
+    // Clear all pending timeouts (TV removal, glow flash, etc.)
+    this._pendingTimeouts.forEach(id => clearTimeout(id));
+    this._pendingTimeouts.clear();
   }
 
   async _activate() {
     if (this._active) return;
+    if (!this.isConnected) return; // Guard: don't activate if disconnected
 
     this._active = true;
     this.classList.add('active');
     this._lastMousePos = null;
 
+    // Reset container cache and update viewport dimensions
+    this._floatingTvsContainer = null;
+    this._viewportWidth = window.innerWidth;
+    this._viewportHeight = window.innerHeight;
+
+    // Cache theme colors once per activation (performance)
+    this._cacheThemeColors();
+
     // Load games with videos
-    await this._loadGames();
+    try {
+      await this._loadGames();
+    } catch (error) {
+      console.error('[Screensaver] Failed to load games:', error);
+      // Continue anyway - will show empty screensaver
+    }
+
+    // Check again - user may have deactivated during async load
+    if (!this._active || !this.isConnected) {
+      return;
+    }
 
     // Start animation loop
     this._lastSpawnTime = 0;
+    this._lastAnimateTime = 0; // Reset animation timestamp
     this._floatingTvs = [];
     this._animate();
 
@@ -541,20 +611,24 @@ class RwlScreensaver extends LitElement {
     this._active = false;
     this.classList.remove('active');
 
-    if (this._animationFrame) {
-      cancelAnimationFrame(this._animationFrame);
-    }
+    // Clear all timers including animation frame and pending timeouts
+    this._clearTimers();
 
-    // Stop all videos and clear TVs
-    const container = this.shadowRoot.querySelector('.floating-tvs');
-    if (container) {
-      container.querySelectorAll('video').forEach(v => {
-        v.pause();
-        v.src = '';
-      });
-      container.innerHTML = '';
-    }
+    // Stop all videos and clear TVs synchronously
+    this._floatingTvs.forEach(tv => {
+      const video = tv.element?.querySelector('video');
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load(); // Reset video element
+      }
+    });
     this._floatingTvs = [];
+
+    // Clear DOM container
+    if (this._floatingTvsContainer) {
+      this._floatingTvsContainer.innerHTML = '';
+    }
 
     state.emit('screensaverActive', false);
   }
@@ -611,9 +685,33 @@ class RwlScreensaver extends LitElement {
   }
 
   _animate() {
-    if (!this._active) return;
+    // Early exit if not active or disconnected - prevents zombie animation frames
+    if (!this._active || !this.isConnected) {
+      this._animationFrame = null;
+      return;
+    }
 
     const now = performance.now();
+
+    // Safety: detect if too much time passed (tab was hidden, etc.)
+    // Skip frame if more than 1 second elapsed to prevent huge position jumps
+    if (this._lastAnimateTime && (now - this._lastAnimateTime) > 1000) {
+      // Reset TV timestamps to prevent huge jumps
+      this._floatingTvs.forEach(tv => {
+        tv.lastUpdateTime = now;
+      });
+    }
+    this._lastAnimateTime = now;
+
+    // Cache container reference on first frame
+    if (!this._floatingTvsContainer) {
+      this._floatingTvsContainer = this.shadowRoot?.querySelector('.floating-tvs');
+      // If container still not found, bail out - component may be in bad state
+      if (!this._floatingTvsContainer) {
+        this._animationFrame = null;
+        return;
+      }
+    }
 
     // Spawn new TVs periodically (up to max)
     if (now - this._lastSpawnTime > this._spawnInterval &&
@@ -624,13 +722,16 @@ class RwlScreensaver extends LitElement {
     }
 
     // Update TV positions
-    this._updateTvs();
+    this._updateTvs(now);
 
-    this._animationFrame = requestAnimationFrame(() => this._animate());
+    // Use pre-bound function to avoid creating closure each frame
+    this._animationFrame = requestAnimationFrame(this._boundAnimate);
   }
 
   _spawnTv() {
-    const container = this.shadowRoot.querySelector('.floating-tvs');
+    // Guard against spawning when not active or container missing
+    if (!this._active || !this.isConnected) return;
+    const container = this._floatingTvsContainer;
     if (!container || this._games.length === 0) return;
 
     // Pick random game that hasn't been used recently
@@ -646,8 +747,9 @@ class RwlScreensaver extends LitElement {
     // Random TV size - varied sizes for depth
     const size = 120 + Math.random() * 100; // 120-220px width
 
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    // Use cached viewport dimensions (performance)
+    const vw = this._viewportWidth;
+    const vh = this._viewportHeight;
 
     // Start at random position within screen bounds
     const margin = size + 20;
@@ -665,14 +767,8 @@ class RwlScreensaver extends LitElement {
     // Continuous rotation: max 360° in 45 seconds = 8°/s, random direction
     const rotationSpeed = (Math.random() - 0.5) * 16; // -8 to +8 degrees per second
 
-    // Get theme colors from CSS variables
-    const computedStyle = getComputedStyle(document.documentElement);
-    const primaryColor = computedStyle.getPropertyValue('--color-primary').trim() || '#ff0066';
-    const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim() || '#00ffff';
-    const accentColor = computedStyle.getPropertyValue('--color-accent').trim() || '#ff6600';
-
-    const glowColors = [primaryColor, secondaryColor, accentColor];
-    const glowColor = glowColors[Math.floor(Math.random() * glowColors.length)];
+    // Use cached theme colors (performance - avoid getComputedStyle per spawn)
+    const glowColor = this._glowColors[Math.floor(Math.random() * this._glowColors.length)];
 
     const tv = document.createElement('div');
     tv.className = 'floating-tv';
@@ -753,10 +849,10 @@ class RwlScreensaver extends LitElement {
     });
   }
 
-  _updateTvs() {
-    const now = performance.now();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+  _updateTvs(now) {
+    // Use cached viewport dimensions (performance - avoid layout thrashing)
+    const vw = this._viewportWidth;
+    const vh = this._viewportHeight;
     const toRemove = [];
 
     this._floatingTvs.forEach((tv, index) => {
@@ -766,14 +862,23 @@ class RwlScreensaver extends LitElement {
       if (age > tv.lifespan) {
         toRemove.push(index);
         tv.element.style.opacity = '0';
-        setTimeout(() => {
-          const video = tv.element.querySelector('video');
-          if (video) {
-            video.pause();
-            video.src = '';
+
+        // Clean up video immediately to free memory
+        const video = tv.element.querySelector('video');
+        if (video) {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+        }
+
+        // Track timeout for DOM removal so it can be cancelled on deactivate
+        const timeoutId = setTimeout(() => {
+          this._pendingTimeouts.delete(timeoutId);
+          if (tv.element.parentNode) {
+            tv.element.remove();
           }
-          tv.element.remove();
         }, 500);
+        this._pendingTimeouts.add(timeoutId);
         return;
       }
 
@@ -841,13 +946,17 @@ class RwlScreensaver extends LitElement {
 
   _flashGlow(tv) {
     // Brief flash effect on bounce
-    const glow = tv.element.querySelector('.tv-glow');
+    const glow = tv.element?.querySelector('.tv-glow');
     if (glow) {
       const originalShadow = glow.style.boxShadow;
       glow.style.boxShadow = `0 0 50px ${tv.glowColor}, 0 0 100px ${tv.glowColor}`;
-      setTimeout(() => {
-        glow.style.boxShadow = originalShadow;
+      const timeoutId = setTimeout(() => {
+        this._pendingTimeouts.delete(timeoutId);
+        if (glow.isConnected) {
+          glow.style.boxShadow = originalShadow;
+        }
       }, 150);
+      this._pendingTimeouts.add(timeoutId);
     }
   }
 

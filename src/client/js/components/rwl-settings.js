@@ -14,7 +14,8 @@ class RwlSettings extends LitElement {
   static properties = {
     _config: { type: Object, state: true },
     _saving: { type: Boolean, state: true },
-    _dirty: { type: Boolean, state: true }
+    _dirty: { type: Boolean, state: true },
+    _screensaverTimeout: { type: Number, state: true }
   };
 
   static styles = css`
@@ -487,6 +488,9 @@ class RwlSettings extends LitElement {
     this._config = {};
     this._saving = false;
     this._dirty = false;
+    // Load screensaver timeout from localStorage (client-side setting)
+    const storedTimeout = localStorage.getItem('rwl-screensaver-timeout');
+    this._screensaverTimeout = storedTimeout ? parseInt(storedTimeout, 10) : 60;
   }
 
   connectedCallback() {
@@ -664,6 +668,15 @@ class RwlSettings extends LitElement {
     this._updateSaveButton();
   }
 
+  _handleScreensaverTimeoutChange(e) {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value >= 10 && value <= 3600) {
+      this._screensaverTimeout = value;
+      this._dirty = true;
+      this._updateSaveButton();
+    }
+  }
+
   _updateSaveButton() {
     const saveBtn = this.shadowRoot.querySelector('.save-btn');
     if (saveBtn) {
@@ -680,6 +693,10 @@ class RwlSettings extends LitElement {
 
     try {
       await api.saveConfig(this._config);
+
+      // Save screensaver timeout to localStorage (client-side setting)
+      localStorage.setItem('rwl-screensaver-timeout', this._screensaverTimeout.toString());
+
       this._dirty = false;
       state.set('config', this._config);
       state.emit('configSaved');
@@ -967,11 +984,12 @@ class RwlSettings extends LitElement {
                   <input
                     type="number"
                     id="idleTimeout"
-                    name="attractMode.idleTimeout"
+                    name="screensaverTimeout"
                     class="setting-input small"
-                    .value="${config.attractMode?.idleTimeout ?? 60}"
-                    min="60"
+                    .value="${this._screensaverTimeout}"
+                    min="10"
                     max="3600"
+                    @change="${this._handleScreensaverTimeoutChange}"
                   />
                 </div>
               </section>

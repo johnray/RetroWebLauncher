@@ -334,6 +334,7 @@ class RwlGridView extends LitElement {
     this._letterIndex = {};
     this._currentLetter = '#';
     this._scrollHandler = null; // Store scroll handler reference to prevent duplicates
+    this._pendingRaf = null; // Track requestAnimationFrame for cleanup
   }
 
   /**
@@ -385,6 +386,12 @@ class RwlGridView extends LitElement {
     super.disconnectedCallback();
     this._saveScrollPosition();
 
+    // Cancel any pending animation frame
+    if (this._pendingRaf) {
+      cancelAnimationFrame(this._pendingRaf);
+      this._pendingRaf = null;
+    }
+
     // Clean up scroll handler to prevent memory leak
     if (this._scrollHandler) {
       const scrollContainer = this.shadowRoot?.getElementById('scroll-container');
@@ -411,8 +418,15 @@ class RwlGridView extends LitElement {
     if (savedPos) {
       const scrollContainer = this.shadowRoot.getElementById('scroll-container');
       if (scrollContainer) {
-        requestAnimationFrame(() => {
-          scrollContainer.scrollTop = parseInt(savedPos, 10);
+        // Cancel any pending RAF before scheduling a new one
+        if (this._pendingRaf) {
+          cancelAnimationFrame(this._pendingRaf);
+        }
+        this._pendingRaf = requestAnimationFrame(() => {
+          this._pendingRaf = null;
+          if (this.isConnected && scrollContainer) {
+            scrollContainer.scrollTop = parseInt(savedPos, 10);
+          }
         });
       }
     }

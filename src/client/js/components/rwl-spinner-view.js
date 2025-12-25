@@ -225,8 +225,17 @@ class RwlSpinnerView extends RwlCarouselBase {
   // ─────────────────────────────────────────────────────────────
 
   _updateDisplay() {
-    // Apply wheel positioning after Lit render
-    requestAnimationFrame(() => this._updateWheelPositions());
+    // Cancel any pending RAF before scheduling a new one
+    if (this._pendingRaf) {
+      cancelAnimationFrame(this._pendingRaf);
+    }
+    // Apply wheel positioning after Lit render - track for cleanup
+    this._pendingRaf = requestAnimationFrame(() => {
+      this._pendingRaf = null;
+      if (this.isConnected) {
+        this._updateWheelPositions();
+      }
+    });
   }
 
   _renderAlphabetBar() {

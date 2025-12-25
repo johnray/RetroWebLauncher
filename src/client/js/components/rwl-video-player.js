@@ -285,10 +285,27 @@ class RwlVideoPlayer extends LitElement {
     this._showPlaceholder = true;
     this._hasInteracted = false;
     this._observer = null;
+    this._pendingRaf = null;
+    // Pre-bind event handlers for proper cleanup
+    this._boundHandlers = {
+      canplay: () => this._onCanPlay(),
+      loadeddata: () => this._onLoadedData(),
+      error: (e) => this._onError(e),
+      play: () => this._onPlay(),
+      pause: () => this._onPause(),
+      waiting: () => this._onWaiting(),
+      playing: () => this._onPlaying()
+    };
   }
 
   updated(changedProperties) {
     if (changedProperties.has('src')) {
+      // Cancel any pending RAF from previous source change
+      if (this._pendingRaf) {
+        cancelAnimationFrame(this._pendingRaf);
+        this._pendingRaf = null;
+      }
+
       // Reset all state when source changes
       this._hasError = false;
       this._loaded = false;
@@ -297,8 +314,6 @@ class RwlVideoPlayer extends LitElement {
       if (this.src) {
         // Keep placeholder visible until video can play - prevents flash of black
         // Placeholder will be hidden in _onCanPlay when video is ready
-        // Video element might not exist yet on first update - it's created in render()
-        // firstUpdated() will call _bindVideoEvents which triggers initial play
         if (this._video) {
           // Stop any current playback first
           this._video.pause();
@@ -307,8 +322,9 @@ class RwlVideoPlayer extends LitElement {
 
           // Attempt to play if autoplay is enabled
           if (this.autoplay) {
-            // Small delay to let video load
-            requestAnimationFrame(() => {
+            // Small delay to let video load - track RAF for cleanup
+            this._pendingRaf = requestAnimationFrame(() => {
+              this._pendingRaf = null;
               this._playVideo();
             });
           }
@@ -339,10 +355,29 @@ class RwlVideoPlayer extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+
+    // Cancel pending animation frame
+    if (this._pendingRaf) {
+      cancelAnimationFrame(this._pendingRaf);
+      this._pendingRaf = null;
+    }
+
+    // Disconnect intersection observer
     if (this._observer) {
       this._observer.disconnect();
+      this._observer = null;
     }
-    this._pauseVideo();
+
+    // Remove video event listeners
+    this._unbindVideoEvents();
+
+    // Stop video playback and release resources
+    if (this._video) {
+      this._video.pause();
+      this._video.removeAttribute('src');
+      this._video.load();
+      this._video = null;
+    }
   }
 
   play() {
@@ -356,6 +391,9 @@ class RwlVideoPlayer extends LitElement {
   _setupIntersectionObserver() {
     this._observer = new IntersectionObserver(
       (entries) => {
+        // Guard: ignore if component disconnected
+        if (!this.isConnected) return;
+
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             this._playVideo();
@@ -372,47 +410,83 @@ class RwlVideoPlayer extends LitElement {
   _bindVideoEvents() {
     if (!this._video) return;
 
-    this._video.addEventListener('canplay', () => {
-      this._loaded = true;
-      this._hasError = false;
-      this._showPlaceholder = false; // Hide placeholder now that video is ready
+    this._video.addEventListener('canplay', this._boundHandlers.canplay);
+    this._video.addEventListener('loadeddata', this._boundHandlers.loadeddata);
+    this._video.addEventListener('error', this._boundHandlers.error);
+    this._video.addEventListener('play', this._boundHandlers.play);
+    this._video.addEventListener('pause', this._boundHandlers.pause);
+    this._video.addEventListener('waiting', this._boundHandlers.waiting);
+    this._video.addEventListener('playing', this._boundHandlers.playing);
+  }
+
+  _unbindVideoEvents() {
+    if (!this._video) return;
+
+    this._video.removeEventListener('canplay', this._boundHandlers.canplay);
+    this._video.removeEventListener('loadeddata', this._boundHandlers.loadeddata);
+    this._video.removeEventListener('error', this._boundHandlers.error);
+    this._video.removeEventListener('play', this._boundHandlers.play);
+    this._video.removeEventListener('pause', this._boundHandlers.pause);
+    this._video.removeEventListener('waiting', this._boundHandlers.waiting);
+    this._video.removeEventListener('playing', this._boundHandlers.playing);
+  }
+
+  _onCanPlay() {
+    // Guard: ignore if component disconnected
+    if (!this.isConnected) return;
+
+    // Batch state changes to minimize renders
+    const needsUpdate = !this._loaded || this._hasError || this._showPlaceholder;
+    this._loaded = true;
+    this._hasError = false;
+    this._showPlaceholder = false; // Hide placeholder now that video is ready
+
+    if (needsUpdate) {
       this.requestUpdate();
-    });
+    }
+  }
 
-    this._video.addEventListener('loadeddata', () => {
-      this._loaded = true;
-    });
+  _onLoadedData() {
+    if (!this.isConnected) return;
+    this._loaded = true;
+  }
 
-    this._video.addEventListener('error', (e) => {
-      // Only show error if we have a valid source
-      if (this.src && this.src.trim()) {
-        this._hasError = true;
-        this._loaded = true; // Stop showing loading spinner
-        console.warn('Video error:', this.src, e);
-      }
-    });
+  _onError(e) {
+    if (!this.isConnected) return;
 
-    this._video.addEventListener('play', () => {
-      this._playing = true;
-    });
+    // Only show error if we have a valid source
+    if (this.src && this.src.trim()) {
+      this._hasError = true;
+      this._loaded = true; // Stop showing loading spinner
+      console.warn('Video error:', this.src, e);
+    }
+  }
 
-    this._video.addEventListener('pause', () => {
-      this._playing = false;
-    });
+  _onPlay() {
+    if (!this.isConnected) return;
+    this._playing = true;
+  }
 
-    this._video.addEventListener('waiting', () => {
-      // Video is buffering
-      this._loaded = false;
-    });
+  _onPause() {
+    if (!this.isConnected) return;
+    this._playing = false;
+  }
 
-    this._video.addEventListener('playing', () => {
-      this._playing = true;
-      this._loaded = true;
-    });
+  _onWaiting() {
+    if (!this.isConnected) return;
+    // Video is buffering
+    this._loaded = false;
+  }
+
+  _onPlaying() {
+    if (!this.isConnected) return;
+    this._playing = true;
+    this._loaded = true;
   }
 
   async _playVideo() {
-    if (!this._video || !this.src) return;
+    // Guard: ensure component is still connected and has valid video/source
+    if (!this._video || !this.src || !this.isConnected) return;
 
     try {
       if (!this._hasInteracted) {
@@ -420,7 +494,10 @@ class RwlVideoPlayer extends LitElement {
       }
       await this._video.play();
     } catch (error) {
-      console.warn('Autoplay prevented:', error);
+      // Only log if it's not an expected abort (e.g., component unmounted)
+      if (error.name !== 'AbortError') {
+        console.warn('Autoplay prevented:', error);
+      }
       this._playing = false;
     }
   }
@@ -554,11 +631,15 @@ class RwlVideoPlayer extends LitElement {
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        if (this._video) this._video.currentTime = Math.max(0, this._video.currentTime - 5);
+        if (this._video && Number.isFinite(this._video.currentTime)) {
+          this._video.currentTime = Math.max(0, this._video.currentTime - 5);
+        }
         break;
       case 'ArrowRight':
         e.preventDefault();
-        if (this._video) this._video.currentTime = Math.min(this._video.duration, this._video.currentTime + 5);
+        if (this._video && Number.isFinite(this._video.duration) && Number.isFinite(this._video.currentTime)) {
+          this._video.currentTime = Math.min(this._video.duration, this._video.currentTime + 5);
+        }
         break;
     }
   }

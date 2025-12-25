@@ -418,6 +418,7 @@ class RwlGameDetail extends LitElement {
     this._launching = false;
     this._unsubscribers = [];
     this._activeMediaTab = 'video';
+    this._launchTimeout = null; // Track timeout for cleanup
   }
 
   connectedCallback() {
@@ -427,6 +428,13 @@ class RwlGameDetail extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+
+    // Clear any pending launch timeout
+    if (this._launchTimeout) {
+      clearTimeout(this._launchTimeout);
+      this._launchTimeout = null;
+    }
+
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
   }
@@ -491,9 +499,15 @@ class RwlGameDetail extends LitElement {
       await api.launchGame(this._game.id);
       state.emit('gameLaunched', this._game);
 
-      // Reset button after delay
-      setTimeout(() => {
-        this._launching = false;
+      // Reset button after delay - track timeout for cleanup
+      if (this._launchTimeout) {
+        clearTimeout(this._launchTimeout);
+      }
+      this._launchTimeout = setTimeout(() => {
+        this._launchTimeout = null;
+        if (this.isConnected) {
+          this._launching = false;
+        }
       }, 3000);
     } catch (error) {
       console.error('Failed to launch game:', error);

@@ -17,7 +17,6 @@ const DEFAULT_CONFIG = {
   defaultView: 'grid',
   attractMode: {
     enabled: true,
-    idleTimeout: 60,
     transitionInterval: 10
   },
   authentication: {

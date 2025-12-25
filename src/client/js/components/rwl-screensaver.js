@@ -790,20 +790,24 @@ class RwlScreensaver extends LitElement {
       if (tv.x <= leftBound) {
         tv.x = leftBound;
         tv.dx = Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
+        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
         this._flashGlow(tv);
       } else if (tv.x >= rightBound) {
         tv.x = rightBound;
         tv.dx = -Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
+        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
         this._flashGlow(tv);
       }
 
       if (tv.y <= topBound) {
         tv.y = topBound;
         tv.dy = Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
+        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
         this._flashGlow(tv);
       } else if (tv.y >= bottomBound) {
         tv.y = bottomBound;
         tv.dy = -Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
+        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
         this._flashGlow(tv);
       }
 

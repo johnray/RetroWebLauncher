@@ -126,7 +126,7 @@ class RwlScreensaver extends LitElement {
     /* Individual floating TV */
     .floating-tv {
       position: absolute;
-      transition: opacity 0.5s ease;
+      transition: opacity 0.5s ease, transform 0.3s ease-out;
     }
 
     /* Retro CRT TV Frame - uses theme colors */
@@ -786,24 +786,24 @@ class RwlScreensaver extends LitElement {
       if (tv.x <= leftBound) {
         tv.x = leftBound;
         tv.dx = Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 3;
+        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       } else if (tv.x >= rightBound) {
         tv.x = rightBound;
         tv.dx = -Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 3;
+        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       }
 
       if (tv.y <= topBound) {
         tv.y = topBound;
         tv.dy = Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 3;
+        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       } else if (tv.y >= bottomBound) {
         tv.y = bottomBound;
         tv.dy = -Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
-        tv.rotation += (Math.random() - 0.5) * 3;
+        tv.rotation += (Math.random() - 0.5) * 40; // -20 to +20 degrees
         this._flashGlow(tv);
       }
 

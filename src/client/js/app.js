@@ -17,6 +17,9 @@ class App {
 
   async init() {
     try {
+      // Detect PWA standalone mode (iOS and other platforms)
+      this.detectStandaloneMode();
+
       this.updateLoadingStatus('Connecting to server...');
 
       // Initialize WebSocket connection
@@ -181,6 +184,51 @@ class App {
       statusEl.textContent = `Error: ${message}`;
       statusEl.style.color = '#ff3333';
     }
+  }
+
+  /**
+   * Detect if running as installed PWA (standalone mode)
+   * Adds CSS class for styling adjustments and stores in state
+   */
+  detectStandaloneMode() {
+    // iOS Safari standalone mode
+    const isIOSStandalone = window.navigator.standalone === true;
+
+    // Standard display-mode media query (Chrome, Edge, Firefox, Safari 13+)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+    // Fullscreen mode (some browsers)
+    const isFullscreen = window.matchMedia('(display-mode: fullscreen)').matches;
+
+    const isPWA = isIOSStandalone || isStandalone || isFullscreen;
+
+    if (isPWA) {
+      document.documentElement.classList.add('pwa-standalone');
+      console.log('Running as installed PWA');
+    }
+
+    // Detect iOS for platform-specific adjustments
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+      document.documentElement.classList.add('ios-device');
+    }
+
+    // Store in state for components to use
+    state.set('pwa', {
+      isStandalone: isPWA,
+      isIOS,
+      isIOSStandalone
+    });
+
+    // Listen for display mode changes (user installs PWA while using it)
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
+      if (e.matches) {
+        document.documentElement.classList.add('pwa-standalone');
+        state.set('pwa', { ...state.get('pwa'), isStandalone: true });
+      }
+    });
   }
 }
 

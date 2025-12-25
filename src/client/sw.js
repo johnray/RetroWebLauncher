@@ -3,7 +3,7 @@
  * Enables offline caching and PWA functionality
  */
 
-const CACHE_NAME = 'rwl-cache-v3';
+const CACHE_NAME = 'rwl-cache-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -16,8 +16,15 @@ const STATIC_ASSETS = [
   '/js/app.js',
   '/js/api.js',
   '/js/router.js',
-  '/js/state.js'
+  '/js/state.js',
+  // PWA icons
+  '/assets/icons/favicon.png',
+  '/assets/icons/apple-touch-icon.png',
+  '/assets/icons/icon-192.png',
+  '/assets/icons/icon-512.png'
 ];
+
+// Splash screens are not precached (loaded on-demand, too large)
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {

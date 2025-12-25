@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RetroWebLauncher Icon Generator</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 40px;
+      text-align: center;
+    }
+    h1 { color: #ff0066; }
+    .preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin: 30px 0;
+    }
+    .icon-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .icon-preview canvas {
+      border: 2px solid #333;
+      border-radius: 20%;
+    }
+    .icon-preview span {
+      font-size: 12px;
+      color: #888;
+    }
+    button {
+      background: #ff0066;
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover { background: #cc0052; }
+    .instructions {
+      max-width: 600px;
+      margin: 20px auto;
+      text-align: left;
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .instructions ol { padding-left: 20px; }
+    .splash-preview {
+      margin-top: 40px;
+    }
+    .splash-preview canvas {
+      border: 2px solid #333;
+      max-width: 300px;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>RetroWebLauncher Icon Generator</h1>
+
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ol>
+      <li>Click "Download All Icons" to generate and download all icon sizes</li>
+      <li>Click "Download Splash Screens" to generate iOS splash screens</li>
+      <li>Move downloaded files to <code>src/client/assets/icons/</code></li>
+      <li>Move splash screens to <code>src/client/assets/splash/</code></li>
+    </ol>
+  </div>
+
+  <div>
+    <button onclick="downloadAllIcons()">Download All Icons</button>
+    <button onclick="downloadAllSplash()">Download Splash Screens</button>
+  </div>
+
+  <h2>Icon Preview</h2>
+  <div class="preview" id="icon-preview"></div>
+
+  <h2>Splash Screen Preview</h2>
+  <div class="splash-preview" id="splash-preview"></div>
+
+  <script>
+    // Icon sizes needed for PWA + iOS
+    const iconSizes = [16, 32, 72, 96, 120, 128, 144, 152, 167, 180, 192, 384, 512];
+
+    // Splash screen sizes for iOS devices
+    const splashSizes = [
+      { name: 'iphone-5', width: 640, height: 1136 },
+      { name: 'iphone-6', width: 750, height: 1334 },
+      { name: 'iphone-plus', width: 1242, height: 2208 },
+      { name: 'iphone-x', width: 1125, height: 2436 },
+      { name: 'iphone-xr', width: 828, height: 1792 },
+      { name: 'iphone-xsmax', width: 1242, height: 2688 },
+      { name: 'iphone-12', width: 1170, height: 2532 },
+      { name: 'iphone-12max', width: 1284, height: 2778 },
+      { name: 'ipad', width: 1536, height: 2048 },
+      { name: 'ipad-pro-10', width: 1668, height: 2224 },
+      { name: 'ipad-pro-12', width: 2048, height: 2732 },
+    ];
+
+    function createIconCanvas(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      // Background gradient (arcade style - dark with pink/purple)
+      const gradient = ctx.createRadialGradient(
+        size * 0.3, size * 0.3, 0,
+        size * 0.5, size * 0.5, size * 0.7
+      );
+      gradient.addColorStop(0, '#2a1a3a');
+      gradient.addColorStop(0.5, '#1a0a2e');
+      gradient.addColorStop(1, '#0a0a1a');
+
+      // Rounded rectangle background
+      const radius = size * 0.22;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Add subtle glow effect
+      ctx.shadowColor = '#ff0066';
+      ctx.shadowBlur = size * 0.1;
+
+      // Border glow
+      ctx.strokeStyle = 'rgba(255, 0, 102, 0.5)';
+      ctx.lineWidth = Math.max(1, size * 0.02);
+      ctx.beginPath();
+      ctx.roundRect(size * 0.02, size * 0.02, size * 0.96, size * 0.96, radius * 0.9);
+      ctx.stroke();
+
+      // Draw gamepad emoji
+      ctx.shadowBlur = 0;
+      const fontSize = size * 0.55;
+      ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🎮', size / 2, size / 2 + size * 0.02);
+
+      return canvas;
+    }
+
+    function createSplashCanvas(width, height) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // Dark background
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, width, height);
+
+      // Starfield
+      const starCount = Math.floor((width * height) / 5000);
+      for (let i = 0; i < starCount; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = Math.random() * 2 + 0.5;
+        const brightness = Math.random() * 0.7 + 0.3;
+        ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Center glow
+      const glowGradient = ctx.createRadialGradient(
+        width / 2, height / 2, 0,
+        width / 2, height / 2, Math.min(width, height) * 0.4
+      );
+      glowGradient.addColorStop(0, 'rgba(255, 0, 102, 0.15)');
+      glowGradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = glowGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Gamepad emoji
+      const iconSize = Math.min(width, height) * 0.25;
+      ctx.font = `${iconSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🎮', width / 2, height / 2 - iconSize * 0.3);
+
+      // Title text
+      ctx.fillStyle = '#ff0066';
+      ctx.shadowColor = 'rgba(255, 0, 102, 0.5)';
+      ctx.shadowBlur = 20;
+      const titleSize = Math.min(width, height) * 0.08;
+      ctx.font = `bold ${titleSize}px "Courier New", monospace`;
+      ctx.fillText('RetroWebLauncher', width / 2, height / 2 + iconSize * 0.5);
+      ctx.shadowBlur = 0;
+
+      // Loading text
+      ctx.fillStyle = '#666';
+      const loadingSize = Math.min(width, height) * 0.03;
+      ctx.font = `${loadingSize}px sans-serif`;
+      ctx.fillText('Loading...', width / 2, height / 2 + iconSize * 0.8);
+
+      return canvas;
+    }
+
+    function generatePreviews() {
+      const iconContainer = document.getElementById('icon-preview');
+      const splashContainer = document.getElementById('splash-preview');
+
+      // Icon previews (show a few sizes)
+      [32, 96, 180, 512].forEach(size => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'icon-preview';
+        const canvas = createIconCanvas(size);
+        const displaySize = Math.min(size, 128);
+        canvas.style.width = displaySize + 'px';
+        canvas.style.height = displaySize + 'px';
+        wrapper.appendChild(canvas);
+        const label = document.createElement('span');
+        label.textContent = `${size}x${size}`;
+        wrapper.appendChild(label);
+        iconContainer.appendChild(wrapper);
+      });
+
+      // Splash preview (show iPhone size scaled down)
+      const splashCanvas = createSplashCanvas(750, 1334);
+      splashCanvas.style.width = '200px';
+      splashContainer.appendChild(splashCanvas);
+    }
+
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    async function downloadAllIcons() {
+      for (const size of iconSizes) {
+        const canvas = createIconCanvas(size);
+        let filename;
+        if (size === 180) {
+          filename = 'apple-touch-icon.png';
+        } else if (size === 32) {
+          filename = 'favicon.png';
+        } else {
+          filename = `icon-${size}.png`;
+        }
+        downloadCanvas(canvas, filename);
+        await new Promise(r => setTimeout(r, 200)); // Delay between downloads
+      }
+      alert('All icons downloaded! Move them to src/client/assets/icons/');
+    }
+
+    async function downloadAllSplash() {
+      for (const splash of splashSizes) {
+        const canvas = createSplashCanvas(splash.width, splash.height);
+        downloadCanvas(canvas, `splash-${splash.name}.png`);
+        await new Promise(r => setTimeout(r, 300)); // Delay between downloads
+      }
+      alert('All splash screens downloaded! Move them to src/client/assets/splash/');
+    }
+
+    // Generate previews on load
+    generatePreviews();
+  </script>
+</body>
+</html>

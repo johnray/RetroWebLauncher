@@ -326,3 +326,80 @@
     padding-top: calc(env(safe-area-inset-top) + 8px);
   }
 }
+
+/* PWA standalone class (set by JavaScript) */
+html.pwa-standalone {
+  /* Prevent overscroll bounce */
+  overscroll-behavior: none;
+}
+
+html.pwa-standalone body {
+  /* Ensure full viewport coverage */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+/* ================================================
+   iOS-Specific Adjustments
+   ================================================ */
+html.ios-device {
+  /* Smoother touch scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+html.ios-device body {
+  /* Prevent elastic scrolling on body */
+  overscroll-behavior: none;
+}
+
+/* iOS status bar transparent overlay (black-translucent) */
+html.ios-device.pwa-standalone rwl-header,
+html.ios-device.pwa-standalone .header,
+html.ios-device.pwa-standalone .fixed-header {
+  /* Extra padding for status bar when black-translucent */
+  padding-top: calc(env(safe-area-inset-top, 20px) + 8px);
+}
+
+/* Ensure controls bar respects home indicator */
+html.ios-device .controls-bar,
+html.ios-device .fixed-footer,
+html.ios-device .toolbar {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+/* Fix for iOS keyboard pushing content */
+html.ios-device input:focus,
+html.ios-device textarea:focus {
+  position: relative;
+  z-index: 1000;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+html.ios-device button,
+html.ios-device a,
+html.ios-device .clickable {
+  touch-action: manipulation;
+}
+
+/* ================================================
+   iOS Landscape Adjustments
+   ================================================ */
+@media screen and (orientation: landscape) {
+  html.ios-device .controls-bar {
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+
+  html.ios-device .sidebar,
+  html.ios-device rwl-sidebar {
+    padding-left: env(safe-area-inset-left, 0);
+  }
+
+  html.ios-device .alphabet-bar {
+    right: calc(env(safe-area-inset-right, 0) + 8px);
+  }
+}

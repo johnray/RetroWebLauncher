@@ -534,7 +534,16 @@ class RwlScreensaver extends LitElement {
 
   async _loadGames() {
     try {
-      const systems = state.get('systems') || [];
+      // Fetch systems directly from API (not relying on state)
+      const systemsResponse = await api.getSystems();
+      const systems = systemsResponse.systems || [];
+
+      if (systems.length === 0) {
+        console.warn('[Screensaver] No systems found');
+        this._games = [];
+        return;
+      }
+
       let allGames = [];
 
       // Get games from multiple systems

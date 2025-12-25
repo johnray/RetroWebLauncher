@@ -430,7 +430,7 @@ class RwlScreensaver extends LitElement {
     this._idleTimer = null;
     this._animationFrame = null;
     this._videoRotationTimer = null;
-    this._idleTimeout = 300000; // 5 minutes default
+    this._idleTimeout = 60000; // 1 minute default
     this._unsubscribers = [];
     this._boundHandleActivity = (e) => this._handleActivity(e);
     this._floatingTvs = [];
@@ -461,7 +461,7 @@ class RwlScreensaver extends LitElement {
   async _loadConfig() {
     const config = state.get('config') || {};
     if (config.attractMode) {
-      this._idleTimeout = (config.attractMode.idleTimeout || 300) * 1000;
+      this._idleTimeout = (config.attractMode.idleTimeout || 60) * 1000;
     }
     this.arcadeName = config.arcadeName || 'RetroWebLauncher';
   }

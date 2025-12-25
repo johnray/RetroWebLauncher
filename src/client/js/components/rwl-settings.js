@@ -969,7 +969,7 @@ class RwlSettings extends LitElement {
                     id="idleTimeout"
                     name="attractMode.idleTimeout"
                     class="setting-input small"
-                    .value="${config.attractMode?.idleTimeout || 300}"
+                    .value="${config.attractMode?.idleTimeout ?? 60}"
                     min="60"
                     max="3600"
                   />

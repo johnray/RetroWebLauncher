@@ -44,7 +44,7 @@ class RwlScreensaver extends LitElement {
       position: relative;
     }
 
-    /* Animated starfield background */
+    /* Animated starfield background - large tile for less obvious repetition */
     .bg-stars {
       position: absolute;
       top: 0;
@@ -52,18 +52,45 @@ class RwlScreensaver extends LitElement {
       right: 0;
       bottom: 0;
       background-image:
-        radial-gradient(2px 2px at 20px 30px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 40px 70px, var(--screensaver-star-color, rgba(255,255,255,0.8)), transparent),
-        radial-gradient(1px 1px at 90px 40px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 130px 80px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 160px 120px, var(--screensaver-star-color, #fff), transparent);
-      background-size: 200px 200px;
-      animation: starsMove 60s linear infinite;
+        /* Layer 1: Bright stars scattered across 800x600 tile */
+        radial-gradient(2px 2px at 47px 83px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 213px 127px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 389px 41px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 571px 293px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 743px 167px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 127px 419px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 461px 523px, var(--screensaver-star-color, #fff), transparent),
+        radial-gradient(2px 2px at 659px 89px, var(--screensaver-star-color, #fff), transparent),
+        /* Layer 2: Medium brightness stars */
+        radial-gradient(1.5px 1.5px at 89px 197px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
+        radial-gradient(1.5px 1.5px at 317px 359px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
+        radial-gradient(1.5px 1.5px at 523px 71px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
+        radial-gradient(1.5px 1.5px at 701px 443px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
+        radial-gradient(1.5px 1.5px at 167px 557px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
+        radial-gradient(1.5px 1.5px at 599px 391px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
+        /* Layer 3: Dimmer small stars */
+        radial-gradient(1px 1px at 53px 349px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 181px 67px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 277px 239px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 431px 179px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 617px 503px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 773px 311px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 349px 487px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        radial-gradient(1px 1px at 107px 271px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
+        /* Layer 4: Faint background stars */
+        radial-gradient(1px 1px at 233px 503px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
+        radial-gradient(1px 1px at 479px 347px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
+        radial-gradient(1px 1px at 683px 229px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
+        radial-gradient(1px 1px at 139px 137px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
+        radial-gradient(1px 1px at 547px 461px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
+        radial-gradient(1px 1px at 397px 113px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent);
+      background-size: 800px 600px;
+      animation: starsMove 120s linear infinite;
     }
 
     @keyframes starsMove {
       from { background-position: 0 0; }
-      to { background-position: -1000px 500px; }
+      to { background-position: -2400px 1800px; }
     }
 
     /* Animated gradient nebula - uses theme colors */

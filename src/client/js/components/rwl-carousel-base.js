@@ -759,7 +759,7 @@ export class RwlCarouselBase extends LitElement {
       <div class="details-grid">
         ${game.developer ? html`<div class="detail-row"><span class="detail-label">Developer</span><span class="detail-value">${game.developer}</span></div>` : ''}
         ${game.publisher ? html`<div class="detail-row"><span class="detail-label">Publisher</span><span class="detail-value">${game.publisher}</span></div>` : ''}
-        ${game.players ? html`<div class="detail-row"><span class="detail-label">Players</span><span class="detail-value">${game.players}</span></div>` : ''}
+        ${game.playersString ? html`<div class="detail-row"><span class="detail-label">Players</span><span class="detail-value">${game.playersString}</span></div>` : ''}
         ${game.region ? html`<div class="detail-row"><span class="detail-label">Region</span><span class="detail-value">${game.region}</span></div>` : ''}
         ${rating ? html`<div class="detail-row"><span class="detail-label">Rating</span><span class="rating-stars">${'★'.repeat(rating.filled)}${'☆'.repeat(rating.empty)}</span></div>` : ''}
         ${game.playCount ? html`<div class="detail-row"><span class="detail-label">Play Count</span><span class="detail-value">${game.playCount}</span></div>` : ''}

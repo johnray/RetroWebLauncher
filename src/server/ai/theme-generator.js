@@ -25,6 +25,8 @@ ${Object.keys(EFFECT_PRESETS).join(', ')}
 GLOW INTENSITY OPTIONS: subtle, medium, intense, extreme
 ANIMATION SPEED OPTIONS: slow, normal, fast, instant
 BORDER STYLE OPTIONS: sharp, subtle, rounded, very-rounded, pill
+BACKGROUND BLUR OPTIONS: 8px, 10px, 12px, 15px, 20px (how blurry the fanart background is)
+BACKGROUND BRIGHTNESS OPTIONS: 0.4-0.7 for dark themes, 0.85-0.95 for light themes
 
 OUTPUT A VALID JSON OBJECT with this exact structure:
 {
@@ -51,7 +53,9 @@ OUTPUT A VALID JSON OBJECT with this exact structure:
   "effects": ["EFFECT_NAME", "EFFECT_NAME"],
   "glowIntensity": "subtle|medium|intense|extreme",
   "animationSpeed": "slow|normal|fast|instant",
-  "borderStyle": "sharp|subtle|rounded|very-rounded|pill"
+  "borderStyle": "sharp|subtle|rounded|very-rounded|pill",
+  "bgBlur": "12px",
+  "bgBrightness": 0.55
 }
 
 GUIDELINES:
@@ -63,6 +67,8 @@ GUIDELINES:
 6. For dark themes, use dark backgrounds: "pitch-black", "near-black", "dark-gray", "midnight-blue"
 7. For light themes, use light backgrounds: "light-gray", "off-white", "pure-white"
 8. Match warning/error colors to the theme's palette
+9. For bgBlur: use lower values (8-10px) for sharper backgrounds, higher (15-20px) for dreamy/soft looks
+10. For bgBrightness: dark themes use 0.5-0.6, light themes use 0.85-0.95
 
 USER'S THEME DESCRIPTION:
 {DESCRIPTION}

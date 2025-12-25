@@ -196,7 +196,8 @@
 
   /* View backgrounds */
   --view-background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-  --bg-brightness: 0.4;
+  --bg-blur: 12px;
+  --bg-brightness: 0.55;
   --bg-gradient-overlay:
     radial-gradient(ellipse at center bottom, transparent 0%, rgba(10,10,10,0.9) 70%),
     linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%);

@@ -473,7 +473,8 @@ function compileTheme(config) {
   --view-background: ${isLight
     ? `linear-gradient(180deg, ${bg} 0%, ${colors.surfaceElevated} 50%, ${bg} 100%)`
     : `linear-gradient(180deg, ${bg} 0%, ${adjustBrightness(bg, 10)} 50%, ${bg} 100%)`};
-  --bg-brightness: ${isLight ? 0.85 : 0.4};
+  --bg-blur: ${config.bgBlur || (isLight ? '10px' : '12px')};
+  --bg-brightness: ${config.bgBrightness || (isLight ? 0.9 : 0.55)};
   --bg-gradient-overlay: ${isLight
     ? `radial-gradient(ellipse at center bottom, transparent 0%, ${rgba('#ffffff', 0.7)} 70%),
        linear-gradient(180deg, ${rgba('#ffffff', 0.2)} 0%, transparent 30%, transparent 60%, ${rgba('#ffffff', 0.5)} 100%)`

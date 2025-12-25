@@ -301,7 +301,7 @@ class RwlListView extends LitElement {
       background-color: var(--color-background, #0a0a0a);
       background-size: cover;
       background-position: center;
-      filter: blur(25px) brightness(var(--bg-brightness, 0.5));
+      filter: blur(var(--bg-blur, 15px)) brightness(var(--bg-brightness, 0.5));
       opacity: 0;
       transition: opacity 0.5s ease, background-image 0.5s ease;
     }

@@ -185,7 +185,8 @@
 
   /* View backgrounds */
   --view-background: linear-gradient(180deg, #faf7f2 0%, #f5f0e8 50%, #faf7f2 100%);
-  --bg-brightness: 0.9;
+  --bg-blur: 10px;
+  --bg-brightness: 0.95;
   --bg-gradient-overlay:
     radial-gradient(ellipse at center bottom, transparent 0%, rgba(250,247,242,0.8) 70%),
     linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 30%, transparent 60%, rgba(250,247,242,0.6) 100%);

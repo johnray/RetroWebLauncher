@@ -190,7 +190,8 @@
 
   /* View backgrounds for light theme */
   --view-background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
-  --bg-brightness: 0.85;
+  --bg-blur: 10px;
+  --bg-brightness: 0.9;
   --bg-gradient-overlay:
     radial-gradient(ellipse at center bottom, transparent 0%, rgba(255,255,255,0.7) 70%),
     linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 30%, transparent 60%, rgba(255,255,255,0.5) 100%);

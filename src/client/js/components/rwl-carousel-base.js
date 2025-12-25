@@ -411,6 +411,7 @@ export class RwlCarouselBase extends LitElement {
     this._unsubscribers = [];
     this._size = this._getDefaultSize();
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
+    this._momentumRaf = null; // Track momentum scrolling RAF for cleanup
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -473,10 +474,14 @@ export class RwlCarouselBase extends LitElement {
       sessionStorage.setItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`, this._currentIndex);
     }
 
-    // Cancel any pending animation frame
+    // Cancel any pending animation frames
     if (this._pendingRaf) {
       cancelAnimationFrame(this._pendingRaf);
       this._pendingRaf = null;
+    }
+    if (this._momentumRaf) {
+      cancelAnimationFrame(this._momentumRaf);
+      this._momentumRaf = null;
     }
 
     this._unsubscribers.forEach(unsub => unsub());
@@ -565,13 +570,41 @@ export class RwlCarouselBase extends LitElement {
 
     // Listen to centralized input events (keyboard, gamepad, touch all emit these)
     this._unsubscribers.push(
-      state.on('input:navigate', (direction) => {
-        if (isVertical) {
-          if (direction === 'up') this._navigate(-1);
-          if (direction === 'down') this._navigate(1);
+      state.on('input:navigate', (data) => {
+        // Handle both string direction (keyboard/gamepad) and object with velocity (touch)
+        let direction, velocity = 0;
+        if (typeof data === 'string') {
+          direction = data;
+        } else if (data && typeof data === 'object') {
+          direction = data.direction;
+          velocity = data.velocity || 0;
         } else {
-          if (direction === 'left') this._navigate(-1);
-          if (direction === 'right') this._navigate(1);
+          return;
+        }
+
+        // Allow subclass to invert touch direction (e.g., spinner-view)
+        if (velocity > 0) {
+          direction = this._getTouchDirection(direction, isVertical);
+        }
+
+        let delta = 0;
+        if (isVertical) {
+          if (direction === 'up') delta = -1;
+          if (direction === 'down') delta = 1;
+        } else {
+          if (direction === 'left') delta = -1;
+          if (direction === 'right') delta = 1;
+        }
+
+        if (delta !== 0) {
+          // Apply momentum based on velocity
+          if (velocity > 0.5) {
+            // Fast swipe - use momentum scrolling
+            this._momentumScroll(delta, velocity);
+          } else {
+            // Slow swipe or keyboard/gamepad - single step
+            this._navigate(delta);
+          }
         }
       })
     );
@@ -623,6 +656,69 @@ export class RwlCarouselBase extends LitElement {
     const game = this.selectedGame;
     if (game) {
       state.emit('gameSelected', game);
+    }
+  }
+
+  /**
+   * Get touch direction - subclasses can override to invert
+   * @param {string} direction - Original direction from touch handler
+   * @param {boolean} isVertical - Whether this is a vertical carousel
+   * @returns {string} - Possibly modified direction
+   */
+  _getTouchDirection(direction, isVertical) {
+    // Default: keep direction as-is
+    return direction;
+  }
+
+  /**
+   * Momentum scroll - animate through multiple items based on swipe velocity
+   * @param {number} direction - +1 or -1
+   * @param {number} velocity - Swipe velocity in px/ms
+   */
+  _momentumScroll(direction, velocity) {
+    // Cancel any existing momentum
+    if (this._momentumRaf) {
+      cancelAnimationFrame(this._momentumRaf);
+      this._momentumRaf = null;
+    }
+
+    // Calculate number of items to scroll based on velocity
+    // velocity is in px/ms, typical fast swipe is 1-3 px/ms
+    const itemCount = Math.min(Math.floor(velocity * 5), 10); // Max 10 items
+    let remaining = itemCount;
+    let currentVelocity = velocity;
+    const friction = 0.85; // Deceleration factor
+    const minInterval = 50; // Minimum ms between scrolls
+
+    const animate = () => {
+      if (remaining <= 0 || !this.isConnected) {
+        this._momentumRaf = null;
+        return;
+      }
+
+      this._navigate(direction);
+      remaining--;
+      currentVelocity *= friction;
+
+      // Calculate delay based on current velocity (faster = shorter delay)
+      const delay = Math.max(minInterval, 150 / currentVelocity);
+
+      // Use setTimeout for variable timing, then RAF for smooth animation
+      setTimeout(() => {
+        if (remaining > 0 && this.isConnected) {
+          this._momentumRaf = requestAnimationFrame(animate);
+        } else {
+          this._momentumRaf = null;
+        }
+      }, delay);
+    };
+
+    // Start with first navigation immediately
+    this._navigate(direction);
+    remaining--;
+
+    if (remaining > 0) {
+      this._momentumRaf = requestAnimationFrame(animate);
     }
   }
 

@@ -91,8 +91,8 @@ export class TouchHandler {
       // Tap
       this._onTap(touch.clientX, touch.clientY);
     } else if (distance >= this._swipeThreshold && velocity >= this._swipeVelocity) {
-      // Swipe
-      this._onSwipe(deltaX, deltaY);
+      // Swipe with velocity
+      this._onSwipe(deltaX, deltaY, velocity);
     }
   }
 
@@ -118,7 +118,7 @@ export class TouchHandler {
     this._manager.emit('tap', { x, y }, 'touch');
   }
 
-  _onSwipe(deltaX, deltaY) {
+  _onSwipe(deltaX, deltaY, velocity) {
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
 
@@ -134,27 +134,20 @@ export class TouchHandler {
       return;
     }
 
-    // Single finger swipe = navigation
+    // Calculate directional velocity for momentum scrolling
+    const velocityX = deltaX / (Date.now() - this._startTime);
+    const velocityY = deltaY / (Date.now() - this._startTime);
+
+    // Single finger swipe = navigation with velocity for momentum
     // For carousel UX: swipe left (deltaX < 0) = content moves left = show NEXT item = navigate right
-    // This matches how users expect carousels to work on mobile
     if (absX > absY) {
       // Horizontal swipe
-      if (deltaX < 0) {
-        // Swipe left → go to next item (right in carousel terms)
-        this._manager.navigate('right', 'touch');
-      } else {
-        // Swipe right → go to previous item (left in carousel terms)
-        this._manager.navigate('left', 'touch');
-      }
+      const direction = deltaX < 0 ? 'right' : 'left';
+      this._manager.emit('navigate', { direction, velocity: Math.abs(velocityX), raw: velocityX }, 'touch');
     } else {
-      // Vertical swipe - keep natural direction for vertical carousels
-      if (deltaY < 0) {
-        // Swipe up → go to next item (down in vertical carousel terms)
-        this._manager.navigate('down', 'touch');
-      } else {
-        // Swipe down → go to previous item (up in vertical carousel terms)
-        this._manager.navigate('up', 'touch');
-      }
+      // Vertical swipe
+      const direction = deltaY < 0 ? 'down' : 'up';
+      this._manager.emit('navigate', { direction, velocity: Math.abs(velocityY), raw: velocityY }, 'touch');
     }
   }
 

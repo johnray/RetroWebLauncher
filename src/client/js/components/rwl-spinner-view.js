@@ -220,6 +220,18 @@ class RwlSpinnerView extends RwlCarouselBase {
     return { prev: 'ArrowUp', next: 'ArrowDown' };
   }
 
+  /**
+   * Override touch direction for wheel of fortune UX.
+   * Swipe up should move to next item (down the wheel),
+   * swipe down should move to previous item (up the wheel).
+   */
+  _getTouchDirection(direction, isVertical) {
+    // Invert vertical swipe direction for natural wheel physics
+    if (direction === 'up') return 'down';
+    if (direction === 'down') return 'up';
+    return direction;
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Spinner-specific methods
   // ─────────────────────────────────────────────────────────────

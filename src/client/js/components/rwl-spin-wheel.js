@@ -24,9 +24,9 @@ class RwlSpinWheel extends RwlCarouselBase {
     }
 
     .bg-gradient {
-      background:
-        linear-gradient(90deg, rgba(0,0,0,0.5) 0%, transparent 40%, transparent 50%, rgba(0,0,0,0.7) 100%),
-        linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.5) 100%);
+      background: var(--bg-gradient-overlay,
+        radial-gradient(ellipse at center bottom, transparent 0%, rgba(10,10,10,0.9) 70%),
+        linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%));
     }
 
     /* Left: Details */

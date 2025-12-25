@@ -68,6 +68,7 @@ class RwlApp extends LitElement {
 
     /* Home view styles */
     .home-view {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -75,7 +76,34 @@ class RwlApp extends LitElement {
       padding: var(--spacing-xl, 2rem);
     }
 
+    .home-view .bg-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .home-view .bg-image {
+      position: absolute;
+      top: -5%; left: -5%;
+      width: 110%; height: 110%;
+      background-color: var(--color-background, #0a0a0a);
+      background-size: cover;
+      background-position: center;
+      filter: blur(var(--bg-blur, 15px)) brightness(var(--bg-brightness, 0.5));
+    }
+
+    .home-view .bg-gradient {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-gradient-overlay,
+        radial-gradient(ellipse at center, transparent 0%, rgba(10,10,10,0.9) 70%),
+        linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%));
+    }
+
     .welcome-section {
+      position: relative;
+      z-index: 1;
       text-align: center;
       max-width: 500px;
     }
@@ -588,6 +616,10 @@ class RwlApp extends LitElement {
     // Sidebar mode: show welcome screen with instructions
     container.innerHTML = `
       <div class="home-view">
+        <div class="bg-layer">
+          <div class="bg-image"></div>
+          <div class="bg-gradient"></div>
+        </div>
         <div class="welcome-section">
           <h1 class="welcome-title">Welcome</h1>
           <p class="welcome-text">

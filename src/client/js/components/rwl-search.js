@@ -22,9 +22,38 @@ class RwlSearch extends LitElement {
     :host {
       display: block;
       height: 100%;
+      position: relative;
+    }
+
+    /* Background layer */
+    .bg-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .bg-image {
+      position: absolute;
+      top: -5%; left: -5%;
+      width: 110%; height: 110%;
+      background-color: var(--color-background, #0a0a0a);
+      background-size: cover;
+      background-position: center;
+      filter: blur(var(--bg-blur, 15px)) brightness(var(--bg-brightness, 0.5));
+    }
+
+    .bg-gradient {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-gradient-overlay,
+        radial-gradient(ellipse at center, transparent 0%, rgba(10,10,10,0.9) 70%),
+        linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%));
     }
 
     .search-container {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -687,6 +716,10 @@ class RwlSearch extends LitElement {
 
   render() {
     return html`
+      <div class="bg-layer">
+        <div class="bg-image"></div>
+        <div class="bg-gradient"></div>
+      </div>
       <div class="search-container">
         <div class="search-header">
           <h2 class="search-title">Search Games</h2>

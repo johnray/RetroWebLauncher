@@ -20,11 +20,11 @@ export class TouchHandler {
     this._startTime = 0;
     this._touchCount = 0;
 
-    // Configuration
-    this._swipeThreshold = 50;  // Minimum distance for swipe
-    this._swipeVelocity = 0.3;  // Minimum velocity (px/ms)
+    // Configuration - optimized for carousel navigation
+    this._swipeThreshold = 30;  // Minimum distance for swipe (reduced for responsiveness)
+    this._swipeVelocity = 0.15; // Minimum velocity (px/ms) - reduced for easier swiping
     this._longPressDelay = 500; // Long press threshold
-    this._tapThreshold = 10;    // Max movement for tap
+    this._tapThreshold = 15;    // Max movement for tap (slightly increased for touch tolerance)
 
     // Long press timer
     this._longPressTimer = null;
@@ -135,20 +135,25 @@ export class TouchHandler {
     }
 
     // Single finger swipe = navigation
-    // Swipe direction = navigation direction (swipe left = go left/previous)
+    // For carousel UX: swipe left (deltaX < 0) = content moves left = show NEXT item = navigate right
+    // This matches how users expect carousels to work on mobile
     if (absX > absY) {
       // Horizontal swipe
       if (deltaX < 0) {
-        this._manager.navigate('left', 'touch');
-      } else {
+        // Swipe left → go to next item (right in carousel terms)
         this._manager.navigate('right', 'touch');
+      } else {
+        // Swipe right → go to previous item (left in carousel terms)
+        this._manager.navigate('left', 'touch');
       }
     } else {
-      // Vertical swipe
+      // Vertical swipe - keep natural direction for vertical carousels
       if (deltaY < 0) {
-        this._manager.navigate('up', 'touch');
-      } else {
+        // Swipe up → go to next item (down in vertical carousel terms)
         this._manager.navigate('down', 'touch');
+      } else {
+        // Swipe down → go to previous item (up in vertical carousel terms)
+        this._manager.navigate('up', 'touch');
       }
     }
   }

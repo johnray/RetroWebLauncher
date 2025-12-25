@@ -3,6 +3,8 @@
  * Manages theme settings, defaults, and dynamic effects
  */
 
+import { state } from './state.js';
+
 class ThemeService {
   constructor() {
     this._settings = null;
@@ -49,6 +51,10 @@ class ThemeService {
         this._notifySubscribers('settings', this._settings);
         this._applyThemeCSS(themeName);
         this._applyColors();
+
+        // Emit state event for theme change
+        state.emit('themeChanged', { theme: themeName, settings: this._settings });
+
         return this._settings;
       }
     } catch (error) {
@@ -96,6 +102,44 @@ class ThemeService {
     if (selection.glowColor) {
       root.style.setProperty('--selection-glow-color', selection.glowColor);
     }
+
+    // Force repaint for Safari/iOS to ensure CSS variable changes propagate to Shadow DOM
+    // This is needed because some WebKit browsers don't automatically repaint shadow DOM
+    this._forceRepaint();
+  }
+
+  /**
+   * Force a repaint to ensure CSS variable changes propagate
+   * Especially needed for Safari/iOS with Shadow DOM components
+   */
+  _forceRepaint() {
+    // Method 1: Toggle a class to trigger style recalc
+    document.body.classList.add('theme-updating');
+
+    // Use requestAnimationFrame to ensure the class change is processed
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.body.classList.remove('theme-updating');
+
+        // Method 2: Force all custom elements to update
+        // Query all rwl-* elements and request update if they have that method
+        document.querySelectorAll('[class*="rwl-"], rwl-app, rwl-header, rwl-sidebar, rwl-grid-view, rwl-wheel-view, rwl-spinner-view, rwl-spin-wheel, rwl-game-detail, rwl-settings, rwl-search, rwl-screensaver').forEach(el => {
+          if (el.requestUpdate) {
+            el.requestUpdate();
+          }
+        });
+
+        // Also update any elements inside shadow roots
+        const app = document.querySelector('rwl-app');
+        if (app?.shadowRoot) {
+          app.shadowRoot.querySelectorAll('*').forEach(el => {
+            if (el.requestUpdate) {
+              el.requestUpdate();
+            }
+          });
+        }
+      });
+    });
   }
 
   /**

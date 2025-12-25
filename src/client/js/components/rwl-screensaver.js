@@ -523,6 +523,16 @@ class RwlScreensaver extends LitElement {
     this._unsubscribers.push(
       state.on('configSaved', () => this._loadConfig())
     );
+
+    // Listen for initial config load to start timer properly
+    this._unsubscribers.push(
+      state.subscribe('config', (config) => {
+        if (config) {
+          this._loadConfig();
+          this._resetIdleTimer();
+        }
+      })
+    );
   }
 
   _handleActivity(e) {
@@ -544,9 +554,12 @@ class RwlScreensaver extends LitElement {
 
   _resetIdleTimer() {
     clearTimeout(this._idleTimer);
+    this._idleTimer = null;
 
     const config = state.get('config') || {};
-    if (!config.attractMode?.enabled) return;
+    // Default to enabled if config hasn't loaded yet (attractMode undefined)
+    // Only disable if explicitly set to false
+    if (config.attractMode?.enabled === false) return;
 
     this._idleTimer = setTimeout(() => {
       this._activate();

@@ -228,7 +228,7 @@ class RwlSettings extends LitElement {
 
     .action-btn:disabled {
       opacity: 0.5;
-      cursor: not-allowed;
+      cursor: default;
     }
 
     .setting-hint {
@@ -264,7 +264,7 @@ class RwlSettings extends LitElement {
 
     .save-btn:disabled {
       opacity: 0.5;
-      cursor: not-allowed;
+      cursor: default;
     }
 
     .about-info {

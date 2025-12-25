@@ -72,6 +72,7 @@
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 45px rgba(0, 0, 0, 0.7);
   --shadow-glow: 0 0 30px rgba(247, 37, 133, 0.5), 0 0 60px rgba(76, 201, 240, 0.3);
   --shadow-glow-intense: 0 0 40px rgba(247, 37, 133, 0.7), 0 0 80px rgba(114, 9, 183, 0.5), 0 0 120px rgba(76, 201, 240, 0.3);
 
@@ -116,6 +117,8 @@
   --content-input-background: rgba(0, 0, 0, 0.4);
   --content-input-border: rgba(247, 37, 133, 0.25);
   --content-scrollbar-thumb: rgba(247, 37, 133, 0.4);
+  --content-scrollbar-track: rgba(0, 0, 0, 0.3);
+  --content-scrollbar-thumb-hover: rgba(247, 37, 133, 0.6);
 
   /* Badge styling */
   --badge-background: rgba(0, 0, 0, 0.85);
@@ -145,6 +148,9 @@
   --selection-glow-rgba: rgba(247, 37, 133, 0.5);
   --selection-glow-secondary: rgba(76, 201, 240, 0.3);
   --selection-hover-bg: rgba(247, 37, 133, 0.2);
+  --selection-glow-opacity: 0.5;
+  --selection-pulse-enabled: 1;
+  --selection-pulse-duration: 2s;
 
   /* Navigation buttons (controls bar) */
   --nav-btn-bg: rgba(247, 37, 133, 0.2);
@@ -194,6 +200,7 @@
   --settings-desc-color: #9d8eb8;
   --settings-input-bg: rgba(0, 0, 0, 0.4);
   --settings-input-border: rgba(247, 37, 133, 0.3);
+  --settings-footer-background: linear-gradient(transparent, rgba(21, 7, 52, 0.95) 30%);
 
   /* Game cards */
   --game-card-background: #1f0c47;
@@ -201,6 +208,9 @@
   --game-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(247, 37, 133, 0.1);
   --game-card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 30px rgba(247, 37, 133, 0.3);
   --game-card-image-bg: linear-gradient(135deg, #240046 0%, #1f0c47 100%);
+  --game-card-no-image-bg: linear-gradient(135deg, #240046 0%, #1f0c47 100%);
+  --game-card-title-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  --grid-hover-scale: 1.04;
 
   /* CRT/Video frame */
   --crt-frame-background: linear-gradient(145deg, #3c096c, #240046);

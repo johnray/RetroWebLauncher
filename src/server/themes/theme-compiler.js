@@ -344,6 +344,7 @@ function compileTheme(config) {
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, ${isLight ? 0.1 : 0.5});
   --shadow-md: 0 4px 12px rgba(0, 0, 0, ${isLight ? 0.15 : 0.6});
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, ${isLight ? 0.2 : 0.7});
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, ${isLight ? 0.25 : 0.8});
   --shadow-glow: 0 0 ${glow.md}px ${rgba(p, 0.6)}, 0 0 ${glow.lg}px ${rgba(p, 0.3)};
   --shadow-glow-intense: 0 0 ${glow.lg}px ${rgba(p, 0.8)}, 0 0 ${glow.lg * 1.5}px ${rgba(p, 0.5)};
 
@@ -351,6 +352,7 @@ function compileTheme(config) {
   --transition-fast: ${speed.fast}ms ease;
   --transition-normal: ${speed.normal}ms ease;
   --transition-slow: ${speed.slow}ms ease;
+  --transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ========== FOCUS ========== */
   --focus-ring-color: ${p};
@@ -421,6 +423,9 @@ function compileTheme(config) {
   --selection-glow-rgba: ${rgba(p, 0.4)};
   --selection-glow-secondary: ${rgba(s, 0.2)};
   --selection-hover-bg: ${rgba(p, 0.15)};
+  --selection-glow-opacity: ${isLight ? 0.3 : 0.4};
+  --selection-pulse-enabled: 1;
+  --selection-pulse-duration: 2s;
 
   /* ========== NAVIGATION CONTROLS ========== */
   --nav-btn-bg: ${rgba(p, 0.15)};

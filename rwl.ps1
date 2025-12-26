@@ -19,12 +19,12 @@
 
 .NOTES
     Author: RetroWebLauncher Team
-    Version: 1.0.0
+    Version: 1.1.0
 #>
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('install', 'setup', 'start', 'stop', 'restart', 'status', 'config', 'dev', 'uninstall', 'help', 'menu', '')]
+    [ValidateSet('install', 'setup', 'start', 'stop', 'restart', 'status', 'config', 'dev', 'uninstall', 'update-install', 'help', 'menu', '')]
     [string]$Command = '',
 
     [switch]$Force,
@@ -38,7 +38,7 @@ param(
 # ============================================================================
 
 $script:AppName = "RetroWebLauncher"
-$script:Version = "1.0.0"
+$script:Version = "1.1.0"
 $script:ConfigFile = "rwl.config.json"
 $script:LogFile = "rwl.log"
 $script:DefaultPort = 3000
@@ -2707,6 +2707,245 @@ function Invoke-Update {
     return $true
 }
 
+function Invoke-UpdateInstallation {
+    <#
+    .SYNOPSIS
+        Update an existing installation with files from the current source directory
+    .DESCRIPTION
+        Copies source files from the current directory to the installed location.
+        Preserves configuration, database, and node_modules at the target.
+    #>
+    param(
+        [string]$TargetPath = ""
+    )
+
+    Write-Header "Update Installed Version"
+
+    # Check if we're in a source directory
+    if (-not (Test-IsSourceDirectory)) {
+        Write-Error2 "This doesn't appear to be a RetroWebLauncher source directory."
+        Write-Info "Run this command from your development/source folder."
+        return $false
+    }
+
+    # Default target path (same as first-time install default)
+    $defaultTarget = "E:\Emulators-and-Launchers\RetroWebLauncher"
+
+    # If no target path provided, prompt for it
+    if (-not $TargetPath) {
+        if ($Silent) {
+            $TargetPath = $defaultTarget
+            Write-Info "Using default target: $TargetPath"
+        }
+        else {
+            Write-Host ""
+            Write-Host "  This will update an existing RetroWebLauncher installation" -ForegroundColor White
+            Write-Host "  with files from the current source directory." -ForegroundColor DarkGray
+            Write-Host ""
+            Write-Host "  Source: " -NoNewline
+            Write-Host $script:ScriptDir -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "  Configuration, database, and node_modules will be preserved." -ForegroundColor DarkGray
+            Write-Host ""
+
+            $TargetPath = Read-UserInput -Prompt "Target installation path" -Default $defaultTarget
+
+            if (-not $TargetPath) {
+                Write-Info "Cancelled"
+                return $true
+            }
+
+            $TargetPath = $TargetPath -replace '^["'']+|["'']+$', ''
+        }
+    }
+
+    # Validate target path exists
+    if (-not (Test-Path $TargetPath)) {
+        Write-Error2 "Target path does not exist: $TargetPath"
+        Write-Info "Use First-Time Setup to install to a new location."
+        return $false
+    }
+
+    # Check if target is a valid RetroWebLauncher installation
+    if (-not (Test-IsSourceDirectory -Path $TargetPath)) {
+        Write-Warning2 "Target doesn't appear to be a RetroWebLauncher installation."
+        if (-not $Silent -and -not (Confirm-Action -Message "Continue anyway?" -Default $false)) {
+            return $false
+        }
+    }
+
+    # Don't update ourselves
+    if ($TargetPath -eq $script:ScriptDir) {
+        Write-Error2 "Source and target are the same directory."
+        return $false
+    }
+
+    # Confirm if not silent
+    if (-not $Silent) {
+        Write-Host ""
+        Write-Host "  Source: " -NoNewline
+        Write-Host $script:ScriptDir -ForegroundColor Cyan
+        Write-Host "  Target: " -NoNewline
+        Write-Host $TargetPath -ForegroundColor Cyan
+        Write-Host ""
+
+        if (-not (Confirm-Action -Message "Proceed with update?" -Default $true)) {
+            Write-Info "Cancelled"
+            return $true
+        }
+    }
+
+    # Check if server is running at target location
+    $targetConfigPath = Join-Path $TargetPath $script:ConfigFile
+    $targetPort = $script:DefaultPort
+    if (Test-Path $targetConfigPath) {
+        try {
+            $targetConfig = Get-Content $targetConfigPath -Raw | ConvertFrom-Json
+            $targetPort = $targetConfig.port
+        }
+        catch { }
+    }
+
+    if (Test-PortInUse -Port $targetPort) {
+        Write-Step "Stopping Target Server"
+        Write-Info "Server appears to be running on port $targetPort"
+        if ($Silent -or (Confirm-Action -Message "Stop the server to update?" -Default $true)) {
+            Stop-ServerProcess -Port $targetPort -Quiet | Out-Null
+            Write-Success "Server stopped"
+            Start-Sleep -Seconds 1
+        }
+        else {
+            Write-Warning2 "Cannot update while server is running"
+            return $false
+        }
+    }
+
+    # Copy files
+    Write-Step "Updating Files"
+
+    $sourceFiles = Get-SourceFiles
+    $successCount = 0
+    $failCount = 0
+
+    foreach ($item in $sourceFiles) {
+        $sourcePath = Join-Path $script:ScriptDir $item.Name
+        $destPath = Join-Path $TargetPath $item.Name
+
+        if (-not (Test-Path $sourcePath)) {
+            if ($item.Required) {
+                Write-Error2 "Required file missing: $($item.Name)"
+                $failCount++
+            }
+            continue
+        }
+
+        try {
+            if ($item.Type -eq "Directory") {
+                # Copy directory recursively
+                if (Test-Path $destPath) {
+                    Remove-Item $destPath -Recurse -Force -ErrorAction Stop
+                }
+                Copy-Item $sourcePath $destPath -Recurse -Force -ErrorAction Stop
+                Write-Success "Updated: $($item.Name)/"
+            }
+            else {
+                # Copy file
+                Copy-Item $sourcePath $destPath -Force -ErrorAction Stop
+                Write-Success "Updated: $($item.Name)"
+            }
+            $successCount++
+            Write-Log "Updated: $($item.Name)" -Level INFO
+        }
+        catch {
+            Write-Error2 "Failed to update $($item.Name): $($_.Exception.Message)"
+            Write-Log "Update failed for $($item.Name): $($_.Exception.Message)" -Level ERROR
+            if ($item.Required) {
+                $failCount++
+            }
+        }
+    }
+
+    Write-Host ""
+    Write-Info "Updated $successCount items"
+
+    if ($failCount -gt 0) {
+        Write-Error2 "$failCount required items failed to update"
+        return $false
+    }
+
+    # Check if dependencies need updating
+    Write-Step "Checking Dependencies"
+
+    $sourcePackagePath = Join-Path $script:ScriptDir "package.json"
+    $targetPackagePath = Join-Path $TargetPath "package.json"
+
+    $needsNpmInstall = $false
+
+    if ((Test-Path $sourcePackagePath) -and (Test-Path $targetPackagePath)) {
+        try {
+            $sourcePackage = Get-Content $sourcePackagePath -Raw | ConvertFrom-Json
+            $targetPackage = Get-Content $targetPackagePath -Raw | ConvertFrom-Json
+
+            $sourceDepString = ($sourcePackage.dependencies | ConvertTo-Json -Compress) + ($sourcePackage.devDependencies | ConvertTo-Json -Compress)
+            $targetDepString = ($targetPackage.dependencies | ConvertTo-Json -Compress) + ($targetPackage.devDependencies | ConvertTo-Json -Compress)
+
+            if ($sourceDepString -ne $targetDepString) {
+                $needsNpmInstall = $true
+            }
+        }
+        catch {
+            Write-Warning2 "Could not compare dependencies"
+        }
+    }
+
+    if ($needsNpmInstall -or $Force) {
+        if ($Silent -or (Confirm-Action -Message "Dependencies may have changed. Run npm install at target?" -Default $true)) {
+            Write-Info "Installing dependencies at target..."
+
+            # Run npm install in target directory
+            $nodePath = Join-Path $TargetPath "node\node.exe"
+            $npmPath = Join-Path $TargetPath "node\node_modules\npm\bin\npm-cli.js"
+
+            if ((Test-Path $nodePath) -and (Test-Path $npmPath)) {
+                $process = Start-Process -FilePath $nodePath -ArgumentList "`"$npmPath`" install --loglevel=error" -WorkingDirectory $TargetPath -Wait -PassThru -NoNewWindow
+                if ($process.ExitCode -eq 0) {
+                    Write-Success "Dependencies updated"
+                }
+                else {
+                    Write-Warning2 "npm install may have had issues"
+                }
+            }
+            else {
+                Write-Warning2 "Node.js not found at target. Run setup from target location to install dependencies."
+            }
+        }
+    }
+    else {
+        Write-Success "Dependencies unchanged"
+    }
+
+    Write-Host ""
+    Write-Host "  =========================================" -ForegroundColor Green
+    Write-Host "   Update Complete!" -ForegroundColor Green
+    Write-Host "  =========================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  Updated: " -NoNewline
+    Write-Host $TargetPath -ForegroundColor Cyan
+    Write-Host ""
+
+    # Offer to start server at target
+    if (-not $Silent) {
+        if (Confirm-Action -Message "Start the server at target location?" -Default $false) {
+            Write-Info "Starting server at target..."
+            $targetScript = Join-Path $TargetPath "rwl.ps1"
+            Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$targetScript`" start" -WorkingDirectory $TargetPath
+            Write-Success "Server starting in new window"
+        }
+    }
+
+    return $true
+}
+
 # ============================================================================
 # COMMAND: HELP
 # ============================================================================
@@ -2719,17 +2958,18 @@ function Show-Help {
     Write-Host ""
 
     Write-Host "  Commands:" -ForegroundColor Yellow
-    Write-Host "    install     Install Node.js and dependencies"
-    Write-Host "    setup       First-time configuration wizard"
-    Write-Host "    start       Start the server"
-    Write-Host "    stop        Stop the server"
-    Write-Host "    restart     Restart the server"
-    Write-Host "    status      Show server status"
-    Write-Host "    config      Edit configuration"
-    Write-Host "    update      Update from source directory"
-    Write-Host "    dev         Development mode (auto-reload)"
-    Write-Host "    uninstall   Remove components"
-    Write-Host "    help        Show this help"
+    Write-Host "    install        Install Node.js and dependencies"
+    Write-Host "    setup          First-time configuration wizard"
+    Write-Host "    start          Start the server"
+    Write-Host "    stop           Stop the server"
+    Write-Host "    restart        Restart the server"
+    Write-Host "    status         Show server status"
+    Write-Host "    config         Edit configuration"
+    Write-Host "    update         Update current install from source"
+    Write-Host "    update-install Update installed version from source"
+    Write-Host "    dev            Development mode (auto-reload)"
+    Write-Host "    uninstall      Remove components"
+    Write-Host "    help           Show this help"
     Write-Host ""
 
     Write-Host "  Options:" -ForegroundColor Yellow
@@ -2808,14 +3048,15 @@ function Show-Menu {
         Write-Host "     " -NoNewline
         Write-Host "SETUP" -ForegroundColor White
         Write-Host "     5. First-Time Setup"
-        Write-Host "     6. Install/Update Dependencies"
-        Write-Host "     7. Edit Configuration"
+        Write-Host "     6. Update Installed Version"
+        Write-Host "     7. Install/Update Dependencies"
+        Write-Host "     8. Edit Configuration"
         Write-Host ""
 
         Write-Host "     " -NoNewline
         Write-Host "TOOLS" -ForegroundColor White
-        Write-Host "     8. Open in Browser"
-        Write-Host "     9. Development Mode"
+        Write-Host "     9. Open in Browser"
+        Write-Host "     D. Development Mode"
         Write-Host ""
 
         Write-Host "     0. Exit"
@@ -2833,13 +3074,15 @@ function Show-Menu {
             "3" { $null = Invoke-Restart; Pause-ForUser }
             "4" { $null = Invoke-Status; Pause-ForUser }
             "5" { $null = Invoke-Setup; Pause-ForUser }
-            "6" { $null = Invoke-Install; Pause-ForUser }
-            "7" { $null = Invoke-Config; Pause-ForUser }
-            "8" {
+            "6" { $null = Invoke-UpdateInstallation; Pause-ForUser }
+            "7" { $null = Invoke-Install; Pause-ForUser }
+            "8" { $null = Invoke-Config; Pause-ForUser }
+            "9" {
                 $p = Get-ServerPort
                 Start-Process "http://localhost:$p" | Out-Null
             }
-            "9" { $null = Invoke-Dev }
+            "d" { $null = Invoke-Dev }
+            "D" { $null = Invoke-Dev }
             "0" { return }
             "q" { return }
             "Q" { return }
@@ -2854,20 +3097,21 @@ function Show-Menu {
 
 try {
     switch ($Command.ToLower()) {
-        'install'   { $result = Invoke-Install }
-        'setup'     { $result = Invoke-Setup }
-        'start'     { $result = Invoke-Start }
-        'stop'      { $result = Invoke-Stop }
-        'restart'   { $result = Invoke-Restart }
-        'status'    { $result = Invoke-Status }
-        'config'    { $result = Invoke-Config }
-        'update'    { $result = Invoke-Update }
-        'dev'       { Invoke-Dev }
-        'uninstall' { $result = Invoke-Uninstall }
-        'help'      { Show-Help }
-        ''          { Show-Menu }
-        'menu'      { Show-Menu }
-        default     { Show-Help }
+        'install'        { $result = Invoke-Install }
+        'setup'          { $result = Invoke-Setup }
+        'start'          { $result = Invoke-Start }
+        'stop'           { $result = Invoke-Stop }
+        'restart'        { $result = Invoke-Restart }
+        'status'         { $result = Invoke-Status }
+        'config'         { $result = Invoke-Config }
+        'update'         { $result = Invoke-Update }
+        'update-install' { $result = Invoke-UpdateInstallation }
+        'dev'            { Invoke-Dev }
+        'uninstall'      { $result = Invoke-Uninstall }
+        'help'           { Show-Help }
+        ''               { Show-Menu }
+        'menu'           { Show-Menu }
+        default          { Show-Help }
     }
 }
 catch {

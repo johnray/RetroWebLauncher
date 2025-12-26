@@ -277,6 +277,18 @@ class RwlSpinWheel extends RwlCarouselBase {
       const offset = i - this._visualOffset;
       const absOffset = Math.abs(offset);
 
+      // Hide items that are too far from center
+      if (absOffset > visibleItems) {
+        item.style.opacity = '0';
+        item.style.pointerEvents = 'none';
+        item.classList.add('hidden');
+        return;
+      }
+
+      // Make visible items clickable
+      item.classList.remove('hidden');
+      item.style.pointerEvents = 'auto';
+
       const angle = offset * 22;
       const translateZ = -Math.abs(offset) * 40;
       const translateY = offset * itemHeight;
@@ -304,7 +316,6 @@ class RwlSpinWheel extends RwlCarouselBase {
 
       // Active class based on logical selection (_currentIndex)
       item.classList.toggle('active', i === this._currentIndex);
-      item.classList.toggle('hidden', absOffset > visibleItems);
     });
   }
 

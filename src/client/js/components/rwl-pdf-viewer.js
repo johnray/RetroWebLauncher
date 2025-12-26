@@ -14,20 +14,22 @@ class RwlPdfViewer extends LitElement {
 
   static styles = css`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       width: 100%;
       height: 100%;
-      min-height: 400px;
+      min-height: 300px;
     }
 
     .pdf-container {
       width: 100%;
-      height: 100%;
+      flex: 1;
       display: flex;
       flex-direction: column;
       background: var(--content-container-bg, rgba(0,0,0,0.6));
       border-radius: var(--radius-md, 8px);
       overflow: hidden;
+      min-height: 0;
     }
 
     .pdf-toolbar {
@@ -74,6 +76,7 @@ class RwlPdfViewer extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
+      min-height: 0;
     }
 
     .pdf-frame {

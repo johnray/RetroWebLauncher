@@ -35,6 +35,9 @@ class RwlGameDetail extends LitElement {
       max-width: 1400px;
       margin: 0 auto;
       padding: var(--spacing-lg, 1.5rem);
+      min-height: calc(100% - var(--spacing-lg, 1.5rem) * 2);
+      display: flex;
+      flex-direction: column;
     }
 
     .detail-header {
@@ -79,12 +82,16 @@ class RwlGameDetail extends LitElement {
       display: grid;
       grid-template-columns: 1fr 400px;
       gap: var(--spacing-xl, 2rem);
+      flex: 1;
+      min-height: 0;
     }
 
     /* Media Section */
     .media-section {
       display: flex;
       flex-direction: column;
+      min-height: 0;
+      height: 100%;
     }
 
     .media-tabs {
@@ -120,18 +127,26 @@ class RwlGameDetail extends LitElement {
       border-radius: var(--radius-lg, 12px);
       overflow: hidden;
       min-height: 400px;
+      display: flex;
+      flex-direction: column;
     }
 
     .media-panel {
       display: none;
       width: 100%;
-      height: 100%;
+      flex: 1;
+      min-height: 0;
     }
 
     .media-panel.active {
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    .media-panel.active rwl-pdf-viewer {
+      width: 100%;
+      height: 100%;
     }
 
     .media-panel img {

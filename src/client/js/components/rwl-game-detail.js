@@ -14,7 +14,8 @@ class RwlGameDetail extends LitElement {
     gameId: { type: String, attribute: 'game-id' },
     _game: { state: true },
     _launching: { state: true },
-    _activeMediaTab: { state: true }
+    _activeMediaTab: { state: true },
+    _currentImageIndex: { state: true }
   };
 
   static styles = css`
@@ -137,6 +138,84 @@ class RwlGameDetail extends LitElement {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
+    }
+
+    /* Image Gallery */
+    .image-gallery {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      gap: var(--spacing-md, 1rem);
+    }
+
+    .gallery-image-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      width: 100%;
+    }
+
+    .gallery-image-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .gallery-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md, 1rem);
+      padding: var(--spacing-sm, 0.5rem);
+      background: var(--content-surface, rgba(0,0,0,0.4));
+      border-radius: var(--radius-md, 8px);
+    }
+
+    .gallery-nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--button-secondary-bg, rgba(255,255,255,0.1));
+      border: none;
+      border-radius: var(--radius-sm, 4px);
+      color: var(--color-text, #fff);
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all var(--transition-fast, 150ms);
+    }
+
+    .gallery-nav-btn:hover:not(:disabled) {
+      background: var(--button-secondary-hover, rgba(255,255,255,0.2));
+    }
+
+    .gallery-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .gallery-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 100px;
+    }
+
+    .gallery-type {
+      font-size: var(--font-size-sm, 0.75rem);
+      color: var(--color-primary, #ff0066);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .gallery-counter {
+      font-size: var(--font-size-xs, 0.625rem);
+      color: var(--color-text-muted, #888);
     }
 
     .no-media {
@@ -419,6 +498,7 @@ class RwlGameDetail extends LitElement {
     this._launching = false;
     this._unsubscribers = [];
     this._activeMediaTab = 'video';
+    this._currentImageIndex = 0;
     this._launchTimeout = null; // Track timeout for cleanup
   }
 
@@ -479,6 +559,12 @@ class RwlGameDetail extends LitElement {
         router.back();
       } else if (e.key === 'f' || e.key === 'F') {
         this._toggleFavorite();
+      } else if (e.key === 'ArrowLeft' && this._activeMediaTab === 'image') {
+        e.preventDefault();
+        this._navigateImage(-1);
+      } else if (e.key === 'ArrowRight' && this._activeMediaTab === 'image') {
+        e.preventDefault();
+        this._navigateImage(1);
       }
     });
 
@@ -535,6 +621,109 @@ class RwlGameDetail extends LitElement {
 
   _switchMediaTab(tab) {
     this._activeMediaTab = tab;
+    // Reset image index when switching to image tab
+    if (tab === 'image') {
+      this._currentImageIndex = 0;
+    }
+  }
+
+  /**
+   * Get array of available image types for the current game
+   * @returns {Array<{type: string, label: string}>}
+   */
+  _getAvailableImages() {
+    if (!this._game) return [];
+
+    const images = [];
+
+    // Order matters - this is the display order
+    if (this._game.image) {
+      images.push({ type: 'image', label: 'Box Art' });
+    }
+    if (this._game.thumbnail) {
+      images.push({ type: 'thumbnail', label: 'Thumbnail' });
+    }
+    if (this._game.marquee) {
+      images.push({ type: 'marquee', label: 'Marquee' });
+    }
+    if (this._game.fanart) {
+      images.push({ type: 'fanart', label: 'Fan Art' });
+    }
+
+    return images;
+  }
+
+  /**
+   * Navigate to previous/next image in gallery
+   * @param {number} direction - -1 for previous, 1 for next
+   */
+  _navigateImage(direction) {
+    const images = this._getAvailableImages();
+    if (images.length <= 1) return;
+
+    let newIndex = this._currentImageIndex + direction;
+
+    // Wrap around
+    if (newIndex < 0) {
+      newIndex = images.length - 1;
+    } else if (newIndex >= images.length) {
+      newIndex = 0;
+    }
+
+    this._currentImageIndex = newIndex;
+  }
+
+  /**
+   * Render the image gallery with navigation
+   * @param {Object} game - Game object
+   * @returns {TemplateResult}
+   */
+  _renderImageGallery(game) {
+    const images = this._getAvailableImages();
+
+    if (images.length === 0) {
+      return html`<img src="${this._getMediaUrl('image')}" alt="${game.name}" />`;
+    }
+
+    // Ensure index is within bounds
+    const safeIndex = Math.min(this._currentImageIndex, images.length - 1);
+    const currentImage = images[safeIndex];
+    const showControls = images.length > 1;
+
+    return html`
+      <div class="image-gallery">
+        <div class="gallery-image-container">
+          <img
+            src="${this._getMediaUrl(currentImage.type)}"
+            alt="${game.name} - ${currentImage.label}"
+          />
+        </div>
+        ${showControls ? html`
+          <div class="gallery-controls">
+            <button
+              class="gallery-nav-btn"
+              @click=${() => this._navigateImage(-1)}
+              title="Previous image"
+            >◀</button>
+            <div class="gallery-info">
+              <span class="gallery-type">${currentImage.label}</span>
+              <span class="gallery-counter">${safeIndex + 1} / ${images.length}</span>
+            </div>
+            <button
+              class="gallery-nav-btn"
+              @click=${() => this._navigateImage(1)}
+              title="Next image"
+            >▶</button>
+          </div>
+        ` : html`
+          <div class="gallery-controls">
+            <div class="gallery-info">
+              <span class="gallery-type">${currentImage.label}</span>
+            </div>
+          </div>
+        `}
+      </div>
+    `;
   }
 
   _getMediaUrl(type = 'image') {
@@ -641,10 +830,7 @@ class RwlGameDetail extends LitElement {
 
                 ${hasImage ? html`
                   <div class="media-panel ${this._activeMediaTab === 'image' ? 'active' : ''}" data-panel="image">
-                    <img
-                      src="${this._getMediaUrl('image')}"
-                      alt="${game.name}"
-                    />
+                    ${this._renderImageGallery(game)}
                   </div>
                 ` : ''}
 

@@ -2935,7 +2935,7 @@ function Invoke-UpdateInstallation {
 
     # Offer to start server at target
     if (-not $Silent) {
-        if (Confirm-Action -Message "Start the server at target location?" -Default $false) {
+        if (Confirm-Action -Message "Start the server at target location?" -Default $true) {
             Write-Info "Starting server at target..."
             $targetScript = Join-Path $TargetPath "rwl.ps1"
             Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$targetScript`" start" -WorkingDirectory $TargetPath

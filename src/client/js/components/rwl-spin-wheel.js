@@ -319,6 +319,22 @@ class RwlSpinWheel extends RwlCarouselBase {
     });
   }
 
+  /**
+   * Handle clicks on the wheel using event delegation
+   * This works better with 3D transforms than individual element handlers
+   */
+  _handleWheelClick(e) {
+    // Find the wheel-item that was clicked (or its parent)
+    const item = e.target.closest('.wheel-item');
+    if (!item) return;
+
+    const index = parseInt(item.dataset.index, 10);
+    if (isNaN(index)) return;
+
+    // Use the base class handler
+    this._handleCardClick(index);
+  }
+
   _renderAlphabetBar() {
     if (this._games.length < 20) return '';
 
@@ -357,14 +373,14 @@ class RwlSpinWheel extends RwlCarouselBase {
     }
 
     return html`
-      <div class="spin-wheel" @wheel=${this._handleWheel}>
+      <div class="spin-wheel" @wheel=${this._handleWheel} @click=${this._handleWheelClick}>
         <div class="wheel-track">
           ${this._games.map((game, index) => {
             const hasImage = game.thumbnail || game.image;
             const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
 
             return html`
-              <div class="wheel-item" data-index="${index}" @click=${() => this._handleCardClick(index)}>
+              <div class="wheel-item" data-index="${index}">
                 <div class="item-image">
                   ${imageUrl
                     ? html`<img src="${imageUrl}" alt="${game.name}" loading="lazy">`

@@ -137,34 +137,4 @@ router.post('/:id/launch', async (req, res) => {
   }
 });
 
-/**
- * POST /api/games/:id/favorite
- * Toggle favorite status for a game
- * NOTE: This updates the in-memory cache only. To persist favorites,
- * use RetroBat directly - favorites are stored in gamelist.xml
- */
-router.post('/:id/favorite', (req, res) => {
-  try {
-    const game = cache.getGame(req.params.id);
-
-    if (!game) {
-      return res.status(404).json({ error: 'Game not found' });
-    }
-
-    // Toggle favorite status in memory
-    // NOTE: This change persists only until server restart.
-    // For permanent favorites, use RetroBat's interface.
-    game.favorite = !game.favorite;
-
-    res.json({
-      success: true,
-      gameId: req.params.id,
-      favorite: game.favorite
-    });
-  } catch (error) {
-    console.error('Error toggling favorite:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 module.exports = router;

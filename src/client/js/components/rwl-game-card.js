@@ -223,19 +223,6 @@ class RwlGameCard extends LitElement {
     }
   }
 
-  async _toggleFavorite(e) {
-    e?.stopPropagation();
-    if (!this._game) return;
-
-    try {
-      await api.toggleFavorite(this._game.id);
-      this._game = { ...this._game, favorite: !this._game.favorite };
-      state.emit('favoriteToggled', { gameId: this._game.id, favorite: this._game.favorite });
-    } catch (error) {
-      console.error('Failed to toggle favorite:', error);
-    }
-  }
-
   _getImageUrl() {
     if (!this._game) return '';
     if (this._game.thumbnail || this._game.image || this._game.marquee) {
@@ -268,8 +255,7 @@ class RwlGameCard extends LitElement {
     return html`
       <div class="card" tabindex="0" role="button" aria-label="View game details"
            @click=${this._handleClick}
-           @keydown=${this._handleKeydown}
-           @auxclick=${(e) => e.button === 1 && this._toggleFavorite(e)}>
+           @keydown=${this._handleKeydown}>
         <div class="card-content">
           ${!this._game ? html`
             <div class="placeholder">

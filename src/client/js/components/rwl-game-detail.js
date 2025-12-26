@@ -356,27 +356,13 @@ class RwlGameDetail extends LitElement {
       font-size: 1.5rem;
     }
 
-    .favorite-btn {
+    .favorite-badge {
       display: flex;
       align-items: center;
-      gap: var(--spacing-xs, 0.25rem);
+      justify-content: center;
       padding: var(--spacing-md, 1rem);
-      background: var(--button-secondary-bg, rgba(255,255,255,0.1));
-      border: 1px solid var(--button-secondary-border, rgba(255,255,255,0.2));
-      border-radius: var(--radius-md, 8px);
-      color: var(--color-text, #fff);
-      font-size: var(--font-size-sm, 0.75rem);
-      cursor: pointer;
-      transition: all var(--transition-fast, 150ms);
-    }
-
-    .favorite-btn:hover {
-      background: var(--button-secondary-hover, rgba(255,255,255,0.2));
-    }
-
-    .favorite-btn.active {
-      border-color: var(--button-active-border, rgba(255,0,102,0.5));
-      background: var(--button-active-bg, rgba(255,0,102,0.2));
+      font-size: 1.5rem;
+      opacity: 0.9;
     }
 
     .game-metadata {
@@ -557,8 +543,6 @@ class RwlGameDetail extends LitElement {
       } else if (e.key === 'Escape' || e.key === 'Backspace') {
         e.preventDefault();
         router.back();
-      } else if (e.key === 'f' || e.key === 'F') {
-        this._toggleFavorite();
       } else if (e.key === 'ArrowLeft' && this._activeMediaTab === 'image') {
         e.preventDefault();
         this._navigateImage(-1);
@@ -600,18 +584,6 @@ class RwlGameDetail extends LitElement {
       console.error('Failed to launch game:', error);
       this._launching = false;
       state.emit('error', { message: 'Failed to launch game' });
-    }
-  }
-
-  async _toggleFavorite() {
-    if (!this._game) return;
-
-    try {
-      await api.toggleFavorite(this._game.id);
-      this._game = { ...this._game, favorite: !this._game.favorite };
-      state.emit('favoriteToggled', { gameId: this._game.id, favorite: this._game.favorite });
-    } catch (error) {
-      console.error('Failed to toggle favorite:', error);
     }
   }
 
@@ -865,14 +837,7 @@ class RwlGameDetail extends LitElement {
                     <span>Play</span>
                   `}
                 </button>
-                <button
-                  class="favorite-btn ${game.favorite ? 'active' : ''}"
-                  title="Toggle Favorite (F)"
-                  @click=${this._toggleFavorite}
-                >
-                  <span>${game.favorite ? '❤️' : '🤍'}</span>
-                  <span>${game.favorite ? 'Favorited' : 'Favorite'}</span>
-                </button>
+                ${game.favorite ? html`<span class="favorite-badge" title="Favorited in RetroBat">❤️</span>` : ''}
               </div>
 
               <div class="game-metadata">

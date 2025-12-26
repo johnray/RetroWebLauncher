@@ -201,11 +201,6 @@ class ApiClient {
     }
   }
 
-  async toggleFavorite(gameId) {
-    this.clearCache();
-    return this.post(`/api/games/${gameId}/favorite`);
-  }
-
   async getRandomGames(systemId = null, count = 1) {
     const params = { count };
     if (systemId) params.system = systemId;

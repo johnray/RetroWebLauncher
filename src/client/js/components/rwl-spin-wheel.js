@@ -326,33 +326,12 @@ class RwlSpinWheel extends RwlCarouselBase {
    * This works better with 3D transforms than individual element handlers
    */
   _handleWheelClick(e) {
-    console.log('[SpinWheel] Click event received:', e.target);
-
-    // Find the wheel-item that was clicked (or its parent)
     const item = e.target.closest('.wheel-item');
-    console.log('[SpinWheel] Closest wheel-item:', item);
-
-    if (!item) {
-      console.log('[SpinWheel] No wheel-item found, checking composedPath');
-      // Try composedPath for Shadow DOM
-      const path = e.composedPath();
-      for (const el of path) {
-        if (el.classList?.contains('wheel-item')) {
-          const idx = parseInt(el.dataset.index, 10);
-          console.log('[SpinWheel] Found via composedPath, index:', idx);
-          if (!isNaN(idx)) this._handleCardClick(idx);
-          return;
-        }
-      }
-      return;
-    }
+    if (!item) return;
 
     const index = parseInt(item.dataset.index, 10);
-    console.log('[SpinWheel] Index:', index, 'Current:', this._currentIndex);
-
     if (isNaN(index)) return;
 
-    // Use the base class handler
     this._handleCardClick(index);
   }
 

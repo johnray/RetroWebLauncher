@@ -412,6 +412,11 @@ export class RwlCarouselBase extends LitElement {
     this._size = this._getDefaultSize();
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
     this._momentumRaf = null; // Track momentum scrolling RAF for cleanup
+
+    // Smooth scrolling state
+    this._visualOffset = 0; // Float representing visual scroll position
+    this._scrollRaf = null; // Animation frame for smooth scrolling
+    this._lastScrollTime = 0; // For physics timing
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -463,6 +468,7 @@ export class RwlCarouselBase extends LitElement {
       const savedPos = sessionStorage.getItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`);
       if (savedPos) {
         this._currentIndex = parseInt(savedPos, 10);
+        this._visualOffset = this._currentIndex; // Sync visual offset
       }
     }
   }
@@ -483,6 +489,10 @@ export class RwlCarouselBase extends LitElement {
       cancelAnimationFrame(this._momentumRaf);
       this._momentumRaf = null;
     }
+    if (this._scrollRaf) {
+      cancelAnimationFrame(this._scrollRaf);
+      this._scrollRaf = null;
+    }
 
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
@@ -493,6 +503,7 @@ export class RwlCarouselBase extends LitElement {
     if (changedProperties.has('systemId') && this.systemId) {
       const savedPos = sessionStorage.getItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`);
       this._currentIndex = savedPos ? parseInt(savedPos, 10) : 0;
+      this._visualOffset = this._currentIndex; // Sync visual offset
       this._loadSectionSize();
       this._loadGames();
     }
@@ -553,6 +564,7 @@ export class RwlCarouselBase extends LitElement {
       if (this._currentIndex >= this._games.length) {
         this._currentIndex = Math.max(0, this._games.length - 1);
       }
+      this._visualOffset = this._currentIndex; // Sync after loading
     } catch (error) {
       console.error('Failed to load games:', error);
     } finally {
@@ -622,18 +634,18 @@ export class RwlCarouselBase extends LitElement {
       state.on('input:pageRight', () => this._navigate(5))
     );
 
-    // Home/End navigation
+    // Home/End navigation with smooth animation
     this._unsubscribers.push(
       state.on('input:home', () => {
         this._currentIndex = 0;
-        this.requestUpdate();
+        this._animateToIndex(0);
       })
     );
 
     this._unsubscribers.push(
       state.on('input:end', () => {
         this._currentIndex = this._games.length - 1;
-        this.requestUpdate();
+        this._animateToIndex(this._currentIndex);
       })
     );
 
@@ -650,13 +662,96 @@ export class RwlCarouselBase extends LitElement {
   _navigate(delta) {
     if (this._games.length === 0) return;
 
+    // Update logical index immediately
     this._currentIndex = (this._currentIndex + delta + this._games.length) % this._games.length;
-    this.requestUpdate();
+
+    // Start smooth animation to new index
+    this._animateToIndex(this._currentIndex);
 
     const game = this.selectedGame;
     if (game) {
       state.emit('gameSelected', game);
     }
+  }
+
+  /**
+   * Smoothly animate _visualOffset to target index using physics-based easing
+   * @param {number} targetIndex - The index to animate to
+   */
+  _animateToIndex(targetIndex) {
+    // Cancel existing animation
+    if (this._scrollRaf) {
+      cancelAnimationFrame(this._scrollRaf);
+    }
+
+    const startOffset = this._visualOffset;
+    const startTime = performance.now();
+
+    // Handle wrapping - find shortest path
+    const gameCount = this._games.length;
+    let targetOffset = targetIndex;
+
+    // If we need to wrap around, adjust target for shortest path
+    const directDist = Math.abs(targetOffset - startOffset);
+    const wrapDist = gameCount - directDist;
+
+    if (wrapDist < directDist) {
+      // Shorter to wrap
+      if (targetOffset > startOffset) {
+        targetOffset = targetOffset - gameCount; // Wrap backwards
+      } else {
+        targetOffset = targetOffset + gameCount; // Wrap forwards
+      }
+    }
+
+    const distance = targetOffset - startOffset;
+    const duration = Math.min(300, 100 + Math.abs(distance) * 50); // 100-300ms based on distance
+
+    const animate = (currentTime) => {
+      if (!this.isConnected) {
+        this._scrollRaf = null;
+        return;
+      }
+
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease-out cubic for smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      // Calculate new visual offset
+      let newOffset = startOffset + distance * eased;
+
+      // Normalize to valid range
+      while (newOffset < 0) newOffset += gameCount;
+      while (newOffset >= gameCount) newOffset -= gameCount;
+
+      this._visualOffset = newOffset;
+
+      // Update display with smooth offset
+      this._updateSmoothDisplay();
+
+      if (progress < 1) {
+        this._scrollRaf = requestAnimationFrame(animate);
+      } else {
+        // Animation complete - snap to exact index
+        this._visualOffset = this._currentIndex;
+        this._scrollRaf = null;
+        this._updateSmoothDisplay();
+        this.requestUpdate(); // Final update
+      }
+    };
+
+    this._scrollRaf = requestAnimationFrame(animate);
+  }
+
+  /**
+   * Update the visual display during smooth scrolling.
+   * Subclasses should override this to position items based on _visualOffset.
+   * Default implementation calls _updateDisplay().
+   */
+  _updateSmoothDisplay() {
+    this._updateDisplay();
   }
 
   /**
@@ -735,7 +830,7 @@ export class RwlCarouselBase extends LitElement {
       this._selectCurrent();
     } else {
       this._currentIndex = index;
-      this.requestUpdate();
+      this._animateToIndex(index);
     }
   }
 
@@ -764,7 +859,7 @@ export class RwlCarouselBase extends LitElement {
     if (letter in this._letterIndex) {
       this._currentIndex = this._letterIndex[letter];
       this._currentLetter = letter;
-      this.requestUpdate();
+      this._animateToIndex(this._currentIndex);
     }
   }
 

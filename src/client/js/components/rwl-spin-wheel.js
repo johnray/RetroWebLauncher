@@ -104,7 +104,7 @@ class RwlSpinWheel extends RwlCarouselBase {
       border-radius: 10px;
       border: 2px solid var(--content-border, rgba(255, 255, 255, 0.1));
       cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+      /* No CSS transition - animated via JavaScript for smooth scrolling */
       transform-style: preserve-3d;
       backface-visibility: hidden;
     }
@@ -251,60 +251,60 @@ class RwlSpinWheel extends RwlCarouselBase {
   // ─────────────────────────────────────────────────────────────
 
   _updateDisplay() {
-    this._updateWheelAfterRender();
+    this._updateWheelPositions();
+    this._updateGameDetailsPanel();
+    this._updateCurrentLetter();
   }
 
-  _updateWheelAfterRender() {
-    // Cancel any pending RAF before scheduling a new one
-    if (this._pendingRaf) {
-      cancelAnimationFrame(this._pendingRaf);
-    }
-    // Track RAF for cleanup
-    this._pendingRaf = requestAnimationFrame(() => {
-      this._pendingRaf = null;
-      if (!this.isConnected) return;
+  /**
+   * Override for smooth scrolling - only update wheel positions, not game details
+   */
+  _updateSmoothDisplay() {
+    this._updateWheelPositions();
+  }
 
-      const track = this.shadowRoot.querySelector('.wheel-track');
-      const items = this.shadowRoot.querySelectorAll('.wheel-item');
+  _updateWheelPositions() {
+    const track = this.shadowRoot?.querySelector('.wheel-track');
+    const items = this.shadowRoot?.querySelectorAll('.wheel-item');
 
-      if (!track || items.length === 0) return;
+    if (!track || !items || items.length === 0) return;
 
-      const itemHeight = this._size * 0.35;
-      const visibleItems = 5;
+    const itemHeight = this._size * 0.35;
+    const visibleItems = 6;
 
-      items.forEach((item, i) => {
-        const offset = i - this._currentIndex;
-        const absOffset = Math.abs(offset);
+    items.forEach((item, i) => {
+      // Use _visualOffset for smooth animation
+      const offset = i - this._visualOffset;
+      const absOffset = Math.abs(offset);
 
-        const angle = offset * 22;
-        const translateZ = -Math.abs(offset) * 40;
-        const translateY = offset * itemHeight;
-        const opacity = Math.max(0, 1 - absOffset * 0.25);
-        const scale = Math.max(0.55, 1 - absOffset * 0.12);
+      const angle = offset * 22;
+      const translateZ = -Math.abs(offset) * 40;
+      const translateY = offset * itemHeight;
 
-        item.style.transform = `
-          translateY(${translateY}px)
-          translateZ(${translateZ}px)
-          rotateX(${-angle}deg)
-          scale(${scale})
-        `;
-        item.style.opacity = opacity;
-        item.style.zIndex = 100 - absOffset;
+      // Smooth opacity and scale based on distance
+      const opacity = Math.max(0, 1 - absOffset * 0.25);
+      const scale = Math.max(0.55, 1 - absOffset * 0.12);
 
-        const imgContainer = item.querySelector('.item-image');
-        if (imgContainer) {
-          imgContainer.style.width = `${this._size * 0.3}px`;
-          imgContainer.style.height = `${this._size * 0.4}px`;
-        }
+      item.style.transform = `
+        translateY(${translateY}px)
+        translateZ(${translateZ}px)
+        rotateX(${-angle}deg)
+        scale(${scale})
+      `;
+      item.style.opacity = opacity;
+      item.style.zIndex = Math.round(100 - absOffset);
 
-        item.style.width = `${this._size}px`;
-        item.classList.toggle('active', i === this._currentIndex);
-        item.classList.toggle('hidden', absOffset > visibleItems);
-      });
+      const imgContainer = item.querySelector('.item-image');
+      if (imgContainer) {
+        imgContainer.style.width = `${this._size * 0.3}px`;
+        imgContainer.style.height = `${this._size * 0.4}px`;
+      }
 
-      // Don't manipulate counter/gameCount text - those are Lit bindings
-      this._updateGameDetailsPanel();
-      this._updateCurrentLetter();
+      item.style.width = `${this._size}px`;
+
+      // Active class based on logical selection (_currentIndex)
+      item.classList.toggle('active', i === this._currentIndex);
+      item.classList.toggle('hidden', absOffset > visibleItems);
     });
   }
 

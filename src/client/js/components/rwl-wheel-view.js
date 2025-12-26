@@ -59,7 +59,7 @@ class RwlWheelView extends RwlCarouselBase {
 
     .carousel-track {
       display: flex;
-      transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+      /* No CSS transition - animated via JavaScript for smooth scrolling */
       height: 100%;
       align-items: center;
       padding: 20px 0 40px;
@@ -204,23 +204,35 @@ class RwlWheelView extends RwlCarouselBase {
 
   _updateDisplay() {
     this._updateCurrentLetter();
+    this._updateTrackPosition();
+    this._updateGameDetailsPanel();
+  }
 
-    this.updateComplete.then(() => {
-      const track = this.shadowRoot.querySelector('.carousel-track');
-      if (!track) return;
+  /**
+   * Override for smooth scrolling - only update track position, not game details
+   */
+  _updateSmoothDisplay() {
+    this._updateTrackPosition();
+  }
 
-      const cardWidth = this._size;
-      const gap = this._getGap();
-      const carousel = this.shadowRoot.querySelector('.carousel');
-      const containerWidth = carousel?.offsetWidth || 800;
-      const centerOffset = (containerWidth / 2) - (cardWidth / 2);
-      const translateX = centerOffset - (this._currentIndex * (cardWidth + gap));
+  /**
+   * Update the carousel track position based on _visualOffset
+   */
+  _updateTrackPosition() {
+    const track = this.shadowRoot?.querySelector('.carousel-track');
+    if (!track) return;
 
-      track.style.transform = `translateX(${translateX}px)`;
-      track.style.gap = `${gap}px`;
+    const cardWidth = this._size;
+    const gap = this._getGap();
+    const carousel = this.shadowRoot.querySelector('.carousel');
+    const containerWidth = carousel?.offsetWidth || 800;
+    const centerOffset = (containerWidth / 2) - (cardWidth / 2);
 
-      this._updateGameDetailsPanel();
-    });
+    // Use _visualOffset for smooth animation
+    const translateX = centerOffset - (this._visualOffset * (cardWidth + gap));
+
+    track.style.transform = `translateX(${translateX}px)`;
+    track.style.gap = `${gap}px`;
   }
 
   _renderCard(game, index) {

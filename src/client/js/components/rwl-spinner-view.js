@@ -83,7 +83,7 @@ class RwlSpinnerView extends RwlCarouselBase {
       top: 50%;
       transform-origin: center center;
       cursor: pointer;
-      transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+      /* No CSS transition - animated via JavaScript for smooth scrolling */
     }
 
     .wheel-item.hidden {
@@ -237,17 +237,16 @@ class RwlSpinnerView extends RwlCarouselBase {
   // ─────────────────────────────────────────────────────────────
 
   _updateDisplay() {
-    // Cancel any pending RAF before scheduling a new one
-    if (this._pendingRaf) {
-      cancelAnimationFrame(this._pendingRaf);
-    }
-    // Apply wheel positioning after Lit render - track for cleanup
-    this._pendingRaf = requestAnimationFrame(() => {
-      this._pendingRaf = null;
-      if (this.isConnected) {
-        this._updateWheelPositions();
-      }
-    });
+    this._updateWheelPositions();
+    this._updateGameDetailsPanel();
+    this._updateCurrentLetter();
+  }
+
+  /**
+   * Override for smooth scrolling - only update wheel positions, not game details
+   */
+  _updateSmoothDisplay() {
+    this._updateWheelPositions();
   }
 
   _renderAlphabetBar() {
@@ -287,8 +286,8 @@ class RwlSpinnerView extends RwlCarouselBase {
   }
 
   _updateWheelPositions() {
-    const items = this.shadowRoot.querySelectorAll('.wheel-item');
-    if (items.length === 0) return;
+    const items = this.shadowRoot?.querySelectorAll('.wheel-item');
+    if (!items || items.length === 0) return;
 
     const totalItems = this._games.length;
     const scaleFactor = this._size / 100;
@@ -298,14 +297,16 @@ class RwlSpinnerView extends RwlCarouselBase {
     const halfVisible = Math.floor(this._visibleItems / 2);
 
     items.forEach((item, i) => {
-      let offset = i - this._currentIndex;
+      // Use _visualOffset for smooth animation
+      let offset = i - this._visualOffset;
 
+      // Handle wrapping
       if (offset > totalItems / 2) offset -= totalItems;
       if (offset < -totalItems / 2) offset += totalItems;
 
       const absOffset = Math.abs(offset);
 
-      if (absOffset > halfVisible) {
+      if (absOffset > halfVisible + 1) {
         item.style.opacity = '0';
         item.style.pointerEvents = 'none';
         item.classList.add('hidden');
@@ -322,9 +323,11 @@ class RwlSpinnerView extends RwlCarouselBase {
       const x = Math.cos(angleRad) * baseRadius;
       const y = Math.sin(angleRad) * baseRadius;
       const tiltAngle = (angleDeg - 180) * 0.7;
-      const scale = absOffset === 0 ? 1.25 : Math.max(0.5, 1 - absOffset * 0.12);
+
+      // Smooth scale based on distance from center
+      const scale = absOffset < 0.5 ? 1.25 : Math.max(0.5, 1.25 - absOffset * 0.15);
       const opacity = Math.max(0.25, 1 - absOffset * 0.18);
-      const zIndex = 100 - absOffset;
+      const zIndex = Math.round(100 - absOffset);
 
       item.style.transform = `
         translateX(${x}px)
@@ -341,11 +344,9 @@ class RwlSpinnerView extends RwlCarouselBase {
         card.style.height = `${cardHeight}px`;
       }
 
+      // Active class based on logical selection (_currentIndex)
       item.classList.toggle('active', i === this._currentIndex);
     });
-
-    this._updateGameDetailsPanel();
-    this._updateCurrentLetter();
   }
 
   _handleWheelScroll(e) {

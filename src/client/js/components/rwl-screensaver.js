@@ -449,6 +449,10 @@ class RwlScreensaver extends LitElement {
 
     // Cache theme colors - updated when screensaver activates
     this._glowColors = ['#ff0066', '#00ffff', '#ff6600'];
+
+    // Track recently shown games to avoid repeats
+    this._recentlyShownGames = [];
+    this._maxRecentHistory = 30; // Remember last 30 games shown
   }
 
   connectedCallback() {
@@ -508,6 +512,18 @@ class RwlScreensaver extends LitElement {
       // Fallback colors if getComputedStyle fails
       this._glowColors = ['#ff0066', '#00ffff', '#ff6600'];
     }
+  }
+
+  /**
+   * Fisher-Yates shuffle - unbiased random shuffle algorithm
+   */
+  _shuffle(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
 
   _bindEvents() {
@@ -660,37 +676,52 @@ class RwlScreensaver extends LitElement {
 
       let allGames = [];
 
-      // Get games from multiple systems
-      for (const system of systems.slice(0, 10)) {
+      // Shuffle systems to get variety across entire library
+      const shuffledSystems = this._shuffle(systems);
+
+      // Get games from ALL systems (or up to 50 to avoid excessive API calls)
+      const systemsToQuery = shuffledSystems.slice(0, 50);
+
+      // Fetch games from systems in parallel for speed
+      const gamePromises = systemsToQuery.map(async (system) => {
         try {
-          const response = await api.getGames(system.id, { limit: 30 });
+          const response = await api.getGames(system.id, { limit: 100 });
           if (response.games) {
-            allGames = allGames.concat(response.games.map(g => ({
+            return response.games.map(g => ({
               ...g,
               systemName: system.name
-            })));
+            }));
           }
         } catch (e) {
           // Continue with other systems
         }
-      }
+        return [];
+      });
 
-      // Filter to games with videos, shuffle, and limit
-      this._games = allGames
-        .filter(g => g.video) // Only games with videos
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 50);
+      const results = await Promise.all(gamePromises);
+      allGames = results.flat();
+
+      // Filter to games with videos
+      const videoGames = allGames.filter(g => g.video);
+
+      // Use proper Fisher-Yates shuffle instead of biased sort
+      const shuffledVideoGames = this._shuffle(videoGames);
+
+      // Take more games to ensure variety (200 instead of 50)
+      this._games = shuffledVideoGames.slice(0, 200);
 
       // If not enough video games, also include games with images
-      if (this._games.length < 20) {
+      if (this._games.length < 50) {
         const imageGames = allGames
-          .filter(g => !g.video && (g.thumbnail || g.image))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 30);
-        this._games = [...this._games, ...imageGames];
+          .filter(g => !g.video && (g.thumbnail || g.image));
+        const shuffledImageGames = this._shuffle(imageGames).slice(0, 100);
+        this._games = [...this._games, ...shuffledImageGames];
       }
 
-      console.log(`[Screensaver] Loaded ${this._games.length} games (${this._games.filter(g => g.video).length} with videos)`);
+      // Clear history on fresh load since we have new shuffled pool
+      this._recentlyShownGames = [];
+
+      console.log(`[Screensaver] Loaded ${this._games.length} games from ${systemsToQuery.length} systems (${this._games.filter(g => g.video).length} with videos)`);
     } catch (error) {
       console.error('Failed to load games for screensaver:', error);
       this._games = [];
@@ -747,13 +778,33 @@ class RwlScreensaver extends LitElement {
     const container = this._floatingTvsContainer;
     if (!container || this._games.length === 0) return;
 
-    // Pick random game that hasn't been used recently
-    const availableGames = this._games.filter(g =>
-      !this._floatingTvs.some(tv => tv.gameId === g.id)
+    // Get IDs of games currently on screen
+    const currentlyDisplayed = new Set(this._floatingTvs.map(tv => tv.gameId));
+
+    // Get IDs of recently shown games from history
+    const recentlyShown = new Set(this._recentlyShownGames);
+
+    // Pick a game that's not currently on screen AND not recently shown
+    let availableGames = this._games.filter(g =>
+      !currentlyDisplayed.has(g.id) && !recentlyShown.has(g.id)
     );
+
+    // If no games available (all recently shown), reset history and try again
+    if (availableGames.length === 0) {
+      this._recentlyShownGames = [];
+      availableGames = this._games.filter(g => !currentlyDisplayed.has(g.id));
+    }
+
+    // Still no games? Just pick any game
     const game = availableGames.length > 0
       ? availableGames[Math.floor(Math.random() * availableGames.length)]
       : this._games[Math.floor(Math.random() * this._games.length)];
+
+    // Track this game in history
+    this._recentlyShownGames.push(game.id);
+    if (this._recentlyShownGames.length > this._maxRecentHistory) {
+      this._recentlyShownGames.shift(); // Remove oldest
+    }
 
     const hasVideo = !!game.video;
 

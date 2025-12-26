@@ -223,6 +223,10 @@
   /* Spinner */
   --spinner-track: rgba(0, 0, 0, 0.1);
 
+  /* Table styling */
+  --table-header-background: rgba(250, 248, 243, 0.98);
+  --rating-star-color: #FDB827;
+
   /* Screensaver */
   --screensaver-background: #2a2a2a;
   --screensaver-star-color: #fff;

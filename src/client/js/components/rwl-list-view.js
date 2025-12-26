@@ -141,7 +141,7 @@ class RwlListView extends LitElement {
     }
 
     .game-thumb-placeholder {
-      background: var(--content-overlay-dark, rgba(255,255,255,0.1));
+      background: var(--game-card-no-image-bg, var(--content-overlay-dark, rgba(0,0,0,0.3)));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -157,7 +157,7 @@ class RwlListView extends LitElement {
     }
 
     .rating-stars {
-      color: var(--color-accent, #ffff00);
+      color: var(--rating-star-color, var(--color-accent, #ffcc00));
       font-size: 0.7rem;
     }
 
@@ -316,7 +316,8 @@ class RwlListView extends LitElement {
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.7) 100%);
+      background: var(--bg-gradient-overlay,
+        linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.7) 100%));
     }
 
     /* Toolbar */

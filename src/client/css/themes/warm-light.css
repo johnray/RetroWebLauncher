@@ -152,6 +152,7 @@
 
   /* Table styling */
   --table-header-background: rgba(250, 247, 242, 0.98);
+  --rating-star-color: #d97706;
 
   /* Content borders */
   --content-border: rgba(120, 113, 108, 0.1);

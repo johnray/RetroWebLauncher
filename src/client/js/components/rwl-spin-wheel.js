@@ -92,9 +92,11 @@ class RwlSpinWheel extends RwlCarouselBase {
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      pointer-events: none; /* Let clicks pass through to 3D-positioned children */
     }
 
     .wheel-item {
+      pointer-events: auto; /* Re-enable clicks on items */
       position: absolute;
       display: flex;
       align-items: center;

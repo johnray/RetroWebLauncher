@@ -5,7 +5,6 @@
 
 let apiKey = null;
 let model = 'gpt-4o-mini';
-let initialized = false;
 
 /**
  * Initialize OpenAI provider
@@ -21,7 +20,6 @@ async function init(config) {
   // Test connection with a simple request
   try {
     await generate('Hello', { maxTokens: 5 });
-    initialized = true;
     console.log(`OpenAI connected using model ${model}`);
   } catch (error) {
     throw new Error(`Failed to connect to OpenAI: ${error.message}`);

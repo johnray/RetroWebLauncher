@@ -3,8 +3,6 @@
  * Displays QR code for easy mobile device access
  */
 
-import { state } from '../state.js';
-
 const { LitElement, html, css } = window.Lit;
 
 class RwlQrCode extends LitElement {

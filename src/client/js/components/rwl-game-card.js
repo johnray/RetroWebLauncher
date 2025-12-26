@@ -5,7 +5,6 @@
 
 import { router } from '../router.js';
 import { api } from '../api.js';
-import { state } from '../state.js';
 
 const { LitElement, html, css } = window.Lit;
 

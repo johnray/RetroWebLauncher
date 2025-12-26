@@ -5,7 +5,6 @@
 
 let baseUrl = 'http://localhost:11434';
 let model = 'llama3.2';
-let initialized = false;
 
 /**
  * Initialize Ollama provider
@@ -28,7 +27,6 @@ async function init(config) {
       console.warn(`Ollama model ${model} not found. Available: ${data.models?.map(m => m.name).join(', ')}`);
     }
 
-    initialized = true;
     console.log(`Ollama connected at ${baseUrl} using model ${model}`);
   } catch (error) {
     throw new Error(`Failed to connect to Ollama: ${error.message}`);

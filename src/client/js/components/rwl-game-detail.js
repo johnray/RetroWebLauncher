@@ -13,7 +13,8 @@ class RwlGameDetail extends LitElement {
   static properties = {
     gameId: { type: String, attribute: 'game-id' },
     _game: { state: true },
-    _launching: { state: true }
+    _launching: { state: true },
+    _activeMediaTab: { state: true }
   };
 
   static styles = css`

@@ -15,7 +15,10 @@ class RwlSearch extends LitElement {
     _results: { state: true },
     _loading: { state: true },
     _selectedIndex: { state: true },
-    _showOnScreenKeyboard: { state: true }
+    _showOnScreenKeyboard: { state: true },
+    _sizeMultiplier: { state: true },
+    _baseSize: { state: true },
+    _iconSize: { state: true }
   };
 
   static styles = css`
@@ -168,18 +171,20 @@ class RwlSearch extends LitElement {
       transition: background var(--transition-fast, 150ms);
     }
 
-    .result-item:hover,
-    .result-item.selected {
-      background: var(--selection-hover-bg, rgba(255,0,102,0.2));
+    .result-item:hover {
+      background: var(--selection-hover-bg, rgba(255,0,102,0.1));
     }
 
     .result-item.selected {
-      outline: var(--selection-border-width, 2px) solid var(--selection-border-color, var(--color-primary, #ff0066));
+      background: var(--selection-hover-bg, rgba(255,0,102,0.2));
+      box-shadow:
+        inset 4px 0 0 var(--color-primary, #ff0066),
+        0 0 20px var(--selection-glow-rgba, rgba(255,0,102,0.2));
     }
 
     .result-image {
-      width: 60px;
-      height: 60px;
+      width: var(--result-icon-size, 60px);
+      height: var(--result-icon-size, 60px);
       border-radius: var(--radius-sm, 4px);
       overflow: hidden;
       background: var(--game-card-image-bg, rgba(0,0,0,0.4));
@@ -361,6 +366,46 @@ class RwlSearch extends LitElement {
       border-radius: 3px;
     }
 
+    /* Toolbar - floating palette style (matches carousel controls-bar) */
+    .toolbar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: auto;
+      min-height: 40px;
+      padding: 12px 24px;
+      background: var(--controls-bar-background, var(--toolbar-background, rgba(15, 15, 15, 0.85)));
+      backdrop-filter: var(--controls-bar-blur, blur(12px));
+      -webkit-backdrop-filter: var(--controls-bar-blur, blur(12px));
+      border: 1px solid var(--controls-bar-border, var(--toolbar-border, rgba(255, 255, 255, 0.15)));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 200;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .toolbar label {
+      color: var(--color-text-muted, #888);
+      font-size: 14px;
+    }
+
+    .toolbar input[type="range"] {
+      width: 150px;
+      cursor: pointer;
+      accent-color: var(--color-primary, #ff0066);
+    }
+
+    .game-count {
+      color: var(--color-text-muted, #888);
+      font-size: 12px;
+      margin-left: auto;
+    }
+
     /* Mobile */
     @media (max-width: 640px) {
       .search-container {
@@ -389,6 +434,64 @@ class RwlSearch extends LitElement {
     this._searchVersion = 0; // Tracks current search to ignore stale responses
     this._showOnScreenKeyboard = false;
     this._unsubscribers = [];
+    this._sizeMultiplier = 1.0;
+    this._baseSize = this._calculateBaseSize();
+    this._iconSize = this._baseSize;
+    this._resizeObserver = null;
+  }
+
+  /**
+   * Get the effective icon size (baseSize * multiplier)
+   */
+  get _effectiveSize() {
+    return Math.round(this._baseSize * this._sizeMultiplier);
+  }
+
+  /**
+   * Calculate base icon size from viewport width
+   */
+  _calculateBaseSize() {
+    const vw = window.innerWidth;
+    const minSize = 80;
+    const maxSize = 120;
+    // Scale: 6% of viewport for icons, clamped
+    const viewportBased = vw * 0.06;
+    return Math.min(maxSize, Math.max(minSize, viewportBased));
+  }
+
+  /**
+   * Load size multiplier from localStorage
+   */
+  _loadSectionSize() {
+    const storedMultiplier = localStorage.getItem('rwl-search-multiplier');
+    if (storedMultiplier) {
+      this._sizeMultiplier = parseFloat(storedMultiplier);
+    } else {
+      this._sizeMultiplier = 1.0;
+    }
+    this._iconSize = this._effectiveSize;
+    this._applyIconSize();
+  }
+
+  /**
+   * Save size multiplier to localStorage
+   */
+  _saveSectionSize() {
+    localStorage.setItem('rwl-search-multiplier', this._sizeMultiplier);
+  }
+
+  _onSliderChange(e) {
+    this._sizeMultiplier = parseFloat(e.target.value);
+    this._iconSize = this._effectiveSize;
+    this._saveSectionSize();
+    this._applyIconSize();
+  }
+
+  _applyIconSize() {
+    const container = this.shadowRoot?.querySelector('.search-container');
+    if (container) {
+      container.style.setProperty('--result-icon-size', `${this._iconSize}px`);
+    }
   }
 
   connectedCallback() {
@@ -397,6 +500,18 @@ class RwlSearch extends LitElement {
 
     // Check if we should show on-screen keyboard (touch devices)
     this._checkTouchDevice();
+
+    // Set up responsive sizing
+    this._baseSize = this._calculateBaseSize();
+    this._loadSectionSize();
+
+    // Observe viewport changes for responsive sizing
+    this._resizeObserver = new ResizeObserver(() => {
+      this._baseSize = this._calculateBaseSize();
+      this._iconSize = this._effectiveSize;
+      this._applyIconSize();
+    });
+    this._resizeObserver.observe(document.body);
   }
 
   disconnectedCallback() {
@@ -405,6 +520,12 @@ class RwlSearch extends LitElement {
     this._searchVersion++; // Invalidate any pending searches
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
+
+    // Clean up resize observer
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
   }
 
   firstUpdated() {
@@ -751,6 +872,12 @@ class RwlSearch extends LitElement {
         </div>
 
         ${this._renderOnScreenKeyboard()}
+      </div>
+
+      <div class="toolbar">
+        <label>🔍</label>
+        <input type="range" id="size-slider" min="0.5" max="2" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
+        <span class="game-count">${this._results.length > 0 ? `${this._results.length} results` : ''}</span>
       </div>
     `;
   }

@@ -48,7 +48,7 @@ class RwlWheelView extends RwlCarouselBase {
       position: relative;
       overflow: visible;
       z-index: 1;
-      margin-bottom: 80px;
+      margin-bottom: 10vh;
     }
 
     .carousel {
@@ -61,8 +61,8 @@ class RwlWheelView extends RwlCarouselBase {
       display: flex;
       /* No CSS transition - animated via JavaScript for smooth scrolling */
       height: 100%;
-      align-items: center;
-      padding: 20px 0 40px;
+      align-items: flex-end;
+      padding: 20px 0 80px;
     }
 
     .card {
@@ -74,6 +74,7 @@ class RwlWheelView extends RwlCarouselBase {
       cursor: pointer;
       transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
       transform: scale(0.85);
+      transform-origin: bottom center;
       opacity: 0.5;
       filter: brightness(0.6);
       position: relative;
@@ -129,16 +130,9 @@ class RwlWheelView extends RwlCarouselBase {
       font-size: 1.2rem;
     }
 
-    /* Reflection */
+    /* Reflection - disabled to prevent visual artifacts */
     .carousel::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 80px;
-      background: var(--carousel-reflection-gradient, linear-gradient(0deg, rgba(10, 10, 10, 1) 0%, transparent 100%));
-      pointer-events: none;
+      display: none;
     }
 
     /* Responsive */
@@ -186,6 +180,14 @@ class RwlWheelView extends RwlCarouselBase {
     return carouselSettings?.sizing?.defaultCardSize || 330;
   }
 
+  _getMinSize() {
+    return 80; // Minimum card size (consistent across all views)
+  }
+
+  _getMaxSize() {
+    return 450; // Maximum card size
+  }
+
   _getNavKeys() {
     return { prev: 'ArrowLeft', next: 'ArrowRight' };
   }
@@ -195,7 +197,10 @@ class RwlWheelView extends RwlCarouselBase {
   // ─────────────────────────────────────────────────────────────
 
   _getCarouselHeight() {
-    return Math.round(this._size * 1.36) + 80;
+    // Card height * scale factor (1.1 for active) + padding for upward expansion
+    const cardHeight = Math.round(this._size * 1.36);
+    const scaledHeight = cardHeight * 1.1;
+    return Math.round(scaledHeight) + 60;
   }
 
   _getGap() {
@@ -344,10 +349,10 @@ class RwlWheelView extends RwlCarouselBase {
           <div class="size-control">
             <label>🔍</label>
             <input type="range" id="size-slider"
-                   min="150" max="450"
-                   .value=${this._size}
+                   min="0.5" max="2" step="0.1"
+                   .value=${this._sizeMultiplier}
                    @input=${this._onSliderChange}
-                   title="Adjust size">
+                   title="Size multiplier: ${this._sizeMultiplier}x">
           </div>
           <span class="game-count">${this._games.length} games</span>
         </div>

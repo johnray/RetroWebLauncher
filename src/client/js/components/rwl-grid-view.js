@@ -19,6 +19,8 @@ class RwlGridView extends LitElement {
     _totalPages: { state: true },
     _loading: { state: true },
     _cardSize: { state: true },
+    _sizeMultiplier: { state: true },
+    _baseSize: { state: true },
     _letterIndex: { state: true },
     _currentLetter: { state: true }
   };
@@ -87,7 +89,7 @@ class RwlGridView extends LitElement {
       top: 0;
       left: 0;
       right: 0;
-      bottom: 50px;
+      bottom: 0;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 16px;
@@ -245,20 +247,27 @@ class RwlGridView extends LitElement {
       box-shadow: 0 0 10px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
     }
 
+    /* Toolbar - floating palette style (matches carousel controls-bar) */
     .toolbar {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 50px;
-      background: var(--toolbar-background, rgba(20, 20, 20, 0.95));
-      border-top: 1px solid var(--toolbar-border, #333);
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: auto;
+      min-height: 40px;
+      padding: 12px 24px;
+      background: var(--controls-bar-background, var(--toolbar-background, rgba(15, 15, 15, 0.85)));
+      backdrop-filter: var(--controls-bar-blur, blur(12px));
+      -webkit-backdrop-filter: var(--controls-bar-blur, blur(12px));
+      border: 1px solid var(--controls-bar-border, var(--toolbar-border, rgba(255, 255, 255, 0.15)));
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      padding: 0 16px;
-      z-index: 10;
+      gap: 24px;
+      z-index: 200;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
 
     .toolbar label {
@@ -330,11 +339,33 @@ class RwlGridView extends LitElement {
     this._page = 1;
     this._totalPages = 1;
     this._loading = false;
-    this._cardSize = 150; // Will be loaded per-section when systemId/collectionId is set
+    this._sizeMultiplier = 1.0;
+    this._baseSize = this._calculateBaseSize();
+    this._cardSize = this._baseSize; // Computed from baseSize * multiplier
     this._letterIndex = {};
     this._currentLetter = '#';
     this._scrollHandler = null; // Store scroll handler reference to prevent duplicates
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
+    this._resizeObserver = null; // For responsive sizing
+  }
+
+  /**
+   * Get the effective card size (baseSize * multiplier)
+   */
+  get _effectiveSize() {
+    return Math.round(this._baseSize * this._sizeMultiplier);
+  }
+
+  /**
+   * Calculate base size from viewport width
+   */
+  _calculateBaseSize() {
+    const vw = window.innerWidth;
+    const minSize = 80;
+    const maxSize = 280;
+    // Scale: 12% of viewport, clamped
+    const viewportBased = vw * 0.12;
+    return Math.min(maxSize, Math.max(minSize, viewportBased));
   }
 
   /**
@@ -345,27 +376,38 @@ class RwlGridView extends LitElement {
   }
 
   /**
-   * Load card size for this section from localStorage, with theme default fallback
+   * Load size multiplier for this section from localStorage
    */
   _loadSectionSize() {
     const key = this._getSectionKey();
-    const stored = localStorage.getItem(`rwl-grid-size-${key}`);
-    if (stored) {
-      this._cardSize = parseInt(stored, 10);
+    // Load multiplier (new) or legacy size (old)
+    const storedMultiplier = localStorage.getItem(`rwl-grid-multiplier-${key}`);
+    if (storedMultiplier) {
+      this._sizeMultiplier = parseFloat(storedMultiplier);
     } else {
-      // Fall back to theme default
-      const gridSettings = themeService.getGridSettings();
-      this._cardSize = gridSettings?.defaultCardSize || 150;
+      // Check for legacy size value and convert to multiplier
+      const storedSize = localStorage.getItem(`rwl-grid-size-${key}`);
+      if (storedSize) {
+        const legacySize = parseInt(storedSize, 10);
+        const gridSettings = themeService.getGridSettings();
+        const defaultSize = gridSettings?.defaultCardSize || 150;
+        this._sizeMultiplier = legacySize / defaultSize;
+        // Clamp to valid range
+        this._sizeMultiplier = Math.max(0.5, Math.min(2.0, this._sizeMultiplier));
+      } else {
+        this._sizeMultiplier = 1.0;
+      }
     }
+    this._cardSize = this._effectiveSize;
     this._updateSlider();
   }
 
   /**
-   * Save card size for this section to localStorage
+   * Save size multiplier for this section to localStorage
    */
   _saveSectionSize() {
     const key = this._getSectionKey();
-    localStorage.setItem(`rwl-grid-size-${key}`, this._cardSize);
+    localStorage.setItem(`rwl-grid-multiplier-${key}`, this._sizeMultiplier);
   }
 
   /**
@@ -380,11 +422,29 @@ class RwlGridView extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+
+    // Set up responsive sizing
+    this._baseSize = this._calculateBaseSize();
+    this._cardSize = this._effectiveSize;
+
+    // Observe viewport changes for responsive sizing
+    this._resizeObserver = new ResizeObserver(() => {
+      this._baseSize = this._calculateBaseSize();
+      this._cardSize = this._effectiveSize;
+      this._applySize();
+    });
+    this._resizeObserver.observe(document.body);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this._saveScrollPosition();
+
+    // Clean up resize observer
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
 
     // Cancel any pending animation frame
     if (this._pendingRaf) {
@@ -587,7 +647,8 @@ class RwlGridView extends LitElement {
   }
 
   _onSliderChange(e) {
-    this._cardSize = parseInt(e.target.value, 10);
+    this._sizeMultiplier = parseFloat(e.target.value);
+    this._cardSize = this._effectiveSize;
     this._saveSectionSize();
     this._applySize();
   }
@@ -725,10 +786,11 @@ class RwlGridView extends LitElement {
           <input
             type="range"
             id="size-slider"
-            min="80"
-            max="280"
-            .value="${this._cardSize}"
-            title="Adjust size"
+            min="0.5"
+            max="2"
+            step="0.1"
+            .value="${this._sizeMultiplier}"
+            title="Size multiplier: ${this._sizeMultiplier}x"
             @input=${this._onSliderChange}
           >
           <span class="game-count">${this._games.length > 0 ? `${this._games.length} games` : ''}</span>

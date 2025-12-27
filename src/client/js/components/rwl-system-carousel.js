@@ -38,6 +38,7 @@ class RwlSystemCarousel extends LitElement {
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
     .carousel {
@@ -208,17 +209,24 @@ class RwlSystemCarousel extends LitElement {
       margin: 0;
     }
 
-    /* Controls bar - matching wheel view style */
+    /* Controls bar - floating palette style */
     .controls-bar {
-      position: relative;
-      flex-shrink: 0;
-      height: 60px;
-      background: var(--controls-bar-bg, rgba(15, 15, 15, 0.95));
-      border-top: 1px solid var(--controls-bar-border-color, #333);
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: auto;
+      padding: 12px 24px;
+      background: var(--controls-bar-background, var(--controls-bar-bg, rgba(15, 15, 15, 0.85)));
+      backdrop-filter: var(--controls-bar-blur, blur(12px));
+      -webkit-backdrop-filter: var(--controls-bar-blur, blur(12px));
+      border: 1px solid var(--controls-bar-border, var(--controls-bar-border-color, rgba(255, 255, 255, 0.15)));
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10;
+      z-index: 200;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
 
     .nav-controls {

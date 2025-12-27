@@ -32,8 +32,9 @@ class RwlSpinWheel extends RwlCarouselBase {
     /* Left: Details */
     .details-panel {
       position: relative;
-      width: 45%;
-      height: calc(100% - 70px);
+      flex: 1;
+      min-width: 300px;
+      height: 100%;
       z-index: 5;
       display: flex;
       flex-direction: column;
@@ -51,26 +52,21 @@ class RwlSpinWheel extends RwlCarouselBase {
       border-radius: 18px;
     }
 
-    .controls-bar {
-      height: 70px;
-    }
+    /* Use base controls-bar styling from RwlCarouselBase.sharedStyles */
 
-    .nav-btn {
-      width: 44px;
-      height: 44px;
-      font-size: 1.1rem;
-    }
+    /* Use base nav-btn sizing from RwlCarouselBase.sharedStyles */
 
     /* Right: Wheel */
     .wheel-area {
-      flex: 1;
-      height: calc(100% - 70px);
+      flex: 0 0 auto;
+      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       perspective: 1000px;
       z-index: 1;
+      /* width set dynamically in JS based on item size */
     }
 
     .spin-wheel {
@@ -128,8 +124,8 @@ class RwlSpinWheel extends RwlCarouselBase {
     }
 
     .item-image {
-      width: 60px;
-      height: 80px;
+      width: var(--spin-img-width, 80px);
+      height: var(--spin-img-height, 100px);
       flex-shrink: 0;
       border-radius: 6px;
       overflow: hidden;
@@ -244,6 +240,14 @@ class RwlSpinWheel extends RwlCarouselBase {
     return spinWheelSettings?.sizing?.defaultCardSize || 300;
   }
 
+  _getMinSize() {
+    return 80; // Minimum size (consistent across all views)
+  }
+
+  _getMaxSize() {
+    return 550; // Maximum size
+  }
+
   _getNavKeys() {
     return { prev: 'ArrowUp', next: 'ArrowDown' };
   }
@@ -268,55 +272,95 @@ class RwlSpinWheel extends RwlCarouselBase {
   _updateWheelPositions() {
     const track = this.shadowRoot?.querySelector('.wheel-track');
     const items = this.shadowRoot?.querySelectorAll('.wheel-item');
+    const wheelArea = this.shadowRoot?.querySelector('.wheel-area');
+    const spinWheel = this.shadowRoot?.querySelector('.spin-wheel');
 
     if (!track || !items || items.length === 0) return;
 
-    const itemHeight = this._size * 0.35;
-    const visibleItems = 6;
+    // Get view height to determine how many items we need
+    const viewHeight = wheelArea?.clientHeight || window.innerHeight;
+
+    // Card dimensions - scale with multiplier
+    const baseImgWidth = 100;
+    const baseImgHeight = 140;
+    const imgWidth = baseImgWidth * this._sizeMultiplier;
+    const imgHeight = baseImgHeight * this._sizeMultiplier;
+    const itemWidth = 200 + (100 * this._sizeMultiplier);
+
+    // Card height = image height + vertical padding (card is flex row, not column)
+    const cardHeight = imgHeight + 20;
+
+    // Wheel radius - larger at bigger zoom for proper tire effect
+    const radius = 300 + (250 * this._sizeMultiplier); // 425-862px
+
+    // Calculate angle step so cards just touch at center (zero gap)
+    // sin(angleStep) * radius = cardHeight
+    // Tire effect naturally compresses items at top/bottom
+    const angleStep = Math.asin(Math.min(0.9, cardHeight / radius)) * 180 / Math.PI;
+
+    // Calculate how many items fit in visible arc (~80 degrees each side)
+    const visibleItems = Math.floor(80 / angleStep);
+
+    // Set CSS custom properties on host for image sizing
+    this.style.setProperty('--spin-img-width', `${imgWidth}px`);
+    this.style.setProperty('--spin-img-height', `${imgHeight}px`);
+
+    // Set wheel area width dynamically
+    if (wheelArea) {
+      wheelArea.style.width = `${itemWidth + 80}px`;
+    }
+    if (spinWheel) {
+      spinWheel.style.width = `${itemWidth + 40}px`;
+    }
 
     items.forEach((item, i) => {
       // Use _visualOffset for smooth animation
       const offset = i - this._visualOffset;
       const absOffset = Math.abs(offset);
 
-      // Hide items that are too far from center
-      if (absOffset > visibleItems) {
+      // Hide items outside visible arc
+      if (absOffset > visibleItems + 1) {
         item.style.opacity = '0';
         item.style.pointerEvents = 'none';
         item.classList.add('hidden');
         return;
       }
 
-      // Make visible items clickable
       item.classList.remove('hidden');
       item.style.pointerEvents = 'auto';
 
-      const angle = offset * 22;
-      const translateZ = -Math.abs(offset) * 40;
-      const translateY = offset * itemHeight;
+      // TIRE EFFECT: Use sine/cosine for circular positioning
+      // Items at center (offset=0) are at 0 degrees (facing us)
+      // Items above/below curve away like a tire viewed from the side
+      const angleDeg = offset * angleStep;
+      const angleRad = angleDeg * Math.PI / 180;
 
-      // Smooth opacity and scale based on distance
-      const opacity = Math.max(0, 1 - absOffset * 0.25);
-      const scale = Math.max(0.55, 1 - absOffset * 0.12);
+      // Y position: sine gives the vertical spread (items cluster at top/bottom)
+      const translateY = Math.sin(angleRad) * radius;
+
+      // Z position: cosine gives depth (items curve away from viewer)
+      // Subtract radius so center item (cos=1) is at z=0, edges curve back
+      const translateZ = (Math.cos(angleRad) - 1) * radius;
+
+      // Opacity based on angle - fade as items curve away
+      const opacity = Math.max(0.1, Math.cos(angleRad));
+
+      // Scale slightly smaller as items curve away
+      const scale = 0.7 + (0.3 * Math.cos(angleRad));
 
       item.style.transform = `
         translateY(${translateY}px)
         translateZ(${translateZ}px)
-        rotateX(${-angle}deg)
+        rotateX(${-angleDeg}deg)
         scale(${scale})
       `;
       item.style.opacity = opacity;
       item.style.zIndex = Math.round(100 - absOffset);
 
-      const imgContainer = item.querySelector('.item-image');
-      if (imgContainer) {
-        imgContainer.style.width = `${this._size * 0.3}px`;
-        imgContainer.style.height = `${this._size * 0.4}px`;
-      }
+      // Apply card width
+      item.style.width = `${itemWidth}px`;
 
-      item.style.width = `${this._size}px`;
-
-      // Active class based on logical selection (_currentIndex)
+      // Active class based on logical selection
       item.classList.toggle('active', i === this._currentIndex);
     });
   }
@@ -440,11 +484,12 @@ class RwlSpinWheel extends RwlCarouselBase {
             <input
               type="range"
               id="size-slider"
-              min="200"
-              max="550"
-              .value=${this._size}
+              min="0.5"
+              max="2.25"
+              step="0.05"
+              .value=${this._sizeMultiplier}
               @input=${this._onSliderChange}
-              title="Adjust size"
+              title="Size multiplier: ${this._sizeMultiplier}x"
             >
           </div>
           <span class="game-count">${this._games.length} games</span>

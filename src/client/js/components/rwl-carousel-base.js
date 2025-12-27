@@ -29,7 +29,9 @@ export class RwlCarouselBase extends LitElement {
     _loading: { type: Boolean, state: true },
     _letterIndex: { type: Object, state: true },
     _currentLetter: { type: String, state: true },
-    _size: { type: Number, state: true }
+    _size: { type: Number, state: true },
+    _sizeMultiplier: { type: Number, state: true },
+    _baseSize: { type: Number, state: true }
   };
 
   /**
@@ -287,21 +289,26 @@ export class RwlCarouselBase extends LitElement {
       box-shadow: 0 0 8px var(--selection-glow-rgba, rgba(255, 0, 102, 0.5));
     }
 
-    /* Controls bar */
+    /* Controls bar - floating palette style */
     .controls-bar {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 60px;
-      background: var(--toolbar-background, rgba(15, 15, 15, 0.95));
-      border-top: 1px solid var(--toolbar-border, #333);
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: auto;
+      padding: 12px 24px;
+      background: var(--controls-bar-background, var(--toolbar-background, rgba(15, 15, 15, 0.85)));
+      backdrop-filter: var(--controls-bar-blur, blur(12px));
+      -webkit-backdrop-filter: var(--controls-bar-blur, blur(12px));
+      border: 1px solid var(--controls-bar-border, var(--toolbar-border, rgba(255, 255, 255, 0.15)));
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 30px;
+      gap: 24px;
       z-index: 200;
       pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
 
     .nav-controls {
@@ -409,14 +416,25 @@ export class RwlCarouselBase extends LitElement {
     this._letterIndex = {};
     this._currentLetter = '#';
     this._unsubscribers = [];
-    this._size = this._getDefaultSize();
+    this._sizeMultiplier = 1.0; // Default multiplier
+    this._baseSize = this._getDefaultSize();
+    this._size = this._baseSize; // Computed from baseSize * multiplier
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
     this._momentumRaf = null; // Track momentum scrolling RAF for cleanup
+    this._resizeObserver = null; // For responsive sizing
 
     // Smooth scrolling state
     this._visualOffset = 0; // Float representing visual scroll position
     this._scrollRaf = null; // Animation frame for smooth scrolling
     this._lastScrollTime = 0; // For physics timing
+  }
+
+  /**
+   * Get the effective size (baseSize * multiplier).
+   * Use this in subclasses instead of _size directly.
+   */
+  get _effectiveSize() {
+    return Math.round(this._baseSize * this._sizeMultiplier);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -438,6 +456,39 @@ export class RwlCarouselBase extends LitElement {
    */
   _getDefaultSize() {
     return 300; // Override in subclass
+  }
+
+  /**
+   * Returns the minimum size for this carousel type.
+   * Used as lower bound for responsive scaling.
+   * @returns {number}
+   */
+  _getMinSize() {
+    return 80; // Default minimum (consistent across all views), override in subclass
+  }
+
+  /**
+   * Returns the maximum size for this carousel type.
+   * Used as upper bound for responsive scaling.
+   * @returns {number}
+   */
+  _getMaxSize() {
+    return this._getDefaultSize() * 2; // Override in subclass
+  }
+
+  /**
+   * Calculate base size from viewport width.
+   * Scales between min and max based on viewport.
+   * @returns {number}
+   */
+  _calculateBaseSize() {
+    const vw = window.innerWidth;
+    const minSize = this._getMinSize();
+    const maxSize = this._getMaxSize();
+
+    // Scale: 15% of viewport, clamped to min/max
+    const viewportBased = vw * 0.15;
+    return Math.min(maxSize, Math.max(minSize, viewportBased));
   }
 
   /**
@@ -464,6 +515,18 @@ export class RwlCarouselBase extends LitElement {
     super.connectedCallback();
     this._bindEvents();
 
+    // Set up responsive sizing
+    this._baseSize = this._calculateBaseSize();
+    this._size = this._effectiveSize;
+
+    // Observe viewport changes for responsive sizing
+    this._resizeObserver = new ResizeObserver(() => {
+      this._baseSize = this._calculateBaseSize();
+      this._size = this._effectiveSize;
+      this._updateDisplay();
+    });
+    this._resizeObserver.observe(document.body);
+
     if (this.systemId) {
       const savedPos = sessionStorage.getItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`);
       if (savedPos) {
@@ -478,6 +541,12 @@ export class RwlCarouselBase extends LitElement {
 
     if (this.systemId && this._games.length > 0) {
       sessionStorage.setItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`, this._currentIndex);
+    }
+
+    // Clean up resize observer
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
     }
 
     // Cancel any pending animation frames
@@ -510,7 +579,7 @@ export class RwlCarouselBase extends LitElement {
   }
 
   updated(changedProperties) {
-    if (changedProperties.has('_currentIndex') || changedProperties.has('_games') || changedProperties.has('_size')) {
+    if (changedProperties.has('_currentIndex') || changedProperties.has('_games') || changedProperties.has('_size') || changedProperties.has('_sizeMultiplier')) {
       this._updateDisplay();
     }
   }
@@ -525,22 +594,36 @@ export class RwlCarouselBase extends LitElement {
 
   _loadSectionSize() {
     const key = this._getSectionKey();
-    const stored = localStorage.getItem(`rwl-${this._getStoragePrefix()}-size-${key}`);
-    if (stored) {
-      this._size = parseInt(stored, 10);
+    // Load multiplier (new) or legacy size (old)
+    const storedMultiplier = localStorage.getItem(`rwl-${this._getStoragePrefix()}-multiplier-${key}`);
+    if (storedMultiplier) {
+      this._sizeMultiplier = parseFloat(storedMultiplier);
     } else {
-      this._size = this._getDefaultSize();
+      // Check for legacy size value and convert to multiplier
+      const storedSize = localStorage.getItem(`rwl-${this._getStoragePrefix()}-size-${key}`);
+      if (storedSize) {
+        const legacySize = parseInt(storedSize, 10);
+        const defaultSize = this._getDefaultSize();
+        this._sizeMultiplier = legacySize / defaultSize;
+        // Clamp to valid range
+        this._sizeMultiplier = Math.max(0.5, Math.min(2.0, this._sizeMultiplier));
+      } else {
+        this._sizeMultiplier = 1.0;
+      }
     }
+    this._size = this._effectiveSize;
   }
 
   _saveSectionSize() {
     const key = this._getSectionKey();
-    localStorage.setItem(`rwl-${this._getStoragePrefix()}-size-${key}`, this._size);
+    localStorage.setItem(`rwl-${this._getStoragePrefix()}-multiplier-${key}`, this._sizeMultiplier);
   }
 
   _onSliderChange(e) {
-    this._size = parseInt(e.target.value, 10);
+    this._sizeMultiplier = parseFloat(e.target.value);
+    this._size = this._effectiveSize;
     this._saveSectionSize();
+    this._updateDisplay(); // Ensure display updates immediately
   }
 
   // ─────────────────────────────────────────────────────────────

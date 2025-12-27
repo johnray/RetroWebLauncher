@@ -7,6 +7,7 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { router } from '../router.js';
 import { themeService } from '../theme-service.js';
+import { RwlScreensaver, SCREENSAVERS } from './rwl-screensaver.js';
 
 const { LitElement, html, css } = window.Lit;
 
@@ -15,7 +16,8 @@ class RwlSettings extends LitElement {
     _config: { type: Object, state: true },
     _saving: { type: Boolean, state: true },
     _dirty: { type: Boolean, state: true },
-    _screensaverTimeout: { type: Number, state: true }
+    _screensaverTimeout: { type: Number, state: true },
+    _screensaverType: { type: String, state: true }
   };
 
   static styles = css`
@@ -491,6 +493,8 @@ class RwlSettings extends LitElement {
     // Load screensaver timeout from localStorage (client-side setting)
     const storedTimeout = localStorage.getItem('rwl-screensaver-timeout');
     this._screensaverTimeout = storedTimeout ? parseInt(storedTimeout, 10) : 60;
+    // Load screensaver type
+    this._screensaverType = RwlScreensaver.getCurrentScreensaver();
   }
 
   connectedCallback() {
@@ -675,6 +679,14 @@ class RwlSettings extends LitElement {
       this._dirty = true;
       this._updateSaveButton();
     }
+  }
+
+  _handleScreensaverTypeChange(e) {
+    const value = e.target.value;
+    this._screensaverType = value;
+    RwlScreensaver.setScreensaver(value);
+    // This is saved immediately to localStorage via RwlScreensaver.setScreensaver
+    // No need to mark dirty since it's a client-side preference
   }
 
   _updateSaveButton() {
@@ -974,6 +986,26 @@ class RwlSettings extends LitElement {
                     />
                     <span class="toggle-slider"></span>
                   </label>
+                </div>
+
+                <div class="setting-item">
+                  <label class="setting-label" for="screensaverType">
+                    <span class="label-text">Screensaver Style</span>
+                    <span class="label-desc">Visual style for the screensaver</span>
+                  </label>
+                  <select
+                    id="screensaverType"
+                    class="setting-select"
+                    @change="${this._handleScreensaverTypeChange}"
+                  >
+                    ${RwlScreensaver.getAvailableScreensavers().map(ss => html`
+                      <option
+                        value="${ss.id}"
+                        ?selected="${this._screensaverType === ss.id}"
+                        title="${ss.description}"
+                      >${ss.name}</option>
+                    `)}
+                  </select>
                 </div>
 
                 <div class="setting-item">

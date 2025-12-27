@@ -159,7 +159,11 @@
   --nav-btn-hover-bg: rgba(247, 37, 133, 0.4);
   --counter-color: #f72585;
 
-  /* Controls/toolbar bar */
+  /* Controls/toolbar bar - transparent overlay with blur */
+  --controls-bar-height: 60px;
+  --controls-bar-background: rgba(13, 2, 33, 0.7);
+  --controls-bar-blur: blur(12px);
+  --controls-bar-border: rgba(247, 37, 133, 0.25);
   --controls-bar-bg: rgba(21, 7, 52, 0.95);
   --controls-bar-border-color: rgba(247, 37, 133, 0.3);
   --toolbar-background: rgba(21, 7, 52, 0.95);

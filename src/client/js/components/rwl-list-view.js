@@ -19,7 +19,9 @@ class RwlListView extends LitElement {
     _sortBy: { state: true },
     _sortOrder: { state: true },
     _currentLetter: { state: true },
-    _iconSize: { state: true }
+    _iconSize: { state: true },
+    _sizeMultiplier: { state: true },
+    _baseSize: { state: true }
   };
 
   static styles = css`
@@ -44,7 +46,7 @@ class RwlListView extends LitElement {
       top: 0;
       left: 0;
       right: 0;
-      bottom: 50px;
+      bottom: 0;
       display: flex;
       flex-direction: column;
       background: var(--content-overlay, rgba(0,0,0,0.4));
@@ -320,21 +322,27 @@ class RwlListView extends LitElement {
         linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.7) 100%));
     }
 
-    /* Toolbar */
+    /* Toolbar - floating palette style (matches carousel controls-bar) */
     .toolbar {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 50px;
-      background: var(--toolbar-background, rgba(20, 20, 20, 0.95));
-      border-top: 1px solid var(--toolbar-border, #333);
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: auto;
+      min-height: 40px;
+      padding: 12px 24px;
+      background: var(--controls-bar-background, var(--toolbar-background, rgba(15, 15, 15, 0.85)));
+      backdrop-filter: var(--controls-bar-blur, blur(12px));
+      -webkit-backdrop-filter: var(--controls-bar-blur, blur(12px));
+      border: 1px solid var(--controls-bar-border, var(--toolbar-border, rgba(255, 255, 255, 0.15)));
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      padding: 0 16px;
-      z-index: 150;
+      gap: 24px;
+      z-index: 200;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
 
     .toolbar label {
@@ -386,8 +394,30 @@ class RwlListView extends LitElement {
     this._currentLetter = '';
     this._letterIndex = {};
     this._unsubscribers = [];
-    this._iconSize = 40; // Will be loaded per-section when systemId is set
+    this._sizeMultiplier = 1.0;
+    this._baseSize = this._calculateBaseSize();
+    this._iconSize = this._baseSize;
     this._savedScrollPos = null;
+    this._resizeObserver = null;
+  }
+
+  /**
+   * Get the effective icon size (baseSize * multiplier)
+   */
+  get _effectiveSize() {
+    return Math.round(this._baseSize * this._sizeMultiplier);
+  }
+
+  /**
+   * Calculate base icon size from viewport width
+   */
+  _calculateBaseSize() {
+    const vw = window.innerWidth;
+    const minSize = 80;
+    const maxSize = 120;
+    // Scale: 6% of viewport for icons, clamped
+    const viewportBased = vw * 0.06;
+    return Math.min(maxSize, Math.max(minSize, viewportBased));
   }
 
   /**
@@ -398,38 +428,68 @@ class RwlListView extends LitElement {
   }
 
   /**
-   * Load icon size for this section from localStorage, with theme default fallback
+   * Load size multiplier for this section from localStorage
    */
   _loadSectionSize() {
     const key = this._getSectionKey();
-    const stored = localStorage.getItem(`rwl-list-size-${key}`);
-    if (stored) {
-      this._iconSize = parseInt(stored, 10);
+    // Load multiplier (new) or legacy size (old)
+    const storedMultiplier = localStorage.getItem(`rwl-list-multiplier-${key}`);
+    if (storedMultiplier) {
+      this._sizeMultiplier = parseFloat(storedMultiplier);
     } else {
-      // Fall back to theme default
-      const listSettings = themeService.getListSettings();
-      this._iconSize = listSettings?.defaultIconSize || 40;
+      // Check for legacy size value and convert to multiplier
+      const storedSize = localStorage.getItem(`rwl-list-size-${key}`);
+      if (storedSize) {
+        const legacySize = parseInt(storedSize, 10);
+        const listSettings = themeService.getListSettings();
+        const defaultSize = listSettings?.defaultIconSize || 40;
+        this._sizeMultiplier = legacySize / defaultSize;
+        // Clamp to valid range
+        this._sizeMultiplier = Math.max(0.5, Math.min(2.0, this._sizeMultiplier));
+      } else {
+        this._sizeMultiplier = 1.0;
+      }
     }
+    this._iconSize = this._effectiveSize;
     this.requestUpdate();
   }
 
   /**
-   * Save icon size for this section to localStorage
+   * Save size multiplier for this section to localStorage
    */
   _saveSectionSize() {
     const key = this._getSectionKey();
-    localStorage.setItem(`rwl-list-size-${key}`, this._iconSize);
+    localStorage.setItem(`rwl-list-multiplier-${key}`, this._sizeMultiplier);
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._bindEvents();
+
+    // Set up responsive sizing
+    this._baseSize = this._calculateBaseSize();
+    this._iconSize = this._effectiveSize;
+
+    // Observe viewport changes for responsive sizing
+    this._resizeObserver = new ResizeObserver(() => {
+      this._baseSize = this._calculateBaseSize();
+      this._iconSize = this._effectiveSize;
+      this._applyIconSize();
+    });
+    this._resizeObserver.observe(document.body);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     // Save scroll position before leaving
     this._saveScrollPosition();
+
+    // Clean up resize observer
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
   }
@@ -720,7 +780,8 @@ class RwlListView extends LitElement {
   }
 
   _onSliderChange(e) {
-    this._iconSize = parseInt(e.target.value, 10);
+    this._sizeMultiplier = parseFloat(e.target.value);
+    this._iconSize = this._effectiveSize;
     this._saveSectionSize();
   }
 
@@ -840,7 +901,7 @@ class RwlListView extends LitElement {
 
         <div class="toolbar">
           <label>🔍</label>
-          <input type="range" id="size-slider" min="24" max="80" .value=${this._iconSize} @input=${this._onSliderChange} title="Adjust icon size">
+          <input type="range" id="size-slider" min="0.5" max="2" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
           <span class="game-count">${this._games.length} games</span>
         </div>
       </div>

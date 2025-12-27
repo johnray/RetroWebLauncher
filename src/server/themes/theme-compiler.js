@@ -433,6 +433,12 @@ function compileTheme(config) {
   --nav-btn-color: ${p};
   --nav-btn-hover-bg: ${rgba(p, 0.3)};
   --counter-color: ${p};
+
+  /* ========== CONTROLS BAR - TRANSPARENT OVERLAY ========== */
+  --controls-bar-height: 60px;
+  --controls-bar-background: ${rgba(isLight ? '#ffffff' : bg, isLight ? 0.8 : 0.75)};
+  --controls-bar-blur: blur(${isLight ? '12px' : '12px'});
+  --controls-bar-border: ${rgba(isLight ? '#000000' : p, isLight ? 0.08 : 0.25)};
   --controls-bar-bg: ${rgba(isLight ? '#ffffff' : sf, 0.95)};
   --controls-bar-border-color: ${isLight ? rgba('#000000', 0.1) : '#333'};
   --toolbar-background: ${rgba(isLight ? '#ffffff' : sf, 0.95)};

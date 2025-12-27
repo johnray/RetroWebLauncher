@@ -139,7 +139,11 @@
   --button-primary-shadow: rgba(37, 99, 235, 0.3);
   --button-primary-shadow-hover: rgba(37, 99, 235, 0.4);
 
-  /* Toolbar/controls bar for light theme */
+  /* Controls/toolbar bar - transparent overlay with blur */
+  --controls-bar-height: 60px;
+  --controls-bar-background: rgba(255, 255, 255, 0.8);
+  --controls-bar-blur: blur(12px);
+  --controls-bar-border: rgba(0, 0, 0, 0.08);
   --toolbar-background: rgba(255, 255, 255, 0.95);
   --toolbar-border: rgba(0, 0, 0, 0.08);
 

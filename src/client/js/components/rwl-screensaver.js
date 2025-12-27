@@ -1,1043 +1,152 @@
 /**
- * RetroWebLauncher - Screensaver/Attract Mode Component
- * Floating retro CRT TVs playing random game videos
+ * RetroWebLauncher - Screensaver Manager
+ * Manages and switches between different screensaver implementations
  */
 
 import { state } from '../state.js';
-import { api } from '../api.js';
+
+// Import screensaver implementations
+import './rwl-screensaver-floating-tvs.js';
+// Future screensavers can be imported here:
+// import './rwl-screensaver-slideshow.js';
+// import './rwl-screensaver-marquee.js';
 
 const { LitElement, html, css } = window.Lit;
 
+/**
+ * Registry of available screensavers
+ * Add new screensavers here with their tag name and display info
+ */
+const SCREENSAVERS = {
+  'floating-tvs': {
+    tag: 'rwl-screensaver-floating-tvs',
+    name: 'Floating TVs',
+    description: 'Bouncing retro CRT TVs playing game videos'
+  }
+  // Future screensavers:
+  // 'slideshow': {
+  //   tag: 'rwl-screensaver-slideshow',
+  //   name: 'Game Slideshow',
+  //   description: 'Full-screen game artwork slideshow'
+  // },
+  // 'marquee': {
+  //   tag: 'rwl-screensaver-marquee',
+  //   name: 'Arcade Marquee',
+  //   description: 'Scrolling arcade marquee display'
+  // }
+};
+
+const DEFAULT_SCREENSAVER = 'floating-tvs';
+
 class RwlScreensaver extends LitElement {
   static properties = {
-    _active: { type: Boolean, state: true },
-    _games: { type: Array, state: true },
-    _tvs: { type: Array, state: true },
-    arcadeName: { type: String, state: true }
+    _currentScreensaver: { type: String, state: true }
   };
 
   static styles = css`
     :host {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: var(--z-screensaver, 9999);
-      background: var(--screensaver-background, var(--color-background, #0a0a0a));
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.8s ease, visibility 0.8s ease;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    :host(.active) {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-
-    .screensaver-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
-
-    /* Animated starfield background - large tile for less obvious repetition */
-    .bg-stars {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image:
-        /* Layer 1: Bright stars scattered across 800x600 tile */
-        radial-gradient(2px 2px at 47px 83px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 213px 127px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 389px 41px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 571px 293px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 743px 167px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 127px 419px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 461px 523px, var(--screensaver-star-color, #fff), transparent),
-        radial-gradient(2px 2px at 659px 89px, var(--screensaver-star-color, #fff), transparent),
-        /* Layer 2: Medium brightness stars */
-        radial-gradient(1.5px 1.5px at 89px 197px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
-        radial-gradient(1.5px 1.5px at 317px 359px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
-        radial-gradient(1.5px 1.5px at 523px 71px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
-        radial-gradient(1.5px 1.5px at 701px 443px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
-        radial-gradient(1.5px 1.5px at 167px 557px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
-        radial-gradient(1.5px 1.5px at 599px 391px, var(--screensaver-star-color, rgba(255,255,255,0.85)), transparent),
-        /* Layer 3: Dimmer small stars */
-        radial-gradient(1px 1px at 53px 349px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 181px 67px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 277px 239px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 431px 179px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 617px 503px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 773px 311px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 349px 487px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        radial-gradient(1px 1px at 107px 271px, var(--screensaver-star-color, rgba(255,255,255,0.6)), transparent),
-        /* Layer 4: Faint background stars */
-        radial-gradient(1px 1px at 233px 503px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
-        radial-gradient(1px 1px at 479px 347px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
-        radial-gradient(1px 1px at 683px 229px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
-        radial-gradient(1px 1px at 139px 137px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
-        radial-gradient(1px 1px at 547px 461px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent),
-        radial-gradient(1px 1px at 397px 113px, var(--screensaver-star-color, rgba(255,255,255,0.4)), transparent);
-      background-size: 800px 600px;
-      animation: starsMove 120s linear infinite;
-    }
-
-    @keyframes starsMove {
-      from { background-position: 0 0; }
-      to { background-position: -2400px 1800px; }
-    }
-
-    /* Animated gradient nebula - uses theme colors */
-    .bg-nebula {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background:
-        radial-gradient(ellipse at 20% 80%, var(--screensaver-nebula-primary, var(--color-primary, rgba(255, 0, 102, 0.15))) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, var(--screensaver-nebula-secondary, var(--color-secondary, rgba(0, 200, 255, 0.12))) 0%, transparent 50%),
-        radial-gradient(ellipse at 60% 60%, var(--screensaver-nebula-accent, var(--color-accent, rgba(138, 43, 226, 0.1))) 0%, transparent 60%);
-      animation: nebulaPulse 15s ease-in-out infinite;
-      opacity: var(--screensaver-nebula-opacity, 0.6);
-    }
-
-    @keyframes nebulaPulse {
-      0%, 100% { opacity: var(--screensaver-nebula-opacity, 0.6); transform: scale(1) rotate(0deg); }
-      50% { opacity: 1; transform: scale(1.05) rotate(2deg); }
-    }
-
-    /* Floating TVs container */
-    .floating-tvs {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      overflow: hidden;
-    }
-
-    /* Individual floating TV */
-    .floating-tv {
-      position: absolute;
-      transition: opacity 0.5s ease;
-    }
-
-    /* Retro CRT TV Frame - uses theme colors */
-    .tv-frame {
-      background: var(--screensaver-tv-frame, linear-gradient(145deg, #3a3a3a, #1a1a1a));
-      border-radius: 12px;
-      padding: 12px;
-      box-shadow:
-        0 15px 50px rgba(0, 0, 0, 0.6),
-        0 0 40px var(--screensaver-tv-glow, var(--color-primary, rgba(255, 0, 102, 0.15))),
-        inset 0 2px 0 rgba(255, 255, 255, 0.15),
-        inset 0 -2px 0 rgba(0, 0, 0, 0.3);
-      border: 2px solid var(--screensaver-tv-border, #222);
-    }
-
-    .tv-screen-bezel {
-      background: var(--screensaver-bezel-bg, #111);
-      border-radius: 8px;
-      padding: 4px;
-      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
-    }
-
-    .tv-screen {
-      position: relative;
-      background: var(--screensaver-screen-bg, #000);
-      border-radius: 6px;
-      overflow: hidden;
-      aspect-ratio: 4/3;
-    }
-
-    .tv-screen video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    /* CRT screen effects */
-    .tv-screen::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.15) 0px,
-        rgba(0, 0, 0, 0.15) 1px,
-        transparent 1px,
-        transparent 2px
-      );
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    .tv-screen::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.4) 100%);
-      pointer-events: none;
-      z-index: 3;
-    }
-
-    /* Screen glow effect */
-    .tv-glow {
-      position: absolute;
-      top: -10px;
-      left: -10px;
-      right: -10px;
-      bottom: -10px;
-      border-radius: 16px;
-      opacity: 0.6;
-      z-index: -1;
-      animation: screenGlow 3s ease-in-out infinite;
-    }
-
-    @keyframes screenGlow {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 0.7; }
-    }
-
-    /* TV bottom with controls */
-    .tv-bottom {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 4px 4px;
-    }
-
-    .tv-brand {
-      font-family: 'Arial Black', sans-serif;
-      font-size: 0.5rem;
-      color: var(--screensaver-brand-color, #666);
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-
-    .tv-controls {
-      display: flex;
-      gap: 4px;
-    }
-
-    .tv-knob {
-      width: 10px;
-      height: 10px;
-      background: linear-gradient(145deg, #555, #333);
-      border-radius: 50%;
-      border: 1px solid #222;
-    }
-
-    .tv-led {
-      width: 6px;
-      height: 6px;
-      background: var(--screensaver-led-color, #0f0);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--screensaver-led-color, #0f0), 0 0 12px var(--screensaver-led-color, #0f0);
-      animation: ledBlink 2s ease-in-out infinite;
-    }
-
-    @keyframes ledBlink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
-    /* Game info label on TV - uses theme colors */
-    .tv-label {
-      position: absolute;
-      bottom: -24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--screensaver-label-bg, rgba(0, 0, 0, 0.8));
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-family: var(--font-display, 'VT323', monospace);
-      font-size: 0.7rem;
-      color: var(--screensaver-label-color, #fff);
-      white-space: nowrap;
-      max-width: 150%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-shadow: 0 0 10px var(--screensaver-label-glow, var(--color-primary, #ff0066));
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-
-    .floating-tv:hover .tv-label {
-      opacity: 1;
-    }
-
-    /* Static/noise for videos that fail to load */
-    .tv-static {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background:
-        repeating-radial-gradient(#000 0 0.0001%, #fff 0 0.0002%) 50% 0/2500px 2500px,
-        repeating-conic-gradient(#000 0 0.0001%, #fff 0 0.0002%) 60% 60%/2500px 2500px;
-      background-blend-mode: difference;
-      animation: staticNoise 0.2s infinite;
-      opacity: 0.8;
-    }
-
-    @keyframes staticNoise {
-      0%, 100% { background-position: 50% 0, 60% 60%; }
-      10% { background-position: 51% 1%, 61% 61%; }
-      20% { background-position: 49% 2%, 59% 59%; }
-      30% { background-position: 52% 1%, 62% 60%; }
-      40% { background-position: 48% 0%, 58% 62%; }
-      50% { background-position: 50% 2%, 60% 58%; }
-      60% { background-position: 51% 0%, 61% 61%; }
-      70% { background-position: 49% 1%, 59% 60%; }
-      80% { background-position: 50% 2%, 60% 59%; }
-      90% { background-position: 52% 1%, 62% 61%; }
-    }
-
-    /* Center arcade title - uses theme colors */
-    .arcade-title {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-family: var(--font-display, 'VT323', monospace);
-      font-size: 4rem;
-      color: var(--screensaver-title-color, #fff);
-      text-shadow:
-        0 0 10px var(--screensaver-title-glow, var(--color-primary, #ff0066)),
-        0 0 20px var(--screensaver-title-glow, var(--color-primary, #ff0066)),
-        0 0 40px var(--screensaver-title-glow, var(--color-primary, #ff0066)),
-        0 0 80px var(--screensaver-title-glow, var(--color-primary, #ff0066));
-      animation: titleFloat 6s ease-in-out infinite;
-      z-index: 1000;
-      text-align: center;
-      pointer-events: none;
-      letter-spacing: 4px;
-    }
-
-    @keyframes titleFloat {
-      0%, 100% {
-        transform: translate(-50%, -50%) scale(1);
-        filter: brightness(1);
-      }
-      50% {
-        transform: translate(-50%, -52%) scale(1.02);
-        filter: brightness(1.2);
-      }
-    }
-
-    .arcade-subtitle {
-      position: absolute;
-      top: calc(50% + 50px);
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: var(--font-display, 'VT323', monospace);
-      font-size: 1.2rem;
-      color: var(--screensaver-subtitle-color, rgba(255, 255, 255, 0.7));
-      z-index: 1000;
-      animation: subtitlePulse 3s ease-in-out infinite;
-      letter-spacing: 2px;
-    }
-
-    @keyframes subtitlePulse {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 1; }
-    }
-
-    /* Exit hint */
-    .exit-hint {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.8rem;
-      color: var(--screensaver-hint-color, rgba(255, 255, 255, 0.4));
-      animation: hintBlink 2s ease infinite;
-      z-index: 1000;
-    }
-
-    @keyframes hintBlink {
-      0%, 100% { opacity: 0.3; }
-      50% { opacity: 0.8; }
-    }
-
-    /* Scanlines overlay */
-    .scanlines {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.08) 0px,
-        rgba(0, 0, 0, 0.08) 1px,
-        transparent 1px,
-        transparent 3px
-      );
-      pointer-events: none;
-      z-index: 999;
-    }
-
-    /* Vignette */
-    .vignette {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%);
-      pointer-events: none;
-      z-index: 998;
-    }
-
-    /* Mobile adjustments */
-    @media (max-width: 768px) {
-      .arcade-title {
-        font-size: 2rem;
-      }
-
-      .arcade-subtitle {
-        font-size: 0.9rem;
-        top: calc(50% + 35px);
-      }
-
-      .floating-tv {
-        transform: scale(0.7) !important;
-      }
+      display: contents;
     }
   `;
 
   constructor() {
     super();
-    this._active = false;
-    this._games = [];
-    this._tvs = [];
-    this._idleTimer = null;
-    this._animationFrame = null;
-    this._videoRotationTimer = null;
-    this._idleTimeout = 60000; // 1 minute default
+    this._currentScreensaver = DEFAULT_SCREENSAVER;
     this._unsubscribers = [];
-    this._boundHandleActivity = (e) => this._handleActivity(e);
-    this._boundAnimate = () => this._animate(); // Bound once to avoid creating closures
-    this._boundOnResize = () => this._onResize(); // Bound resize handler
-    this._floatingTvs = [];
-    this._pendingTimeouts = new Set(); // Track all pending timeouts for cleanup
-    this._lastSpawnTime = 0;
-    this._spawnInterval = 3000; // Spawn new TV every 3 seconds
-    this._maxTvs = 6; // Max bouncing TVs on screen
-    this.arcadeName = 'RetroWebLauncher';
-    this._floatingTvsContainer = null; // Cache DOM reference
-
-    // Cache viewport dimensions - updated on resize
-    this._viewportWidth = window.innerWidth;
-    this._viewportHeight = window.innerHeight;
-
-    // Cache theme colors - updated when screensaver activates
-    this._glowColors = ['#ff0066', '#00ffff', '#ff6600'];
-
-    // Track recently shown games to avoid repeats
-    this._recentlyShownGames = [];
-    this._maxRecentHistory = 30; // Remember last 30 games shown
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this._loadConfig();
+    this._loadPreference();
     this._bindEvents();
-    this._resetIdleTimer();
-    // Listen for resize to update cached viewport dimensions
-    window.addEventListener('resize', this._boundOnResize, { passive: true });
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this._clearTimers();
-
-    // Remove all event listeners
-    const exitEvents = ['click', 'keydown', 'touchstart', 'mousemove', 'wheel'];
-    exitEvents.forEach(event => {
-      document.removeEventListener(event, this._boundHandleActivity);
-    });
-    window.removeEventListener('resize', this._boundOnResize);
-
-    // Clean up state subscriptions
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
-
-    // Clear cached references
-    this._floatingTvsContainer = null;
-    this._floatingTvs = [];
-  }
-
-  async _loadConfig() {
-    const config = state.get('config') || {};
-
-    // Load idle timeout from localStorage (client-side setting)
-    const storedTimeout = localStorage.getItem('rwl-screensaver-timeout');
-    this._idleTimeout = (storedTimeout ? parseInt(storedTimeout, 10) : 60) * 1000;
-
-    this.arcadeName = config.arcadeName || 'RetroWebLauncher';
-  }
-
-  _onResize() {
-    // Update cached viewport dimensions
-    this._viewportWidth = window.innerWidth;
-    this._viewportHeight = window.innerHeight;
-  }
-
-  _cacheThemeColors() {
-    // Cache theme colors once per activation instead of per spawn
-    try {
-      const computedStyle = getComputedStyle(document.documentElement);
-      const primaryColor = computedStyle.getPropertyValue('--color-primary').trim() || '#ff0066';
-      const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim() || '#00ffff';
-      const accentColor = computedStyle.getPropertyValue('--color-accent').trim() || '#ff6600';
-      this._glowColors = [primaryColor, secondaryColor, accentColor];
-    } catch (e) {
-      // Fallback colors if getComputedStyle fails
-      this._glowColors = ['#ff0066', '#00ffff', '#ff6600'];
-    }
   }
 
   /**
-   * Fisher-Yates shuffle - unbiased random shuffle algorithm
+   * Get the list of available screensavers for settings UI
    */
-  _shuffle(array) {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  static getAvailableScreensavers() {
+    return Object.entries(SCREENSAVERS).map(([id, info]) => ({
+      id,
+      name: info.name,
+      description: info.description
+    }));
+  }
+
+  /**
+   * Get the current screensaver ID
+   * Validates that the stored value exists in the registry
+   */
+  static getCurrentScreensaver() {
+    const stored = localStorage.getItem('rwl-screensaver-type');
+    // Validate that the stored screensaver still exists in registry
+    if (stored && SCREENSAVERS[stored]) {
+      return stored;
     }
-    return shuffled;
+    return DEFAULT_SCREENSAVER;
+  }
+
+  /**
+   * Set the screensaver type
+   */
+  static setScreensaver(id) {
+    if (SCREENSAVERS[id]) {
+      localStorage.setItem('rwl-screensaver-type', id);
+      state.emit('screensaverTypeChanged', id);
+    }
+  }
+
+  _loadPreference() {
+    const stored = localStorage.getItem('rwl-screensaver-type');
+    if (stored && SCREENSAVERS[stored]) {
+      this._currentScreensaver = stored;
+    } else {
+      this._currentScreensaver = DEFAULT_SCREENSAVER;
+    }
   }
 
   _bindEvents() {
-    const exitEvents = ['click', 'keydown', 'touchstart', 'mousemove', 'wheel'];
-    exitEvents.forEach(event => {
-      document.addEventListener(event, this._boundHandleActivity, { passive: true });
-    });
-
+    // Listen for screensaver type changes
     this._unsubscribers.push(
-      state.on('input:any', () => this._handleActivity())
-    );
-
-    this._unsubscribers.push(
-      state.on('configSaved', () => this._loadConfig())
-    );
-
-    // Listen for initial config load to start timer properly
-    this._unsubscribers.push(
-      state.subscribe('config', (config) => {
-        if (config) {
-          this._loadConfig();
-          this._resetIdleTimer();
+      state.on('screensaverTypeChanged', (id) => {
+        if (SCREENSAVERS[id]) {
+          this._currentScreensaver = id;
         }
       })
     );
   }
 
-  _handleActivity(e) {
-    // Ignore small mouse movements
-    if (e?.type === 'mousemove' && this._lastMousePos) {
-      const dx = Math.abs(e.clientX - this._lastMousePos.x);
-      const dy = Math.abs(e.clientY - this._lastMousePos.y);
-      if (dx < 10 && dy < 10) return;
-    }
-    if (e?.type === 'mousemove') {
-      this._lastMousePos = { x: e.clientX, y: e.clientY };
-    }
-
-    if (this._active) {
-      this._deactivate();
-    }
-    this._resetIdleTimer();
-  }
-
-  _resetIdleTimer() {
-    clearTimeout(this._idleTimer);
-    this._idleTimer = null;
-
-    const config = state.get('config') || {};
-    // Default to enabled if config hasn't loaded yet (attractMode undefined)
-    // Only disable if explicitly set to false
-    if (config.attractMode?.enabled === false) return;
-
-    this._idleTimer = setTimeout(() => {
-      this._activate();
-    }, this._idleTimeout);
-  }
-
-  _clearTimers() {
-    clearTimeout(this._idleTimer);
-    this._idleTimer = null;
-    clearTimeout(this._videoRotationTimer);
-    this._videoRotationTimer = null;
-    if (this._animationFrame) {
-      cancelAnimationFrame(this._animationFrame);
-      this._animationFrame = null;
-    }
-    // Clear all pending timeouts (TV removal, glow flash, etc.)
-    this._pendingTimeouts.forEach(id => clearTimeout(id));
-    this._pendingTimeouts.clear();
-  }
-
-  async _activate() {
-    if (this._active) return;
-    if (!this.isConnected) return; // Guard: don't activate if disconnected
-
-    this._active = true;
-    this.classList.add('active');
-    this._lastMousePos = null;
-
-    // Reset container cache and update viewport dimensions
-    this._floatingTvsContainer = null;
-    this._viewportWidth = window.innerWidth;
-    this._viewportHeight = window.innerHeight;
-
-    // Cache theme colors once per activation (performance)
-    this._cacheThemeColors();
-
-    // Load games with videos
-    try {
-      await this._loadGames();
-    } catch (error) {
-      console.error('[Screensaver] Failed to load games:', error);
-      // Continue anyway - will show empty screensaver
-    }
-
-    // Check again - user may have deactivated during async load
-    if (!this._active || !this.isConnected) {
-      return;
-    }
-
-    // Start animation loop
-    this._lastSpawnTime = 0;
-    this._lastAnimateTime = 0; // Reset animation timestamp
-    this._floatingTvs = [];
-    this._animate();
-
-    state.emit('screensaverActive', true);
-  }
-
-  _deactivate() {
-    if (!this._active) return;
-
-    this._active = false;
-    this.classList.remove('active');
-
-    // Clear all timers including animation frame and pending timeouts
-    this._clearTimers();
-
-    // Stop all videos and clear TVs synchronously
-    this._floatingTvs.forEach(tv => {
-      const video = tv.element?.querySelector('video');
-      if (video) {
-        video.pause();
-        video.removeAttribute('src');
-        video.load(); // Reset video element
-      }
-    });
-    this._floatingTvs = [];
-
-    // Clear DOM container
-    if (this._floatingTvsContainer) {
-      this._floatingTvsContainer.innerHTML = '';
-    }
-
-    state.emit('screensaverActive', false);
-  }
-
-  async _loadGames() {
-    try {
-      // Fetch systems directly from API (not relying on state)
-      const systemsResponse = await api.getSystems();
-      const systems = systemsResponse.systems || [];
-
-      if (systems.length === 0) {
-        console.warn('[Screensaver] No systems found');
-        this._games = [];
-        return;
-      }
-
-      let allGames = [];
-
-      // Shuffle systems to get variety across entire library
-      const shuffledSystems = this._shuffle(systems);
-
-      // Get games from ALL systems (or up to 50 to avoid excessive API calls)
-      const systemsToQuery = shuffledSystems.slice(0, 50);
-
-      // Fetch games from systems in parallel for speed
-      const gamePromises = systemsToQuery.map(async (system) => {
-        try {
-          const response = await api.getGames(system.id, { limit: 100 });
-          if (response.games) {
-            return response.games.map(g => ({
-              ...g,
-              systemName: system.name
-            }));
-          }
-        } catch (e) {
-          // Continue with other systems
-        }
-        return [];
-      });
-
-      const results = await Promise.all(gamePromises);
-      allGames = results.flat();
-
-      // Filter to games with videos
-      const videoGames = allGames.filter(g => g.video);
-
-      // Use proper Fisher-Yates shuffle instead of biased sort
-      const shuffledVideoGames = this._shuffle(videoGames);
-
-      // Take more games to ensure variety (200 instead of 50)
-      this._games = shuffledVideoGames.slice(0, 200);
-
-      // If not enough video games, also include games with images
-      if (this._games.length < 50) {
-        const imageGames = allGames
-          .filter(g => !g.video && (g.thumbnail || g.image));
-        const shuffledImageGames = this._shuffle(imageGames).slice(0, 100);
-        this._games = [...this._games, ...shuffledImageGames];
-      }
-
-      // Clear history on fresh load since we have new shuffled pool
-      this._recentlyShownGames = [];
-
-      console.log(`[Screensaver] Loaded ${this._games.length} games from ${systemsToQuery.length} systems (${this._games.filter(g => g.video).length} with videos)`);
-    } catch (error) {
-      console.error('Failed to load games for screensaver:', error);
-      this._games = [];
-    }
-  }
-
-  _animate() {
-    // Early exit if not active or disconnected - prevents zombie animation frames
-    if (!this._active || !this.isConnected) {
-      this._animationFrame = null;
-      return;
-    }
-
-    const now = performance.now();
-
-    // Safety: detect if too much time passed (tab was hidden, etc.)
-    // Skip frame if more than 1 second elapsed to prevent huge position jumps
-    if (this._lastAnimateTime && (now - this._lastAnimateTime) > 1000) {
-      // Reset TV timestamps to prevent huge jumps
-      this._floatingTvs.forEach(tv => {
-        tv.lastUpdateTime = now;
-      });
-    }
-    this._lastAnimateTime = now;
-
-    // Cache container reference on first frame
-    if (!this._floatingTvsContainer) {
-      this._floatingTvsContainer = this.shadowRoot?.querySelector('.floating-tvs');
-      // If container still not found, bail out - component may be in bad state
-      if (!this._floatingTvsContainer) {
-        this._animationFrame = null;
-        return;
-      }
-    }
-
-    // Spawn new TVs periodically (up to max)
-    if (now - this._lastSpawnTime > this._spawnInterval &&
-        this._games.length > 0 &&
-        this._floatingTvs.length < this._maxTvs) {
-      this._spawnTv();
-      this._lastSpawnTime = now;
-    }
-
-    // Update TV positions
-    this._updateTvs(now);
-
-    // Use pre-bound function to avoid creating closure each frame
-    this._animationFrame = requestAnimationFrame(this._boundAnimate);
-  }
-
-  _spawnTv() {
-    // Guard against spawning when not active or container missing
-    if (!this._active || !this.isConnected) return;
-    const container = this._floatingTvsContainer;
-    if (!container || this._games.length === 0) return;
-
-    // Get IDs of games currently on screen
-    const currentlyDisplayed = new Set(this._floatingTvs.map(tv => tv.gameId));
-
-    // Get IDs of recently shown games from history
-    const recentlyShown = new Set(this._recentlyShownGames);
-
-    // Pick a game that's not currently on screen AND not recently shown
-    let availableGames = this._games.filter(g =>
-      !currentlyDisplayed.has(g.id) && !recentlyShown.has(g.id)
-    );
-
-    // If no games available (all recently shown), reset history and try again
-    if (availableGames.length === 0) {
-      this._recentlyShownGames = [];
-      availableGames = this._games.filter(g => !currentlyDisplayed.has(g.id));
-    }
-
-    // Still no games? Just pick any game
-    const game = availableGames.length > 0
-      ? availableGames[Math.floor(Math.random() * availableGames.length)]
-      : this._games[Math.floor(Math.random() * this._games.length)];
-
-    // Track this game in history
-    this._recentlyShownGames.push(game.id);
-    if (this._recentlyShownGames.length > this._maxRecentHistory) {
-      this._recentlyShownGames.shift(); // Remove oldest
-    }
-
-    const hasVideo = !!game.video;
-
-    // Random TV size - varied sizes for depth
-    const size = 120 + Math.random() * 100; // 120-220px width
-
-    // Use cached viewport dimensions (performance)
-    const vw = this._viewportWidth;
-    const vh = this._viewportHeight;
-
-    // Start at random position within screen bounds
-    const margin = size + 20;
-    const x = margin + Math.random() * (vw - margin * 2);
-    const y = margin + Math.random() * (vh - margin * 2 - 100); // Leave room for controls
-
-    // Random velocity - bouncing like DVD logo
-    const speed = 0.8 + Math.random() * 0.8; // 0.8 to 1.6 px/frame
-    const angle = Math.random() * Math.PI * 2;
-    const dx = Math.cos(angle) * speed;
-    const dy = Math.sin(angle) * speed;
-
-    const rotation = (Math.random() - 0.5) * 20; // Initial random tilt
-
-    // Continuous rotation: max 360° in 45 seconds = 8°/s, random direction
-    const rotationSpeed = (Math.random() - 0.5) * 16; // -8 to +8 degrees per second
-
-    // Use cached theme colors (performance - avoid getComputedStyle per spawn)
-    const glowColor = this._glowColors[Math.floor(Math.random() * this._glowColors.length)];
-
-    const tv = document.createElement('div');
-    tv.className = 'floating-tv';
-    tv.style.cssText = `
-      width: ${size}px;
-      left: ${x}px;
-      top: ${y}px;
-      transform: rotate(${rotation}deg);
-      z-index: ${Math.floor(50 + Math.random() * 50)};
-      opacity: 0;
-    `;
-
-    const videoUrl = hasVideo ? `/api/media/game/${game.id}/video` : '';
-
-    tv.innerHTML = `
-      <div class="tv-frame">
-        <div class="tv-glow" style="box-shadow: 0 0 30px ${glowColor}, 0 0 60px ${glowColor};"></div>
-        <div class="tv-screen-bezel">
-          <div class="tv-screen">
-            ${hasVideo ? `
-              <video muted loop playsinline autoplay>
-                <source src="${videoUrl}" type="video/mp4">
-              </video>
-            ` : `
-              <div class="tv-static"></div>
-            `}
-          </div>
-        </div>
-        <div class="tv-bottom">
-          <span class="tv-brand">RetroTV</span>
-          <div class="tv-controls">
-            <div class="tv-knob"></div>
-            <div class="tv-knob"></div>
-            <div class="tv-led"></div>
-          </div>
-        </div>
-      </div>
-      <div class="tv-label">${game.name}</div>
-    `;
-
-    container.appendChild(tv);
-
-    // Try to play video
-    if (hasVideo) {
-      const video = tv.querySelector('video');
-      if (video) {
-        video.play().catch(() => {
-          const screen = tv.querySelector('.tv-screen');
-          if (screen) {
-            video.remove();
-            const staticDiv = document.createElement('div');
-            staticDiv.className = 'tv-static';
-            screen.appendChild(staticDiv);
-          }
-        });
-      }
-    }
-
-    // Fade in
-    requestAnimationFrame(() => {
-      tv.style.opacity = '1';
-    });
-
-    // Store bouncing TV data
-    this._floatingTvs.push({
-      element: tv,
-      gameId: game.id,
-      x, y,
-      dx, dy,
-      width: size,
-      height: size * 1.2, // Approximate height based on aspect ratio
-      rotation,
-      rotationSpeed, // Continuous rotation in degrees per second
-      lastUpdateTime: performance.now(),
-      spawnTime: performance.now(),
-      lifespan: 30000 + Math.random() * 20000, // 30-50 seconds before replacement
-      glowColor
-    });
-  }
-
-  _updateTvs(now) {
-    // Use cached viewport dimensions (performance - avoid layout thrashing)
-    const vw = this._viewportWidth;
-    const vh = this._viewportHeight;
-    const toRemove = [];
-
-    this._floatingTvs.forEach((tv, index) => {
-      const age = now - tv.spawnTime;
-
-      // Remove old TVs to cycle in new ones
-      if (age > tv.lifespan) {
-        toRemove.push(index);
-        tv.element.style.opacity = '0';
-
-        // Clean up video immediately to free memory
-        const video = tv.element.querySelector('video');
-        if (video) {
-          video.pause();
-          video.removeAttribute('src');
-          video.load();
-        }
-
-        // Track timeout for DOM removal so it can be cancelled on deactivate
-        const timeoutId = setTimeout(() => {
-          this._pendingTimeouts.delete(timeoutId);
-          if (tv.element.parentNode) {
-            tv.element.remove();
-          }
-        }, 500);
-        this._pendingTimeouts.add(timeoutId);
-        return;
-      }
-
-      // Update position (bouncing)
-      tv.x += tv.dx;
-      tv.y += tv.dy;
-
-      // Bounce off edges - with slight randomization for organic feel
-      const leftBound = 20;
-      const rightBound = vw - tv.width - 20;
-      const topBound = 20;
-      const bottomBound = vh - tv.height - 100; // Leave room for exit hint
-
-      if (tv.x <= leftBound) {
-        tv.x = leftBound;
-        tv.dx = Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
-        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
-        this._flashGlow(tv);
-      } else if (tv.x >= rightBound) {
-        tv.x = rightBound;
-        tv.dx = -Math.abs(tv.dx) * (0.95 + Math.random() * 0.1);
-        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
-        this._flashGlow(tv);
-      }
-
-      if (tv.y <= topBound) {
-        tv.y = topBound;
-        tv.dy = Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
-        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
-        this._flashGlow(tv);
-      } else if (tv.y >= bottomBound) {
-        tv.y = bottomBound;
-        tv.dy = -Math.abs(tv.dy) * (0.95 + Math.random() * 0.1);
-        tv.rotationSpeed = (Math.random() - 0.5) * 16; // New random rotation on bounce
-        this._flashGlow(tv);
-      }
-
-      // Continuous slow rotation based on time delta
-      const deltaTime = (now - tv.lastUpdateTime) / 1000; // Convert to seconds
-      tv.rotation += tv.rotationSpeed * deltaTime;
-      tv.lastUpdateTime = now;
-
-      // Gentle floating wobble
-      const wobbleX = Math.sin(now / 1000 + index) * 2;
-      const wobbleY = Math.cos(now / 1200 + index) * 2;
-
-      // Fade effect near end of lifespan
-      let opacity = 1;
-      const fadeOutStart = tv.lifespan - 2000;
-      if (age < 500) {
-        opacity = age / 500;
-      } else if (age > fadeOutStart) {
-        opacity = (tv.lifespan - age) / 2000;
-      }
-
-      tv.element.style.left = `${tv.x + wobbleX}px`;
-      tv.element.style.top = `${tv.y + wobbleY}px`;
-      tv.element.style.transform = `rotate(${tv.rotation}deg)`;
-      tv.element.style.opacity = opacity;
-    });
-
-    // Remove expired TVs
-    toRemove.reverse().forEach(i => this._floatingTvs.splice(i, 1));
-  }
-
-  _flashGlow(tv) {
-    // Brief flash effect on bounce
-    const glow = tv.element?.querySelector('.tv-glow');
-    if (glow) {
-      const originalShadow = glow.style.boxShadow;
-      glow.style.boxShadow = `0 0 50px ${tv.glowColor}, 0 0 100px ${tv.glowColor}`;
-      const timeoutId = setTimeout(() => {
-        this._pendingTimeouts.delete(timeoutId);
-        if (glow.isConnected) {
-          glow.style.boxShadow = originalShadow;
-        }
-      }, 150);
-      this._pendingTimeouts.add(timeoutId);
-    }
-  }
-
   render() {
-    return html`
-      <div class="screensaver-container">
-        <div class="bg-stars"></div>
-        <div class="bg-nebula"></div>
-        <div class="floating-tvs"></div>
-        <div class="arcade-title">${this.arcadeName}</div>
-        <div class="arcade-subtitle">INSERT COIN TO PLAY</div>
-        <div class="vignette"></div>
-        <div class="scanlines"></div>
-        <div class="exit-hint">🎮 Press any key or move mouse to continue</div>
-      </div>
-    `;
+    const screensaver = SCREENSAVERS[this._currentScreensaver];
+    if (!screensaver) {
+      return html``;
+    }
+
+    // Dynamically render the selected screensaver component
+    const tag = screensaver.tag;
+    return html`${this._renderScreensaver(tag)}`;
+  }
+
+  _renderScreensaver(tag) {
+    // Use dynamic tag rendering
+    switch (tag) {
+      case 'rwl-screensaver-floating-tvs':
+        return html`<rwl-screensaver-floating-tvs></rwl-screensaver-floating-tvs>`;
+      // Add cases for future screensavers:
+      // case 'rwl-screensaver-slideshow':
+      //   return html`<rwl-screensaver-slideshow></rwl-screensaver-slideshow>`;
+      default:
+        return html`<rwl-screensaver-floating-tvs></rwl-screensaver-floating-tvs>`;
+    }
   }
 }
 
 customElements.define('rwl-screensaver', RwlScreensaver);
+
+// Export for use in settings
+export { RwlScreensaver, SCREENSAVERS };

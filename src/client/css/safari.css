@@ -349,11 +349,33 @@ html.pwa-standalone body {
 html.ios-device {
   /* Smoother touch scrolling */
   -webkit-overflow-scrolling: touch;
+  /* Lock the viewport to prevent resize on navigation */
+  height: 100%;
+  overflow: hidden;
 }
 
 html.ios-device body {
   /* Prevent elastic scrolling on body */
   overscroll-behavior: none;
+  /* Use fixed positioning to prevent viewport jumps */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Ensure rwl-app fills the fixed body on iOS */
+html.ios-device rwl-app {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100% !important;
+  max-height: 100%;
 }
 
 /* iOS status bar transparent overlay (black-translucent) */

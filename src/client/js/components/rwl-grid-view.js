@@ -182,7 +182,7 @@ class RwlGridView extends LitElement {
 
     .card-name {
       padding: 8px;
-      font-size: 12px;
+      font-size: var(--card-name-font-size, 12px);
       color: var(--color-text, #fff);
       background: var(--game-card-title-bg, rgba(0,0,0,0.7));
       white-space: nowrap;
@@ -643,6 +643,12 @@ class RwlGridView extends LitElement {
     const grid = this.shadowRoot.getElementById('games-grid');
     if (grid) {
       grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this._cardSize}px, 1fr))`;
+
+      // Font scales at 50% the rate of images (minimum at 1.0x multiplier)
+      // At 1.0x: 12px, at 2.0x: 18px
+      const fontMultiplier = 1 + 0.5 * Math.max(0, this._sizeMultiplier - 1);
+      const fontSize = Math.round(12 * fontMultiplier);
+      grid.style.setProperty('--card-name-font-size', `${fontSize}px`);
     }
   }
 

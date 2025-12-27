@@ -21,8 +21,13 @@ class RwlApp extends LitElement {
   static styles = css`
     :host {
       display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       width: 100%;
-      height: 100vh;
+      height: 100%;
       overflow: hidden;
     }
 
@@ -42,6 +47,7 @@ class RwlApp extends LitElement {
     .main-area {
       display: flex;
       flex: 1;
+      min-height: 0; /* Allow flex shrinking - prevents iOS viewport issues */
       overflow: hidden;
     }
 
@@ -53,6 +59,7 @@ class RwlApp extends LitElement {
     /* Content */
     .content-area {
       flex: 1;
+      min-height: 0; /* Allow flex shrinking */
       overflow: hidden;
       position: relative;
       display: flex;
@@ -62,6 +69,7 @@ class RwlApp extends LitElement {
     #main-content {
       width: 100%;
       flex: 1;
+      min-height: 0; /* Allow flex shrinking */
       position: relative;
       overflow: hidden;
     }

@@ -67,7 +67,7 @@ class RwlListView extends LitElement {
     .games-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: var(--font-size-sm, 0.75rem);
+      font-size: var(--table-font-size, 0.75rem);
     }
 
     .games-table thead {
@@ -789,6 +789,11 @@ class RwlListView extends LitElement {
     const container = this.shadowRoot.querySelector('.list-container');
     if (container) {
       container.style.setProperty('--icon-size', `${this._iconSize}px`);
+
+      // Font scales at 50% the rate of icons (minimum at 1.0x multiplier)
+      // Base: 0.75rem at 1.0x, grows to ~1.125rem at 2.0x
+      const fontMultiplier = 1 + 0.5 * Math.max(0, this._sizeMultiplier - 1);
+      container.style.setProperty('--table-font-size', `${0.75 * fontMultiplier}rem`);
     }
   }
 

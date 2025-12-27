@@ -124,19 +124,20 @@ class RwlSystemCarousel extends LitElement {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: var(--card-inner-padding, 20px);
       box-sizing: border-box;
-      border: 2px solid var(--system-card-border, rgba(255, 255, 255, 0.1));
-      transition: box-shadow 0.5s ease;
+      /* Inactive cards use --system-card-inactive-border (default: transparent) */
+      border: 2px solid var(--system-card-inactive-border, transparent);
+      transition: box-shadow 0.5s ease, border-color 0.3s ease;
     }
 
     .console-image {
-      flex: 1;
+      flex: 0 0 auto; /* Don't grow - use natural size only */
       display: flex;
       align-items: center;
       justify-content: center;
       max-height: var(--console-max-height, 180px);
-      margin-bottom: 15px;
+      margin-bottom: var(--console-margin-bottom, 15px);
     }
 
     .console-image img {
@@ -154,6 +155,7 @@ class RwlSystemCarousel extends LitElement {
     }
 
     .logo-image {
+      flex: 0 0 auto; /* Don't grow - use natural size only */
       height: var(--logo-height, 60px);
       display: flex;
       align-items: center;
@@ -372,6 +374,7 @@ class RwlSystemCarousel extends LitElement {
     this._sizeMultiplier = parseFloat(localStorage.getItem('rwl-system-carousel-size') || '1.0');
     this._maxMultiplier = 1.5; // Default, will be calculated dynamically
     this._resizeObserver = null;
+    this._resizeRaf = null;
   }
 
   connectedCallback() {
@@ -380,23 +383,44 @@ class RwlSystemCarousel extends LitElement {
     this._bindEvents();
 
     // Observe viewport changes for responsive sizing
+    // Use RAF to debounce and ensure layout is complete before recalculating
     this._resizeObserver = new ResizeObserver(() => {
-      this._maxMultiplier = this._calculateMaxMultiplier();
-      // Clamp current multiplier if it exceeds new max
-      if (this._sizeMultiplier > this._maxMultiplier) {
-        this._sizeMultiplier = this._maxMultiplier;
-        localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+      if (this._resizeRaf) {
+        cancelAnimationFrame(this._resizeRaf);
       }
-      this._updateCarousel();
+      this._resizeRaf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this._recalculateMaxMultiplier();
+          this._updateCarousel();
+        });
+      });
     });
     this._resizeObserver.observe(document.body);
   }
 
   firstUpdated() {
-    // Calculate max multiplier now that DOM is available
-    this._maxMultiplier = this._calculateMaxMultiplier();
-    if (this._sizeMultiplier > this._maxMultiplier) {
-      this._sizeMultiplier = this._maxMultiplier;
+    // Defer max multiplier calculation to ensure DOM has laid out
+    // Use double RAF to wait for both render and layout passes
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this._recalculateMaxMultiplier();
+      });
+    });
+  }
+
+  /**
+   * Recalculate max multiplier and update slider.
+   * Called after DOM layout is complete.
+   */
+  _recalculateMaxMultiplier() {
+    const newMax = this._calculateMaxMultiplier();
+    if (newMax > 0.5) {
+      this._maxMultiplier = newMax;
+      if (this._sizeMultiplier > this._maxMultiplier) {
+        this._sizeMultiplier = this._maxMultiplier;
+        localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+      }
+      this.requestUpdate();
     }
   }
 
@@ -409,14 +433,28 @@ class RwlSystemCarousel extends LitElement {
       this._resizeObserver.disconnect();
       this._resizeObserver = null;
     }
+    if (this._resizeRaf) {
+      cancelAnimationFrame(this._resizeRaf);
+      this._resizeRaf = null;
+    }
   }
 
   /**
-   * Return static max multiplier for system carousel.
-   * User only wanted dynamic max for spin wheel and wheel of fortune.
+   * Calculate max multiplier so image height is max 75% of carousel height.
+   * Image height = 160 * _sizeMultiplier (base image max-height at multiplier 1.0)
+   * Recalculated on resize to ensure max is always appropriate.
    */
   _calculateMaxMultiplier() {
-    return 1.5; // Static max, 50% larger than default
+    const carousel = this.shadowRoot?.querySelector('.carousel');
+    if (!carousel) return 1.5; // Fallback
+
+    const containerHeight = carousel.offsetHeight;
+    const baseImageHeight = 160; // Base image max-height at multiplier 1.0
+    const targetMaxHeight = containerHeight * 0.75; // 75% of content area
+    const maxMultiplier = targetMaxHeight / baseImageHeight;
+
+    // Clamp between 0.5 and 3.0
+    return Math.max(0.5, Math.min(3.0, maxMultiplier));
   }
 
   get selectedSystem() {
@@ -545,30 +583,46 @@ class RwlSystemCarousel extends LitElement {
 
     if (!track || cards.length === 0) return;
 
-    // Base card size 280x320, max 50% larger (420x480) at multiplier 1.5
-    const baseWidth = 280;
-    const baseHeight = 320;
-    const cardWidth = Math.round(baseWidth * this._sizeMultiplier);
-    const cardHeight = Math.round(baseHeight * this._sizeMultiplier);
-    const gap = Math.round(30 * this._sizeMultiplier);
+    // Image sizes scale linearly with multiplier (user confirmed these are correct)
+    const consoleImgMaxHeight = Math.round(160 * this._sizeMultiplier);
+    const logoImgMaxHeight = Math.round(50 * this._sizeMultiplier);
 
-    // Set CSS custom properties for card dimensions
+    // Margin between images: scales from 10px (min zoom) to 50px (max zoom)
+    // Use linear interpolation based on multiplier range (0.5 to max)
+    const minMultiplier = 0.5;
+    const maxMultiplier = this._maxMultiplier || 2.0;
+    const marginProgress = (this._sizeMultiplier - minMultiplier) / (maxMultiplier - minMultiplier);
+    const consoleMargin = Math.round(10 + (40 * marginProgress)); // 10px to 50px
+
+    // Card padding: minimal, grows slowly (15px to 25px)
+    const cardPadding = Math.round(15 + (10 * marginProgress));
+
+    // Calculate card dimensions based on actual content size (tight fit)
+    const contentHeight = consoleImgMaxHeight + logoImgMaxHeight + consoleMargin;
+    const cardHeight = contentHeight + (cardPadding * 2);
+    // Width based on aspect ratio of console image (~1.3:1) plus padding
+    const consoleImgWidth = Math.round(consoleImgMaxHeight * 1.3);
+    const cardWidth = consoleImgWidth + (cardPadding * 2);
+
+    // Gap between cards scales moderately
+    const gap = Math.round(20 + (20 * marginProgress)); // 20px to 40px
+
+    // Set CSS custom properties
     this.style.setProperty('--card-width', `${cardWidth}px`);
     this.style.setProperty('--card-height', `${cardHeight}px`);
     track.style.gap = `${gap}px`;
 
-    // Scale image containers and images proportionally with card size
-    // Base values at multiplier 1.0: console 180/160px, logo 60/50px
-    const consoleMaxHeight = Math.round(180 * this._sizeMultiplier);
-    const consoleImgMaxHeight = Math.round(160 * this._sizeMultiplier);
-    const logoHeight = Math.round(60 * this._sizeMultiplier);
-    const logoImgMaxHeight = Math.round(50 * this._sizeMultiplier);
+    // Image container heights (slightly larger than images for flex centering)
+    const consoleMaxHeight = consoleImgMaxHeight + 10;
+    const logoHeight = logoImgMaxHeight + 10;
 
     this.style.setProperty('--console-max-height', `${consoleMaxHeight}px`);
     this.style.setProperty('--console-img-max-height', `${consoleImgMaxHeight}px`);
     this.style.setProperty('--logo-height', `${logoHeight}px`);
     this.style.setProperty('--logo-img-max-height', `${logoImgMaxHeight}px`);
-    this.style.setProperty('--fallback-icon-size', `${Math.round(5 * this._sizeMultiplier)}rem`);
+    this.style.setProperty('--fallback-icon-size', `${Math.round(3 + (2 * marginProgress))}rem`);
+    this.style.setProperty('--card-inner-padding', `${cardPadding}px`);
+    this.style.setProperty('--console-margin-bottom', `${consoleMargin}px`);
 
     // Update active state
     cards.forEach((card, i) => {
@@ -692,7 +746,7 @@ class RwlSystemCarousel extends LitElement {
             </div>
             <div class="size-control">
               <label>🔍</label>
-              <input type="range" min="0.5" max="${this._maxMultiplier}" step="0.1"
+              <input type="range" min="0.5" max="${this._maxMultiplier.toFixed(2)}" step="0.1"
                      .value=${this._sizeMultiplier}
                      @input=${this._onSliderChange}
                      title="Size: ${this._sizeMultiplier}x">

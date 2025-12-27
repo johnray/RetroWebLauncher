@@ -58,6 +58,7 @@ class RwlSpinWheel extends RwlCarouselBase {
 
     /* Right: Wheel */
     .wheel-area {
+      position: relative;
       flex: 0 0 auto;
       height: 100%;
       display: flex;
@@ -71,7 +72,7 @@ class RwlSpinWheel extends RwlCarouselBase {
 
     .spin-wheel {
       position: relative;
-      width: 400px;
+      /* width set dynamically in JS based on item size */
       height: 100%;
       display: flex;
       align-items: center;
@@ -148,7 +149,7 @@ class RwlSpinWheel extends RwlCarouselBase {
 
     .item-title {
       flex: 1;
-      font-size: 0.85rem;
+      font-size: var(--spin-title-font-size, 0.85rem);
       color: var(--color-text, #fff);
       white-space: nowrap;
       overflow: hidden;
@@ -163,13 +164,15 @@ class RwlSpinWheel extends RwlCarouselBase {
 
     .wheel-pointer {
       position: absolute;
-      left: -15px;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
       width: 0;
       height: 0;
       border-top: 12px solid transparent;
       border-bottom: 12px solid transparent;
-      border-left: 18px solid #ff0066;
-      filter: drop-shadow(0 0 10px rgba(255, 0, 102, 0.8));
+      border-left: 18px solid var(--selection-border-color, #ff0066);
+      filter: drop-shadow(0 0 10px var(--selection-glow-rgba, rgba(255, 0, 102, 0.8)));
       z-index: 200;
     }
 
@@ -249,19 +252,23 @@ class RwlSpinWheel extends RwlCarouselBase {
   }
 
   /**
-   * Calculate max multiplier so image height is 40% of wheel area height.
-   * Image height = 156 * _sizeMultiplier
+   * Calculate max multiplier so card height is max 75% of wheel area height.
+   * Card height = imgHeight + 20 = 156 * multiplier + 20
+   * Recalculated on resize to ensure max is always appropriate.
    */
   _calculateMaxMultiplier() {
     const wheelArea = this.shadowRoot?.querySelector('.wheel-area');
-    if (!wheelArea) return 2.25; // Fallback to previous static max
+    if (!wheelArea) return 2.0; // Fallback
 
     const containerHeight = wheelArea.offsetHeight;
     const baseImgHeight = 156; // Base image height at multiplier 1.0
-    const targetMaxHeight = containerHeight * 0.4;
-    const maxMultiplier = targetMaxHeight / baseImgHeight;
+    const cardPadding = 20; // Vertical padding on card
+    const targetMaxCardHeight = containerHeight * 0.75;
+    // cardHeight = baseImgHeight * multiplier + cardPadding
+    // multiplier = (targetMaxCardHeight - cardPadding) / baseImgHeight
+    const maxMultiplier = (targetMaxCardHeight - cardPadding) / baseImgHeight;
 
-    // Clamp between 0.5 and a reasonable upper limit
+    // Clamp between 0.5 and 3.0
     return Math.max(0.5, Math.min(3.0, maxMultiplier));
   }
 
@@ -302,17 +309,25 @@ class RwlSpinWheel extends RwlCarouselBase {
     const baseImgHeight = 156;
     const imgWidth = baseImgWidth * this._sizeMultiplier;
     const imgHeight = baseImgHeight * this._sizeMultiplier;
-    const itemWidth = 200 + (100 * this._sizeMultiplier);
+    // Horizontal growth: slower than vertical but still noticeable
+    // At 1.0x: 280px, at 2.0x: 440px (60% growth vs 100% vertical)
+    const itemWidth = 200 + (80 * this._sizeMultiplier) + (60 * (this._sizeMultiplier - 1));
+
+    // Title font size scales with multiplier: 0.85rem at 1.0x to ~1.2rem at 2.0x
+    const titleFontSize = 0.85 + (0.35 * (this._sizeMultiplier - 1));
+    this.style.setProperty('--spin-title-font-size', `${titleFontSize}rem`);
 
     // Card height = image height + vertical padding (card is flex row, not column)
     const cardHeight = imgHeight + 20;
 
-    // Wheel radius - larger at bigger zoom for proper tire effect
-    const radius = 300 + (250 * this._sizeMultiplier); // 425-862px
+    // Wheel radius - INVERSE scaling: larger radius at low zoom for more visible items
+    // 40% larger than previous values for better visibility at max zoom
+    // At 0.5x: ~875px, at 1.0x: 840px, at 2.0x: 770px
+    const radius = 840 - (70 * (this._sizeMultiplier - 1));
 
-    // Calculate angle step so cards just touch at center (zero gap)
+    // Calculate angle step so adjacent cards just touch the selected card's bounding box
+    // Distance between centers = cardHeight ensures no overlap on selected card
     // sin(angleStep) * radius = cardHeight
-    // Tire effect naturally compresses items at top/bottom
     const angleStep = Math.asin(Math.min(0.9, cardHeight / radius)) * 180 / Math.PI;
 
     // Calculate how many items fit in visible arc (~80 degrees each side)
@@ -322,20 +337,27 @@ class RwlSpinWheel extends RwlCarouselBase {
     this.style.setProperty('--spin-img-width', `${imgWidth}px`);
     this.style.setProperty('--spin-img-height', `${imgHeight}px`);
 
-    // Set wheel area width - make it wide enough that wheel extends off right edge
-    // The wheel center should be positioned so ~40% is visible, 60% extends off screen
-    const visiblePortion = 0.4;
-    const totalWheelWidth = radius * 2;
-    const visibleWidth = totalWheelWidth * visiblePortion + itemWidth;
-
+    // Set wheel area width based on item width
+    // Keep it reasonably sized - grows with item width but has a minimum
+    const wheelAreaWidth = Math.max(350, itemWidth + 80);
     if (wheelArea) {
-      wheelArea.style.width = `${visibleWidth}px`;
+      wheelArea.style.width = `${wheelAreaWidth}px`;
     }
     if (spinWheel) {
-      // Position spin-wheel so its center is off the right edge
-      const spinWheelWidth = totalWheelWidth;
-      spinWheel.style.width = `${spinWheelWidth}px`;
-      spinWheel.style.marginRight = `-${totalWheelWidth * (1 - visiblePortion)}px`;
+      // Spin wheel width matches wheel area for proper centering
+      spinWheel.style.width = `${wheelAreaWidth}px`;
+      spinWheel.style.marginRight = '';
+    }
+
+    // Position the arrow pointer to the LEFT of the center item's border
+    // The arrow is a triangle pointing right (border-left: 18px creates the point at right edge)
+    // Center item left edge = wheelAreaWidth/2 - itemWidth/2
+    // Arrow tip should be ~35px left of card border for proper visual spacing
+    const pointer = this.shadowRoot?.querySelector('.wheel-pointer');
+    if (pointer) {
+      const cardLeftEdge = (wheelAreaWidth / 2) - (itemWidth / 2);
+      const arrowLeft = cardLeftEdge - 35 - 18; // 35px gap + 18px arrow width
+      pointer.style.left = `${Math.max(0, arrowLeft)}px`;
     }
 
     items.forEach((item, i) => {
@@ -442,6 +464,7 @@ class RwlSpinWheel extends RwlCarouselBase {
     }
 
     return html`
+      <div class="wheel-pointer"></div>
       <div class="spin-wheel" @wheel=${this._handleWheel} @click=${this._handleWheelClick}>
         <div class="wheel-track">
           ${this._games.map((game, index) => {
@@ -462,7 +485,6 @@ class RwlSpinWheel extends RwlCarouselBase {
             `;
           })}
         </div>
-        <div class="wheel-pointer"></div>
         <div class="wheel-glow"></div>
       </div>
       ${this._renderAlphabetBar()}
@@ -510,7 +532,7 @@ class RwlSpinWheel extends RwlCarouselBase {
               type="range"
               id="size-slider"
               min="0.5"
-              max="${this._maxMultiplier}"
+              max="${this._maxMultiplier.toFixed(2)}"
               step="0.05"
               .value=${this._sizeMultiplier}
               @input=${this._onSliderChange}

@@ -250,11 +250,15 @@ class RwlSpinnerView extends RwlCarouselBase {
   }
 
   /**
-   * Calculate max multiplier so card height is 40% of wheel container height.
+   * Calculate max multiplier so DISPLAYED card height is max 75% of wheel container height.
+   * The active card gets a 1.25x scale transform, so we must account for that.
    * Card height = 140 * scaleFactor where scaleFactor = _size / 100
-   * At multiplier M: cardHeight = 140 * (_baseSize * M) / 100
-   * Want: 140 * (_baseSize * maxM) / 100 = 0.4 * containerHeight
-   * So: maxM = (0.4 * containerHeight * 100) / (140 * _baseSize)
+   * Displayed height = cardHeight * 1.25 (due to scale transform)
+   * At multiplier M: displayedHeight = 140 * (_baseSize * M) / 100 * 1.25
+   * Want: displayedHeight = 0.75 * containerHeight
+   * So: 140 * _baseSize * M * 1.25 / 100 = 0.75 * containerHeight
+   * M = (0.75 * containerHeight * 100) / (140 * _baseSize * 1.25)
+   * M = (0.60 * containerHeight * 100) / (140 * _baseSize)
    */
   _calculateMaxMultiplier() {
     const wheelContainer = this.shadowRoot?.querySelector('.wheel-container');
@@ -262,11 +266,13 @@ class RwlSpinnerView extends RwlCarouselBase {
 
     const containerHeight = wheelContainer.offsetHeight;
     const baseCardFactor = 140;
-    const targetMaxHeight = containerHeight * 0.4;
+    const activeScale = 1.25; // Active card scale transform
+    // Target 75% of container for DISPLAYED height (after scale transform)
+    const targetMaxHeight = containerHeight * 0.75 / activeScale;
     const maxMultiplier = (targetMaxHeight * 100) / (baseCardFactor * this._baseSize);
 
-    // Clamp between 0.5 and 2.5 (reasonable limits)
-    return Math.max(0.5, Math.min(2.5, maxMultiplier));
+    // Clamp between 0.5 and 3.0
+    return Math.max(0.5, Math.min(3.0, maxMultiplier));
   }
 
   _getNavKeys() {
@@ -488,7 +494,7 @@ class RwlSpinnerView extends RwlCarouselBase {
           </div>
           <div class="size-control">
             <label>🔍</label>
-            <input type="range" id="size-slider" min="0.5" max="${this._maxMultiplier}" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
+            <input type="range" id="size-slider" min="0.5" max="${this._maxMultiplier.toFixed(2)}" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
           </div>
           <span class="game-count">${this._games.length} games</span>
         </div>

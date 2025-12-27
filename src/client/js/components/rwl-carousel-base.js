@@ -424,6 +424,7 @@ export class RwlCarouselBase extends LitElement {
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
     this._momentumRaf = null; // Track momentum scrolling RAF for cleanup
     this._resizeObserver = null; // For responsive sizing
+    this._resizeRaf = null; // Track resize recalculation RAF for cleanup
 
     // Smooth scrolling state
     this._visualOffset = 0; // Float representing visual scroll position
@@ -541,15 +542,21 @@ export class RwlCarouselBase extends LitElement {
     this._size = this._effectiveSize;
 
     // Observe viewport changes for responsive sizing
+    // Use RAF to debounce and ensure layout is complete before recalculating
     this._resizeObserver = new ResizeObserver(() => {
-      this._baseSize = this._calculateBaseSize();
-      this._maxMultiplier = this._calculateMaxMultiplier();
-      // Clamp current multiplier if it exceeds new max
-      if (this._sizeMultiplier > this._maxMultiplier) {
-        this._sizeMultiplier = this._maxMultiplier;
+      // Cancel any pending resize recalculation
+      if (this._resizeRaf) {
+        cancelAnimationFrame(this._resizeRaf);
       }
-      this._size = this._effectiveSize;
-      this._updateDisplay();
+      this._resizeRaf = requestAnimationFrame(() => {
+        this._baseSize = this._calculateBaseSize();
+        this._size = this._effectiveSize;
+        // Recalculate max after a second RAF to ensure layout is complete
+        requestAnimationFrame(() => {
+          this._recalculateMaxMultiplier();
+          this._updateDisplay();
+        });
+      });
     });
     this._resizeObserver.observe(document.body);
 
@@ -563,12 +570,32 @@ export class RwlCarouselBase extends LitElement {
   }
 
   firstUpdated() {
-    // Calculate max multiplier now that DOM is available
-    this._maxMultiplier = this._calculateMaxMultiplier();
-    // Clamp current multiplier if needed
-    if (this._sizeMultiplier > this._maxMultiplier) {
-      this._sizeMultiplier = this._maxMultiplier;
-      this._size = this._effectiveSize;
+    // Defer max multiplier calculation to ensure DOM has laid out
+    // Use double RAF to wait for both render and layout passes
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this._recalculateMaxMultiplier();
+      });
+    });
+  }
+
+  /**
+   * Recalculate max multiplier and update slider.
+   * Called after DOM layout is complete.
+   */
+  _recalculateMaxMultiplier() {
+    const newMax = this._calculateMaxMultiplier();
+    // Only update if we got a valid result (container has dimensions)
+    if (newMax > 0.5) {
+      this._maxMultiplier = newMax;
+      // Clamp current multiplier if needed
+      if (this._sizeMultiplier > this._maxMultiplier) {
+        this._sizeMultiplier = this._maxMultiplier;
+        this._size = this._effectiveSize;
+        this._updateDisplay();
+      }
+      // Force update to ensure slider max attribute is correct
+      this.requestUpdate();
     }
   }
 
@@ -597,6 +624,10 @@ export class RwlCarouselBase extends LitElement {
     if (this._scrollRaf) {
       cancelAnimationFrame(this._scrollRaf);
       this._scrollRaf = null;
+    }
+    if (this._resizeRaf) {
+      cancelAnimationFrame(this._resizeRaf);
+      this._resizeRaf = null;
     }
 
     this._unsubscribers.forEach(unsub => unsub());

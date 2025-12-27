@@ -253,7 +253,7 @@ class RwlSearch extends LitElement {
     }
 
     .result-name {
-      font-size: var(--font-size-base, 1rem);
+      font-size: var(--result-name-font-size, 1rem);
       color: var(--color-text, #fff);
       white-space: nowrap;
       overflow: hidden;
@@ -261,7 +261,7 @@ class RwlSearch extends LitElement {
     }
 
     .result-system {
-      font-size: var(--font-size-xs, 0.625rem);
+      font-size: var(--result-system-font-size, 0.625rem);
       color: var(--color-text-muted, #888);
       margin-top: 2px;
     }
@@ -497,6 +497,12 @@ class RwlSearch extends LitElement {
     const container = this.shadowRoot?.querySelector('.search-container');
     if (container) {
       container.style.setProperty('--result-icon-size', `${this._iconSize}px`);
+
+      // Font scales at 50% the rate of icons (minimum at 1.0x multiplier)
+      const fontMultiplier = 1 + 0.5 * Math.max(0, this._sizeMultiplier - 1);
+      // Result name: 1rem base, Result system: 0.625rem base
+      container.style.setProperty('--result-name-font-size', `${1 * fontMultiplier}rem`);
+      container.style.setProperty('--result-system-font-size', `${0.625 * fontMultiplier}rem`);
     }
   }
 

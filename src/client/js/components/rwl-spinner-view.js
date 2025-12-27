@@ -247,6 +247,25 @@ class RwlSpinnerView extends RwlCarouselBase {
     return 250; // Maximum size
   }
 
+  /**
+   * Calculate max multiplier so card height is 40% of spinner wheel height.
+   * Card height = 140 * (_size / 100) = 140 * (_baseSize * _sizeMultiplier) / 100
+   */
+  _calculateMaxMultiplier() {
+    const spinnerWheel = this.shadowRoot?.querySelector('.spinner-wheel');
+    if (!spinnerWheel || !this._baseSize) return 2.0; // Fallback
+
+    const containerHeight = spinnerWheel.offsetHeight;
+    const baseCardHeight = 140; // Base card height factor
+    const targetMaxHeight = containerHeight * 0.4;
+    // cardHeight = 140 * _baseSize * multiplier / 100
+    // multiplier = targetMaxHeight * 100 / (140 * _baseSize)
+    const maxMultiplier = (targetMaxHeight * 100) / (baseCardHeight * this._baseSize);
+
+    // Clamp between 0.5 and a reasonable upper limit
+    return Math.max(0.5, Math.min(3.0, maxMultiplier));
+  }
+
   _getNavKeys() {
     return { prev: 'ArrowUp', next: 'ArrowDown' };
   }
@@ -327,8 +346,8 @@ class RwlSpinnerView extends RwlCarouselBase {
     const scaleFactor = this._size / 100;
     // Use responsive radius, further scaled by size multiplier
     const radius = this._baseRadius * (0.8 + scaleFactor * 0.4);
-    const cardWidth = 90 * scaleFactor;
-    const cardHeight = 125 * scaleFactor;
+    const cardWidth = 100 * scaleFactor;  // 350px max height at max zoom
+    const cardHeight = 140 * scaleFactor;
     const halfVisible = Math.floor(this._visibleItems / 2);
 
     // Push wheel off-screen proportionally - show ~2/5 of the wheel
@@ -466,7 +485,7 @@ class RwlSpinnerView extends RwlCarouselBase {
           </div>
           <div class="size-control">
             <label>🔍</label>
-            <input type="range" id="size-slider" min="0.5" max="2" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
+            <input type="range" id="size-slider" min="0.5" max="${this._maxMultiplier}" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
           </div>
           <span class="game-count">${this._games.length} games</span>
         </div>

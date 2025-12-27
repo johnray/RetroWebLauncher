@@ -248,6 +248,23 @@ class RwlSpinWheel extends RwlCarouselBase {
     return 550; // Maximum size
   }
 
+  /**
+   * Calculate max multiplier so image height is 40% of wheel area height.
+   * Image height = 156 * _sizeMultiplier
+   */
+  _calculateMaxMultiplier() {
+    const wheelArea = this.shadowRoot?.querySelector('.wheel-area');
+    if (!wheelArea) return 2.25; // Fallback to previous static max
+
+    const containerHeight = wheelArea.offsetHeight;
+    const baseImgHeight = 156; // Base image height at multiplier 1.0
+    const targetMaxHeight = containerHeight * 0.4;
+    const maxMultiplier = targetMaxHeight / baseImgHeight;
+
+    // Clamp between 0.5 and a reasonable upper limit
+    return Math.max(0.5, Math.min(3.0, maxMultiplier));
+  }
+
   _getNavKeys() {
     return { prev: 'ArrowUp', next: 'ArrowDown' };
   }
@@ -280,9 +297,9 @@ class RwlSpinWheel extends RwlCarouselBase {
     // Get view height to determine how many items we need
     const viewHeight = wheelArea?.clientHeight || window.innerHeight;
 
-    // Card dimensions - scale with multiplier
-    const baseImgWidth = 100;
-    const baseImgHeight = 140;
+    // Card dimensions - scale with multiplier (350px max height at 2.25x zoom)
+    const baseImgWidth = 111;
+    const baseImgHeight = 156;
     const imgWidth = baseImgWidth * this._sizeMultiplier;
     const imgHeight = baseImgHeight * this._sizeMultiplier;
     const itemWidth = 200 + (100 * this._sizeMultiplier);
@@ -485,7 +502,7 @@ class RwlSpinWheel extends RwlCarouselBase {
               type="range"
               id="size-slider"
               min="0.5"
-              max="2.25"
+              max="${this._maxMultiplier}"
               step="0.05"
               .value=${this._sizeMultiplier}
               @input=${this._onSliderChange}

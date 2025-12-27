@@ -13,7 +13,9 @@ class RwlSystemCarousel extends LitElement {
   static properties = {
     _systems: { state: true },
     _currentIndex: { state: true },
-    _loading: { state: true }
+    _loading: { state: true },
+    _sizeMultiplier: { type: Number, state: true },
+    _maxMultiplier: { type: Number, state: true }
   };
 
   static styles = css`
@@ -61,8 +63,8 @@ class RwlSystemCarousel extends LitElement {
 
     .system-card {
       flex-shrink: 0;
-      width: 280px;
-      height: 320px;
+      width: var(--card-width, 280px);
+      height: var(--card-height, 320px);
       border-radius: 16px;
       overflow: hidden;
       cursor: pointer;
@@ -133,26 +135,26 @@ class RwlSystemCarousel extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      max-height: 180px;
+      max-height: var(--console-max-height, 180px);
       margin-bottom: 15px;
     }
 
     .console-image img {
       max-width: 100%;
-      max-height: 160px;
+      max-height: var(--console-img-max-height, 160px);
       object-fit: contain;
       filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
     }
 
     .fallback-icon {
-      font-size: 5rem;
+      font-size: var(--fallback-icon-size, 5rem);
       opacity: 0.3;
       align-items: center;
       justify-content: center;
     }
 
     .logo-image {
-      height: 60px;
+      height: var(--logo-height, 60px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -161,7 +163,7 @@ class RwlSystemCarousel extends LitElement {
 
     .logo-image img {
       max-width: 100%;
-      max-height: 50px;
+      max-height: var(--logo-img-max-height, 50px);
       object-fit: contain;
       filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
     }
@@ -233,6 +235,28 @@ class RwlSystemCarousel extends LitElement {
       display: flex;
       align-items: center;
       gap: 20px;
+    }
+
+    .size-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 20px;
+      padding-left: 20px;
+      border-left: 1px solid var(--controls-bar-border, rgba(255, 255, 255, 0.15));
+    }
+
+    .size-control label {
+      font-size: 1rem;
+      opacity: 0.7;
+    }
+
+    .size-control input[type="range"] {
+      width: calc(33vw - 200px);
+      min-width: 150px;
+      max-width: 300px;
+      cursor: pointer;
+      accent-color: var(--color-primary, #ff0066);
     }
 
     .nav-btn {
@@ -345,12 +369,35 @@ class RwlSystemCarousel extends LitElement {
     this._currentIndex = 0;
     this._loading = true;
     this._unsubscribers = [];
+    this._sizeMultiplier = parseFloat(localStorage.getItem('rwl-system-carousel-size') || '1.0');
+    this._maxMultiplier = 1.5; // Default, will be calculated dynamically
+    this._resizeObserver = null;
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._loadSystems();
     this._bindEvents();
+
+    // Observe viewport changes for responsive sizing
+    this._resizeObserver = new ResizeObserver(() => {
+      this._maxMultiplier = this._calculateMaxMultiplier();
+      // Clamp current multiplier if it exceeds new max
+      if (this._sizeMultiplier > this._maxMultiplier) {
+        this._sizeMultiplier = this._maxMultiplier;
+        localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+      }
+      this._updateCarousel();
+    });
+    this._resizeObserver.observe(document.body);
+  }
+
+  firstUpdated() {
+    // Calculate max multiplier now that DOM is available
+    this._maxMultiplier = this._calculateMaxMultiplier();
+    if (this._sizeMultiplier > this._maxMultiplier) {
+      this._sizeMultiplier = this._maxMultiplier;
+    }
   }
 
   disconnectedCallback() {
@@ -358,6 +405,27 @@ class RwlSystemCarousel extends LitElement {
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
     document.removeEventListener('keydown', this._keyHandler);
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+  }
+
+  /**
+   * Calculate max multiplier so card height is 40% of carousel height.
+   * Card height = 320 * _sizeMultiplier (base height 320px)
+   */
+  _calculateMaxMultiplier() {
+    const carousel = this.shadowRoot?.querySelector('.carousel');
+    if (!carousel) return 1.5; // Fallback
+
+    const containerHeight = carousel.offsetHeight;
+    const baseCardHeight = 320; // Base card height at multiplier 1.0
+    const targetMaxHeight = containerHeight * 0.4;
+    const maxMultiplier = targetMaxHeight / baseCardHeight;
+
+    // Clamp between 0.5 and a reasonable upper limit
+    return Math.max(0.5, Math.min(2.0, maxMultiplier));
   }
 
   get selectedSystem() {
@@ -461,6 +529,12 @@ class RwlSystemCarousel extends LitElement {
     this._navigate(e.deltaY > 0 ? 1 : -1);
   }
 
+  _onSliderChange(e) {
+    this._sizeMultiplier = parseFloat(e.target.value);
+    localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+    this._updateCarousel();
+  }
+
   _handleImageError(e, showFallback) {
     e.target.style.display = 'none';
     if (showFallback) {
@@ -469,7 +543,7 @@ class RwlSystemCarousel extends LitElement {
   }
 
   updated(changedProperties) {
-    if (changedProperties.has('_currentIndex') || changedProperties.has('_systems')) {
+    if (changedProperties.has('_currentIndex') || changedProperties.has('_systems') || changedProperties.has('_sizeMultiplier')) {
       this._updateCarousel();
     }
   }
@@ -479,6 +553,31 @@ class RwlSystemCarousel extends LitElement {
     const cards = this.shadowRoot.querySelectorAll('.system-card');
 
     if (!track || cards.length === 0) return;
+
+    // Base card size 280x320, max 50% larger (420x480) at multiplier 1.5
+    const baseWidth = 280;
+    const baseHeight = 320;
+    const cardWidth = Math.round(baseWidth * this._sizeMultiplier);
+    const cardHeight = Math.round(baseHeight * this._sizeMultiplier);
+    const gap = Math.round(30 * this._sizeMultiplier);
+
+    // Set CSS custom properties for card dimensions
+    this.style.setProperty('--card-width', `${cardWidth}px`);
+    this.style.setProperty('--card-height', `${cardHeight}px`);
+    track.style.gap = `${gap}px`;
+
+    // Scale image containers and images proportionally with card size
+    // Base values at multiplier 1.0: console 180/160px, logo 60/50px
+    const consoleMaxHeight = Math.round(180 * this._sizeMultiplier);
+    const consoleImgMaxHeight = Math.round(160 * this._sizeMultiplier);
+    const logoHeight = Math.round(60 * this._sizeMultiplier);
+    const logoImgMaxHeight = Math.round(50 * this._sizeMultiplier);
+
+    this.style.setProperty('--console-max-height', `${consoleMaxHeight}px`);
+    this.style.setProperty('--console-img-max-height', `${consoleImgMaxHeight}px`);
+    this.style.setProperty('--logo-height', `${logoHeight}px`);
+    this.style.setProperty('--logo-img-max-height', `${logoImgMaxHeight}px`);
+    this.style.setProperty('--fallback-icon-size', `${Math.round(5 * this._sizeMultiplier)}rem`);
 
     // Update active state
     cards.forEach((card, i) => {
@@ -490,8 +589,6 @@ class RwlSystemCarousel extends LitElement {
     });
 
     // Calculate translation - center the current card
-    const cardWidth = 280;
-    const gap = 30;
     const containerWidth = this.shadowRoot.querySelector('.carousel')?.offsetWidth || 900;
     const centerOffset = (containerWidth / 2) - (cardWidth / 2);
     const translateX = centerOffset - (this._currentIndex * (cardWidth + gap));
@@ -601,6 +698,13 @@ class RwlSystemCarousel extends LitElement {
               <button class="nav-btn prev" aria-label="Previous system" @click=${() => this._navigate(-1)}>◀</button>
               <span class="counter">${this._currentIndex + 1} / ${this._systems.length}</span>
               <button class="nav-btn next" aria-label="Next system" @click=${() => this._navigate(1)}>▶</button>
+            </div>
+            <div class="size-control">
+              <label>🔍</label>
+              <input type="range" min="0.5" max="${this._maxMultiplier}" step="0.1"
+                     .value=${this._sizeMultiplier}
+                     @input=${this._onSliderChange}
+                     title="Size: ${this._sizeMultiplier}x">
             </div>
           </div>
         </div>

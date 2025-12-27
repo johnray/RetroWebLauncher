@@ -173,9 +173,9 @@
   --selection-hover-bg: rgba(217, 119, 6, 0.1);
 
   /* Alphabet/controls bar */
-  --controls-bar-background: rgba(255, 252, 247, 0.98);
-  --controls-bar-border: rgba(120, 113, 108, 0.1);
-  --alphabet-bar-background: rgba(255, 252, 247, 0.98);
+  --controls-bar-background: rgba(255, 252, 247, 0.75);
+  --controls-bar-border: rgba(120, 113, 108, 0.15);
+  --alphabet-bar-background: rgba(255, 252, 247, 0.75);
 
   /* Selection styling */
   --selection-border-width: 3px;
@@ -204,7 +204,7 @@
   --system-meta-color: #78716c;
 
   /* Controls bar for carousel views */
-  --controls-bar-bg: rgba(255, 252, 247, 0.98);
+  --controls-bar-bg: rgba(255, 252, 247, 0.75);
   --controls-bar-border-color: rgba(120, 113, 108, 0.1);
   --nav-btn-bg: rgba(217, 119, 6, 0.1);
   --nav-btn-border: rgba(217, 119, 6, 0.3);
@@ -237,8 +237,11 @@
   --settings-label-color: #44403c;
   --settings-desc-color: #78716c;
   --settings-input-bg: #fffcf7;
-  --settings-input-border: rgba(120, 113, 108, 0.2);
+  --settings-input-border: #a8a29e;
+  --settings-input-color: #292524;
+  --settings-input-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
   --settings-footer-background: linear-gradient(transparent, rgba(255, 252, 247, 0.98) 30%);
+  --toggle-bg: rgba(0, 0, 0, 0.12);
 
   /* Z-index */
   --z-sidebar: 100;

@@ -31,7 +31,8 @@ export class RwlCarouselBase extends LitElement {
     _currentLetter: { type: String, state: true },
     _size: { type: Number, state: true },
     _sizeMultiplier: { type: Number, state: true },
-    _baseSize: { type: Number, state: true }
+    _baseSize: { type: Number, state: true },
+    _maxMultiplier: { type: Number, state: true }
   };
 
   /**
@@ -417,6 +418,7 @@ export class RwlCarouselBase extends LitElement {
     this._currentLetter = '#';
     this._unsubscribers = [];
     this._sizeMultiplier = 1.0; // Default multiplier
+    this._maxMultiplier = 2.0; // Default max, can be dynamic in subclasses
     this._baseSize = this._getDefaultSize();
     this._size = this._baseSize; // Computed from baseSize * multiplier
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
@@ -492,6 +494,25 @@ export class RwlCarouselBase extends LitElement {
   }
 
   /**
+   * Calculate the maximum multiplier based on content area height.
+   * Override in subclasses that need dynamic max zoom based on container size.
+   * Default implementation returns a static value.
+   * @returns {number}
+   */
+  _calculateMaxMultiplier() {
+    return 2.0; // Default static max, override in subclass for dynamic
+  }
+
+  /**
+   * Get the selector for the content area container.
+   * Override in subclasses that use dynamic max multiplier.
+   * @returns {string|null}
+   */
+  _getContentAreaSelector() {
+    return null; // Override in subclass
+  }
+
+  /**
    * Updates the visual display after navigation or size change.
    * Called after _currentIndex or _size changes.
    */
@@ -522,6 +543,11 @@ export class RwlCarouselBase extends LitElement {
     // Observe viewport changes for responsive sizing
     this._resizeObserver = new ResizeObserver(() => {
       this._baseSize = this._calculateBaseSize();
+      this._maxMultiplier = this._calculateMaxMultiplier();
+      // Clamp current multiplier if it exceeds new max
+      if (this._sizeMultiplier > this._maxMultiplier) {
+        this._sizeMultiplier = this._maxMultiplier;
+      }
       this._size = this._effectiveSize;
       this._updateDisplay();
     });
@@ -533,6 +559,16 @@ export class RwlCarouselBase extends LitElement {
         this._currentIndex = parseInt(savedPos, 10);
         this._visualOffset = this._currentIndex; // Sync visual offset
       }
+    }
+  }
+
+  firstUpdated() {
+    // Calculate max multiplier now that DOM is available
+    this._maxMultiplier = this._calculateMaxMultiplier();
+    // Clamp current multiplier if needed
+    if (this._sizeMultiplier > this._maxMultiplier) {
+      this._sizeMultiplier = this._maxMultiplier;
+      this._size = this._effectiveSize;
     }
   }
 

@@ -36,11 +36,13 @@ class RwlWheelView extends RwlCarouselBase {
     }
 
     .crt-container {
-      width: 320px;
+      width: var(--crt-size, 320px);
+      transition: width 0.3s ease;
     }
 
     .details-content {
-      max-width: 500px;
+      max-width: var(--details-max-width, 500px);
+      transition: max-width 0.3s ease;
     }
 
     /* Bottom: Carousel */
@@ -185,7 +187,7 @@ class RwlWheelView extends RwlCarouselBase {
   }
 
   _getMaxSize() {
-    return 450; // Maximum card size
+    return 257; // Max width for 350px height (350 / 1.36 aspect ratio)
   }
 
   _getNavKeys() {
@@ -211,6 +213,24 @@ class RwlWheelView extends RwlCarouselBase {
     this._updateCurrentLetter();
     this._updateTrackPosition();
     this._updateGameDetailsPanel();
+    this._updateDetailsPanelSize();
+  }
+
+  /**
+   * Scale CRT and details inversely with card size.
+   * Larger cards = smaller details panel to free up space.
+   */
+  _updateDetailsPanelSize() {
+    // Inverse scale: at 0.5x cards, CRT is 1.25x; at 2.0x cards, CRT is 0.5x
+    const inverseScale = 1 / this._sizeMultiplier;
+    // Clamp between 0.5 and 1.25 for reasonable limits
+    const clampedScale = Math.min(1.25, Math.max(0.5, inverseScale));
+
+    const crtSize = Math.round(320 * clampedScale);
+    const detailsMaxWidth = Math.round(500 * clampedScale);
+
+    this.style.setProperty('--crt-size', `${crtSize}px`);
+    this.style.setProperty('--details-max-width', `${detailsMaxWidth}px`);
   }
 
   /**

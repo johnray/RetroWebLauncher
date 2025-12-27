@@ -209,24 +209,29 @@ class RwlSearch extends LitElement {
     /* System badge overlay */
     .system-badge {
       position: absolute;
-      bottom: 2px;
-      right: 2px;
-      width: 22px;
-      height: 22px;
-      background: var(--badge-background, rgba(0, 0, 0, 0.85));
+      bottom: 4px;
+      right: 4px;
+      width: 25%;
+      max-width: 30px;
+      min-width: 16px;
+      aspect-ratio: 1;
+      background: var(--badge-background, rgba(0, 0, 0, 0.75));
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      box-shadow: var(--badge-shadow, 0 1px 3px rgba(0,0,0,0.5));
+      box-shadow: var(--badge-shadow, 0 2px 6px rgba(0,0,0,0.4));
     }
 
     .system-badge img {
-      max-width: 18px;
-      max-height: 18px;
+      width: 80%;
+      height: 80%;
       object-fit: contain;
-      filter: brightness(1.2);
+      filter: brightness(1.1) drop-shadow(0 1px 2px rgba(0,0,0,0.3));
     }
 
     .system-badge.text-fallback {
@@ -239,6 +244,7 @@ class RwlSearch extends LitElement {
       color: var(--badge-text-color, #fff);
       text-transform: uppercase;
       letter-spacing: -0.5px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
 
     .result-info {

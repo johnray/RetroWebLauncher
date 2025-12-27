@@ -34,13 +34,15 @@ class RwlSpinnerView extends RwlCarouselBase {
     /* Left side - Details Panel */
     .details-panel {
       position: relative;
-      width: 45%;
-      height: calc(100% - 70px);
+      flex: 1;
+      min-width: 300px;
+      height: 100%;
       z-index: 5;
       display: flex;
       flex-direction: column;
       padding: 30px 40px;
       overflow: hidden;
+      /* width set dynamically in JS based on wheel size */
     }
 
     .crt-container {
@@ -49,32 +51,34 @@ class RwlSpinnerView extends RwlCarouselBase {
       margin-bottom: 25px;
     }
 
-    .controls-bar {
-      height: 70px;
-    }
+    /* Use base controls-bar styling from RwlCarouselBase.sharedStyles */
 
-    .nav-btn {
-      width: 44px;
-      height: 44px;
-      font-size: 1.1rem;
-    }
+    /* Use base nav-btn sizing from RwlCarouselBase.sharedStyles */
 
     /* Right side - Wheel */
     .wheel-container {
       position: relative;
-      flex: 1;
-      height: calc(100% - 70px);
+      flex: 0 0 auto;
+      height: 100%;
       z-index: 1;
       overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* width set dynamically in JS based on wheel size */
     }
 
     .wheel-arc {
       position: absolute;
-      right: 50px;
+      right: 0;
       top: 50%;
       transform: translateY(-50%);
       width: 100%;
       height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      /* right offset and top position set dynamically in JS based on radius and zoom */
     }
 
     .wheel-item {
@@ -95,8 +99,7 @@ class RwlSpinnerView extends RwlCarouselBase {
       position: relative;
       width: 90px;
       height: 125px;
-      margin-left: -45px;
-      margin-top: -62px;
+      /* margins set dynamically in JS to center card at any size */
       border-radius: 8px;
       overflow: hidden;
       background: var(--game-card-background, rgba(20, 20, 30, 0.9));
@@ -201,6 +204,26 @@ class RwlSpinnerView extends RwlCarouselBase {
   constructor() {
     super();
     this._visibleItems = 11;
+    this._baseRadius = 280; // Will be updated based on viewport
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._updateRadius();
+  }
+
+  /**
+   * Calculate radius based on viewport height.
+   * Taller screens get larger radius for better proportions.
+   */
+  _updateRadius() {
+    const vh = window.innerHeight;
+    // Base radius scales with viewport height
+    // Minimum 250px, scales up to ~400px on tall screens
+    const minRadius = 250;
+    const maxRadius = 450;
+    const heightFactor = vh / 900; // Normalize to ~900px baseline
+    this._baseRadius = Math.min(maxRadius, Math.max(minRadius, 280 * heightFactor));
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -214,6 +237,14 @@ class RwlSpinnerView extends RwlCarouselBase {
   _getDefaultSize() {
     const spinnerSettings = themeService.getSpinnerSettings();
     return spinnerSettings?.sizing?.defaultSize || 150;
+  }
+
+  _getMinSize() {
+    return 80; // Minimum size
+  }
+
+  _getMaxSize() {
+    return 250; // Maximum size
   }
 
   _getNavKeys() {
@@ -289,12 +320,34 @@ class RwlSpinnerView extends RwlCarouselBase {
     const items = this.shadowRoot?.querySelectorAll('.wheel-item');
     if (!items || items.length === 0) return;
 
+    // Update radius on each render to respond to viewport changes
+    this._updateRadius();
+
     const totalItems = this._games.length;
     const scaleFactor = this._size / 100;
-    const baseRadius = 202;
+    // Use responsive radius, further scaled by size multiplier
+    const radius = this._baseRadius * (0.8 + scaleFactor * 0.4);
     const cardWidth = 90 * scaleFactor;
     const cardHeight = 125 * scaleFactor;
     const halfVisible = Math.floor(this._visibleItems / 2);
+
+    // Push wheel off-screen proportionally - show ~2/5 of the wheel
+    // Offset by 3/5 (60%) of radius to hide most of the wheel
+    const wheelArc = this.shadowRoot?.querySelector('.wheel-arc');
+    const wheelContainer = this.shadowRoot?.querySelector('.wheel-container');
+    if (wheelArc) {
+      const rightOffset = -(radius * 0.60);
+      wheelArc.style.right = `${rightOffset}px`;
+      // Vertical centering handled by CSS: top: 50% + transform: translateY(-50%)
+      // Same as alphabet bar - no JavaScript override needed
+    }
+
+    // Set wheel container width dynamically based on visible portion
+    // Visible portion is 40% of radius, plus card width, plus padding
+    if (wheelContainer) {
+      const visibleWidth = (radius * 0.40) + cardWidth + 60;
+      wheelContainer.style.width = `${visibleWidth}px`;
+    }
 
     items.forEach((item, i) => {
       // Use _visualOffset for smooth animation
@@ -320,8 +373,8 @@ class RwlSpinnerView extends RwlCarouselBase {
       const angleDeg = 180 + (offset * angleStep);
       const angleRad = (angleDeg * Math.PI) / 180;
 
-      const x = Math.cos(angleRad) * baseRadius;
-      const y = Math.sin(angleRad) * baseRadius;
+      const x = Math.cos(angleRad) * radius;
+      const y = Math.sin(angleRad) * radius;
       const tiltAngle = (angleDeg - 180) * 0.7;
 
       // Smooth scale based on distance from center
@@ -342,6 +395,9 @@ class RwlSpinnerView extends RwlCarouselBase {
       if (card) {
         card.style.width = `${cardWidth}px`;
         card.style.height = `${cardHeight}px`;
+        // Dynamic margins to keep card centered at any size
+        card.style.marginLeft = `-${cardWidth / 2}px`;
+        card.style.marginTop = `-${cardHeight / 2}px`;
       }
 
       // Active class based on logical selection (_currentIndex)
@@ -410,7 +466,7 @@ class RwlSpinnerView extends RwlCarouselBase {
           </div>
           <div class="size-control">
             <label>🔍</label>
-            <input type="range" id="size-slider" min="80" max="250" .value=${this._size} @input=${this._onSliderChange} title="Adjust size">
+            <input type="range" id="size-slider" min="0.5" max="2" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
           </div>
           <span class="game-count">${this._games.length} games</span>
         </div>

@@ -42,7 +42,6 @@ class RwlSpinnerView extends RwlCarouselBase {
       flex-direction: column;
       padding: 30px 40px;
       overflow: hidden;
-      /* width set dynamically in JS based on wheel size */
     }
 
     .crt-container {
@@ -61,11 +60,14 @@ class RwlSpinnerView extends RwlCarouselBase {
       flex: 0 0 auto;
       height: 100%;
       z-index: 1;
-      overflow: hidden;
+      overflow: visible;
       display: flex;
       align-items: center;
       justify-content: center;
       /* width set dynamically in JS based on wheel size */
+      /* Padding on left to prevent shadow cutoff */
+      padding-left: 40px;
+      margin-left: -40px;
     }
 
     .wheel-arc {
@@ -248,22 +250,23 @@ class RwlSpinnerView extends RwlCarouselBase {
   }
 
   /**
-   * Calculate max multiplier so card height is 40% of spinner wheel height.
-   * Card height = 140 * (_size / 100) = 140 * (_baseSize * _sizeMultiplier) / 100
+   * Calculate max multiplier so card height is 40% of wheel container height.
+   * Card height = 140 * scaleFactor where scaleFactor = _size / 100
+   * At multiplier M: cardHeight = 140 * (_baseSize * M) / 100
+   * Want: 140 * (_baseSize * maxM) / 100 = 0.4 * containerHeight
+   * So: maxM = (0.4 * containerHeight * 100) / (140 * _baseSize)
    */
   _calculateMaxMultiplier() {
-    const spinnerWheel = this.shadowRoot?.querySelector('.spinner-wheel');
-    if (!spinnerWheel || !this._baseSize) return 2.0; // Fallback
+    const wheelContainer = this.shadowRoot?.querySelector('.wheel-container');
+    if (!wheelContainer || !this._baseSize) return 2.0; // Fallback
 
-    const containerHeight = spinnerWheel.offsetHeight;
-    const baseCardHeight = 140; // Base card height factor
+    const containerHeight = wheelContainer.offsetHeight;
+    const baseCardFactor = 140;
     const targetMaxHeight = containerHeight * 0.4;
-    // cardHeight = 140 * _baseSize * multiplier / 100
-    // multiplier = targetMaxHeight * 100 / (140 * _baseSize)
-    const maxMultiplier = (targetMaxHeight * 100) / (baseCardHeight * this._baseSize);
+    const maxMultiplier = (targetMaxHeight * 100) / (baseCardFactor * this._baseSize);
 
-    // Clamp between 0.5 and a reasonable upper limit
-    return Math.max(0.5, Math.min(3.0, maxMultiplier));
+    // Clamp between 0.5 and 2.5 (reasonable limits)
+    return Math.max(0.5, Math.min(2.5, maxMultiplier));
   }
 
   _getNavKeys() {

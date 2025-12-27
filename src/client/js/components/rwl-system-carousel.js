@@ -412,20 +412,11 @@ class RwlSystemCarousel extends LitElement {
   }
 
   /**
-   * Calculate max multiplier so card height is 40% of carousel height.
-   * Card height = 320 * _sizeMultiplier (base height 320px)
+   * Return static max multiplier for system carousel.
+   * User only wanted dynamic max for spin wheel and wheel of fortune.
    */
   _calculateMaxMultiplier() {
-    const carousel = this.shadowRoot?.querySelector('.carousel');
-    if (!carousel) return 1.5; // Fallback
-
-    const containerHeight = carousel.offsetHeight;
-    const baseCardHeight = 320; // Base card height at multiplier 1.0
-    const targetMaxHeight = containerHeight * 0.4;
-    const maxMultiplier = targetMaxHeight / baseCardHeight;
-
-    // Clamp between 0.5 and a reasonable upper limit
-    return Math.max(0.5, Math.min(2.0, maxMultiplier));
+    return 1.5; // Static max, 50% larger than default
   }
 
   get selectedSystem() {

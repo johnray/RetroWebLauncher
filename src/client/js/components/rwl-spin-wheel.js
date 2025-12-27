@@ -62,11 +62,11 @@ class RwlSpinWheel extends RwlCarouselBase {
       height: 100%;
       display: flex;
       align-items: center;
-      justify-content: center;
-      overflow: hidden;
+      justify-content: flex-start;
+      overflow: visible;
       perspective: 1000px;
       z-index: 1;
-      /* width set dynamically in JS based on item size */
+      /* width set dynamically in JS - wheel extends off right edge */
     }
 
     .spin-wheel {
@@ -322,12 +322,20 @@ class RwlSpinWheel extends RwlCarouselBase {
     this.style.setProperty('--spin-img-width', `${imgWidth}px`);
     this.style.setProperty('--spin-img-height', `${imgHeight}px`);
 
-    // Set wheel area width dynamically
+    // Set wheel area width - make it wide enough that wheel extends off right edge
+    // The wheel center should be positioned so ~40% is visible, 60% extends off screen
+    const visiblePortion = 0.4;
+    const totalWheelWidth = radius * 2;
+    const visibleWidth = totalWheelWidth * visiblePortion + itemWidth;
+
     if (wheelArea) {
-      wheelArea.style.width = `${itemWidth + 80}px`;
+      wheelArea.style.width = `${visibleWidth}px`;
     }
     if (spinWheel) {
-      spinWheel.style.width = `${itemWidth + 40}px`;
+      // Position spin-wheel so its center is off the right edge
+      const spinWheelWidth = totalWheelWidth;
+      spinWheel.style.width = `${spinWheelWidth}px`;
+      spinWheel.style.marginRight = `-${totalWheelWidth * (1 - visiblePortion)}px`;
     }
 
     items.forEach((item, i) => {

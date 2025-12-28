@@ -571,12 +571,26 @@ export class RwlCarouselBase extends LitElement {
 
   firstUpdated() {
     // Defer max multiplier calculation to ensure DOM has laid out
-    // Use double RAF to wait for both render and layout passes
+    // Use multiple attempts with increasing delays to handle complex layouts
+    // and ensure container dimensions are final
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this._recalculateMaxMultiplier();
       });
     });
+
+    // Additional attempts with increasing delays for stubborn layouts
+    setTimeout(() => this._recalculateMaxMultiplier(), 100);
+    setTimeout(() => this._recalculateMaxMultiplier(), 250);
+    setTimeout(() => this._recalculateMaxMultiplier(), 500);
+
+    // Also observe this component for size changes (more reliable than document.body)
+    this._componentResizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        this._recalculateMaxMultiplier();
+      });
+    });
+    this._componentResizeObserver.observe(this);
   }
 
   /**
@@ -585,8 +599,8 @@ export class RwlCarouselBase extends LitElement {
    */
   _recalculateMaxMultiplier() {
     const newMax = this._calculateMaxMultiplier();
-    // Only update if we got a valid result (container has dimensions)
-    if (newMax > 0.5) {
+    // Only update if we got a valid result (>= minimum clamp value)
+    if (newMax >= 0.5 && isFinite(newMax)) {
       this._maxMultiplier = newMax;
       // Clamp current multiplier if needed
       if (this._sizeMultiplier > this._maxMultiplier) {
@@ -596,6 +610,12 @@ export class RwlCarouselBase extends LitElement {
       }
       // Force update to ensure slider max attribute is correct
       this.requestUpdate();
+
+      // Also explicitly set the slider's max property (belt and suspenders)
+      const slider = this.shadowRoot?.querySelector('#size-slider');
+      if (slider) {
+        slider.max = this._maxMultiplier.toFixed(2);
+      }
     }
   }
 
@@ -606,10 +626,14 @@ export class RwlCarouselBase extends LitElement {
       sessionStorage.setItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`, this._currentIndex);
     }
 
-    // Clean up resize observer
+    // Clean up resize observers
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
       this._resizeObserver = null;
+    }
+    if (this._componentResizeObserver) {
+      this._componentResizeObserver.disconnect();
+      this._componentResizeObserver = null;
     }
 
     // Cancel any pending animation frames

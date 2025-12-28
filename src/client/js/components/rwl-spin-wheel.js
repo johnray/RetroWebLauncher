@@ -260,7 +260,13 @@ class RwlSpinWheel extends RwlCarouselBase {
     const wheelArea = this.shadowRoot?.querySelector('.wheel-area');
     if (!wheelArea) return 2.0; // Fallback
 
-    const containerHeight = wheelArea.offsetHeight;
+    // Use getBoundingClientRect for more reliable dimensions after resize
+    const rect = wheelArea.getBoundingClientRect();
+    const containerHeight = rect.height;
+
+    // Return fallback if container has no height yet
+    if (containerHeight <= 0) return 2.0;
+
     const baseImgHeight = 156; // Base image height at multiplier 1.0
     const cardPadding = 20; // Vertical padding on card
     const targetMaxCardHeight = containerHeight * 0.75;
@@ -321,9 +327,9 @@ class RwlSpinWheel extends RwlCarouselBase {
     const cardHeight = imgHeight + 20;
 
     // Wheel radius - INVERSE scaling: larger radius at low zoom for more visible items
-    // 40% larger than previous values for better visibility at max zoom
-    // At 0.5x: ~875px, at 1.0x: 840px, at 2.0x: 770px
-    const radius = 840 - (70 * (this._sizeMultiplier - 1));
+    // Reduced 10% at min zoom from previous values
+    // At 0.5x: ~788px, at 1.0x: 782px, at 2.0x: 770px
+    const radius = 782 - (12 * (this._sizeMultiplier - 1));
 
     // Calculate angle step so adjacent cards just touch the selected card's bounding box
     // Distance between centers = cardHeight ensures no overlap on selected card
@@ -532,7 +538,7 @@ class RwlSpinWheel extends RwlCarouselBase {
               type="range"
               id="size-slider"
               min="0.5"
-              max="${this._maxMultiplier.toFixed(2)}"
+              .max=${this._maxMultiplier.toFixed(2)}
               step="0.05"
               .value=${this._sizeMultiplier}
               @input=${this._onSliderChange}

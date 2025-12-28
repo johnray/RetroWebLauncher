@@ -1,6 +1,6 @@
 {
   "name": "retroweblauncher",
-  "version": "1.8.10",
+  "version": "2.0.0",
   "description": "A modern web-based frontend for Retrobat",
   "main": "src/server/index.js",
   "scripts": {

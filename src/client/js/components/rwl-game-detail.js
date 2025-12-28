@@ -401,6 +401,32 @@ class RwlGameDetail extends LitElement {
       margin: 0;
     }
 
+    /* Description gets a scrollable container to prevent page stretch */
+    .meta-group.description p {
+      max-height: clamp(100px, 25vh, 300px);
+      overflow-y: auto;
+      padding-right: var(--spacing-sm, 0.5rem);
+    }
+
+    /* Custom scrollbar for description */
+    .meta-group.description p::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .meta-group.description p::-webkit-scrollbar-track {
+      background: var(--scrollbar-track, rgba(255, 255, 255, 0.1));
+      border-radius: 3px;
+    }
+
+    .meta-group.description p::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb, rgba(255, 0, 102, 0.5));
+      border-radius: 3px;
+    }
+
+    .meta-group.description p::-webkit-scrollbar-thumb:hover {
+      background: var(--scrollbar-thumb-hover, rgba(255, 0, 102, 0.7));
+    }
+
     .meta-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;

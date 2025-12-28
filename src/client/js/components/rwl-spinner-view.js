@@ -136,9 +136,20 @@ class RwlSpinnerView extends RwlCarouselBase {
       background: var(--game-card-no-image-bg, linear-gradient(135deg, #1a1a2e, #0f0f1a));
     }
 
-    /* Selection pointer - hidden */
+    /* Selection pointer - arrow pointing right toward the wheel */
     .selection-pointer {
-      display: none;
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-70%);
+      width: 0;
+      height: 0;
+      border-top: 12px solid transparent;
+      border-bottom: 12px solid transparent;
+      border-left: 18px solid var(--selection-border-color, #ff0066);
+      filter: drop-shadow(0 0 10px var(--selection-glow-rgba, rgba(255, 0, 102, 0.8)));
+      z-index: 200;
+      pointer-events: none;
     }
 
     /* State messages */
@@ -214,6 +225,47 @@ class RwlSpinnerView extends RwlCarouselBase {
     this._updateRadius();
   }
 
+  firstUpdated() {
+    super.firstUpdated();
+    this._setupWheelContainerObserver();
+  }
+
+  updated(changedProperties) {
+    super.updated?.(changedProperties);
+    // Re-check for wheel-container in case it was conditionally rendered
+    this._setupWheelContainerObserver();
+  }
+
+  _setupWheelContainerObserver() {
+    // Set up a ResizeObserver specifically on the wheel-container
+    // This ensures we recalculate max multiplier when the container gets its final size
+    if (!this._wheelContainerObserver) {
+      this._wheelContainerObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect.height > 0) {
+            this._recalculateMaxMultiplier();
+          }
+        }
+      });
+    }
+
+    // Observe wheel-container once it exists (and not already observing)
+    const wheelContainer = this.shadowRoot?.querySelector('.wheel-container');
+    if (wheelContainer && !this._observingWheelContainer) {
+      this._wheelContainerObserver.observe(wheelContainer);
+      this._observingWheelContainer = true;
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._wheelContainerObserver) {
+      this._wheelContainerObserver.disconnect();
+      this._wheelContainerObserver = null;
+      this._observingWheelContainer = false;
+    }
+  }
+
   /**
    * Calculate radius based on viewport height.
    * Taller screens get larger radius for better proportions.
@@ -250,28 +302,25 @@ class RwlSpinnerView extends RwlCarouselBase {
   }
 
   /**
-   * Calculate max multiplier so DISPLAYED card height is max 75% of wheel container height.
-   * The active card gets a 1.25x scale transform, so we must account for that.
-   * Card height = 140 * scaleFactor where scaleFactor = _size / 100
-   * Displayed height = cardHeight * 1.25 (due to scale transform)
-   * At multiplier M: displayedHeight = 140 * (_baseSize * M) / 100 * 1.25
-   * Want: displayedHeight = 0.75 * containerHeight
-   * So: 140 * _baseSize * M * 1.25 / 100 = 0.75 * containerHeight
-   * M = (0.75 * containerHeight * 100) / (140 * _baseSize * 1.25)
-   * M = (0.60 * containerHeight * 100) / (140 * _baseSize)
+   * Calculate max multiplier so card height is max 50% of wheel container height.
+   * Matches spin-wheel's effective constraint.
+   * Active card gets 1.25x scale transform.
    */
   _calculateMaxMultiplier() {
     const wheelContainer = this.shadowRoot?.querySelector('.wheel-container');
-    if (!wheelContainer || !this._baseSize) return 2.0; // Fallback
+    if (!wheelContainer || !this._baseSize) return 2.0;
 
-    const containerHeight = wheelContainer.offsetHeight;
-    const baseCardFactor = 140;
-    const activeScale = 1.25; // Active card scale transform
-    // Target 75% of container for DISPLAYED height (after scale transform)
-    const targetMaxHeight = containerHeight * 0.75 / activeScale;
-    const maxMultiplier = (targetMaxHeight * 100) / (baseCardFactor * this._baseSize);
+    const rect = wheelContainer.getBoundingClientRect();
+    const containerHeight = rect.height;
 
-    // Clamp between 0.5 and 3.0
+    if (containerHeight <= 0) return 2.0;
+
+    const baseCardHeight = 140;
+    const activeScale = 1.25;
+    const targetMaxDisplayedHeight = containerHeight * 0.50;
+
+    const maxMultiplier = (targetMaxDisplayedHeight * 100) / (baseCardHeight * this._baseSize * activeScale);
+
     return Math.max(0.5, Math.min(3.0, maxMultiplier));
   }
 
@@ -375,6 +424,12 @@ class RwlSpinnerView extends RwlCarouselBase {
     if (wheelContainer) {
       const visibleWidth = (radius * 0.40) + cardWidth + 60;
       wheelContainer.style.width = `${visibleWidth}px`;
+    }
+
+    // Position the arrow pointer to the LEFT of the selected card
+    const pointer = this.shadowRoot?.querySelector('.selection-pointer');
+    if (pointer) {
+      pointer.style.left = '18px';
     }
 
     items.forEach((item, i) => {
@@ -494,7 +549,16 @@ class RwlSpinnerView extends RwlCarouselBase {
           </div>
           <div class="size-control">
             <label>🔍</label>
-            <input type="range" id="size-slider" min="0.5" max="${this._maxMultiplier.toFixed(2)}" step="0.1" .value=${this._sizeMultiplier} @input=${this._onSliderChange} title="Size multiplier: ${this._sizeMultiplier}x">
+            <input
+              type="range"
+              id="size-slider"
+              min="0.5"
+              .max=${this._maxMultiplier.toFixed(2)}
+              step="0.01"
+              .value=${this._sizeMultiplier}
+              @input=${this._onSliderChange}
+              title="Size multiplier: ${this._sizeMultiplier}x"
+            >
           </div>
           <span class="game-count">${this._games.length} games</span>
         </div>

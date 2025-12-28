@@ -746,7 +746,7 @@ class RwlSystemCarousel extends LitElement {
             </div>
             <div class="size-control">
               <label>🔍</label>
-              <input type="range" min="0.5" max="${this._maxMultiplier.toFixed(2)}" step="0.1"
+              <input type="range" id="size-slider" min="0.5" .max=${this._maxMultiplier.toFixed(2)} step="0.1"
                      .value=${this._sizeMultiplier}
                      @input=${this._onSliderChange}
                      title="Size: ${this._sizeMultiplier}x">

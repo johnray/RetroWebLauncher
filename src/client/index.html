@@ -52,6 +52,15 @@
     window.Lit = { LitElement, html, css, classMap, styleMap, repeat, unsafeHTML };
   </script>
 
+  <!-- Three.js - 3D Graphics Library (MIT License) -->
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js/+esm';
+    import { SimplexNoise } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/dist/esm/simplex-noise.js/+esm';
+    // Make Three.js available globally
+    window.THREE = THREE;
+    window.SimplexNoise = SimplexNoise;
+  </script>
+
   <!-- Third-party Libraries (CDN) -->
   <!-- Swiper.js - Touch slider/carousel (MIT License) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">

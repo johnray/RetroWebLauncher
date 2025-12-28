@@ -7,9 +7,7 @@ import { state } from '../state.js';
 
 // Import screensaver implementations
 import './rwl-screensaver-floating-tvs.js';
-// Future screensavers can be imported here:
-// import './rwl-screensaver-slideshow.js';
-// import './rwl-screensaver-marquee.js';
+import './rwl-screensaver-tunnel.js';
 
 const { LitElement, html, css } = window.Lit;
 
@@ -22,18 +20,12 @@ const SCREENSAVERS = {
     tag: 'rwl-screensaver-floating-tvs',
     name: 'Floating TVs',
     description: 'Bouncing retro CRT TVs playing game videos'
+  },
+  'tunnel': {
+    tag: 'rwl-screensaver-tunnel',
+    name: 'Game Tunnel',
+    description: 'Fly through a tunnel of game artwork'
   }
-  // Future screensavers:
-  // 'slideshow': {
-  //   tag: 'rwl-screensaver-slideshow',
-  //   name: 'Game Slideshow',
-  //   description: 'Full-screen game artwork slideshow'
-  // },
-  // 'marquee': {
-  //   tag: 'rwl-screensaver-marquee',
-  //   name: 'Arcade Marquee',
-  //   description: 'Scrolling arcade marquee display'
-  // }
 };
 
 const DEFAULT_SCREENSAVER = 'floating-tvs';
@@ -137,9 +129,8 @@ class RwlScreensaver extends LitElement {
     switch (tag) {
       case 'rwl-screensaver-floating-tvs':
         return html`<rwl-screensaver-floating-tvs></rwl-screensaver-floating-tvs>`;
-      // Add cases for future screensavers:
-      // case 'rwl-screensaver-slideshow':
-      //   return html`<rwl-screensaver-slideshow></rwl-screensaver-slideshow>`;
+      case 'rwl-screensaver-tunnel':
+        return html`<rwl-screensaver-tunnel></rwl-screensaver-tunnel>`;
       default:
         return html`<rwl-screensaver-floating-tvs></rwl-screensaver-floating-tvs>`;
     }

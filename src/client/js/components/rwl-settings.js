@@ -467,6 +467,17 @@ class RwlSettings extends LitElement {
 
   _handleInputChange(input) {
     const key = input.name;
+
+    // Skip inputs without a name (client-side only settings like screensaverType)
+    if (!key) {
+      return;
+    }
+
+    // Skip screensaverTimeout - it's handled separately and saved to localStorage
+    if (key === 'screensaverTimeout') {
+      return;
+    }
+
     let value;
 
     if (input.type === 'checkbox') {

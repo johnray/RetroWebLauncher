@@ -26,6 +26,7 @@ class RwlSearch extends LitElement {
       display: block;
       height: 100%;
       position: relative;
+      overflow: hidden; /* Contain oversized elements for iOS */
     }
 
     /* Background layer */
@@ -34,6 +35,7 @@ class RwlSearch extends LitElement {
       top: 0; left: 0; right: 0; bottom: 0;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden; /* Clip 110% bg-image for iOS viewport */
     }
 
     .bg-image {
@@ -547,9 +549,16 @@ class RwlSearch extends LitElement {
   }
 
   _checkTouchDevice() {
-    this._showOnScreenKeyboard = 'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      window.matchMedia('(pointer: coarse)').matches;
+    // Only show on-screen keyboard for gamepad/controller navigation
+    // Touch devices (iOS, Android) have native keyboards, so don't show our custom OSK
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isGamepadConnected = navigator.getGamepads &&
+      Array.from(navigator.getGamepads()).some(gp => gp !== null);
+
+    // Show OSK only if: NOT a touch device AND (has gamepad OR is TV-like large screen with no fine pointer)
+    const isTVLike = window.matchMedia('(pointer: coarse) and (hover: none) and (min-width: 1280px)').matches;
+
+    this._showOnScreenKeyboard = !isTouch && (isGamepadConnected || isTVLike);
   }
 
   _bindEvents() {

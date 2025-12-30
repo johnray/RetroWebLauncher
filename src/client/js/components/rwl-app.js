@@ -29,6 +29,8 @@ class RwlApp extends LitElement {
       width: 100%;
       height: 100%;
       overflow: hidden;
+      /* Prevent iOS zoom on content changes */
+      touch-action: pan-x pan-y;
     }
 
     .app-layout {
@@ -82,6 +84,7 @@ class RwlApp extends LitElement {
       justify-content: center;
       height: 100%;
       padding: var(--spacing-xl, 2rem);
+      overflow: hidden; /* Contain oversized bg-image for iOS */
     }
 
     .home-view .bg-layer {
@@ -89,6 +92,7 @@ class RwlApp extends LitElement {
       top: 0; left: 0; right: 0; bottom: 0;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden; /* Clip the 110% bg-image */
     }
 
     .home-view .bg-image {

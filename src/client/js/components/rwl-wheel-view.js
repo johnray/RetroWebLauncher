@@ -335,7 +335,7 @@ class RwlWheelView extends RwlCarouselBase {
     return html`
       <div class="wheel-view">
         <div class="bg-layer">
-          <div class="bg-image"></div>
+          <div class="bg-image" style="background-image: ${this._debouncedBgUrl ? `url('${this._debouncedBgUrl}')` : 'none'}"></div>
           <div class="bg-gradient"></div>
         </div>
 

@@ -32,7 +32,10 @@ export class RwlCarouselBase extends LitElement {
     _size: { type: Number, state: true },
     _sizeMultiplier: { type: Number, state: true },
     _baseSize: { type: Number, state: true },
-    _maxMultiplier: { type: Number, state: true }
+    _maxMultiplier: { type: Number, state: true },
+    // Debounced media src - only updates after scroll stops
+    _debouncedVideoSrc: { type: String, state: true },
+    _debouncedBgUrl: { type: String, state: true }
   };
 
   /**
@@ -45,6 +48,31 @@ export class RwlCarouselBase extends LitElement {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
       overflow: hidden;
+      /* GPU acceleration for smooth animations */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+    }
+
+    /* Performance: GPU-accelerated transforms for carousel items */
+    .carousel-item,
+    .game-card,
+    .wheel-item,
+    .spinner-item,
+    .spin-item {
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      will-change: transform, opacity;
+    }
+
+    /* Remove will-change when not animating (set via JS) */
+    .carousel-idle .carousel-item,
+    .carousel-idle .game-card,
+    .carousel-idle .wheel-item,
+    .carousel-idle .spinner-item,
+    .carousel-idle .spin-item {
+      will-change: auto;
     }
 
     /* Background layer */
@@ -53,6 +81,7 @@ export class RwlCarouselBase extends LitElement {
       top: 0; left: 0; right: 0; bottom: 0;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden; /* Clip 110% bg-image for iOS viewport */
     }
 
     .bg-image {
@@ -430,6 +459,15 @@ export class RwlCarouselBase extends LitElement {
     this._visualOffset = 0; // Float representing visual scroll position
     this._scrollRaf = null; // Animation frame for smooth scrolling
     this._lastScrollTime = 0; // For physics timing
+
+    // Performance: debounce expensive operations
+    this._mediaDebounceTimer = null;
+    this._isScrolling = false;
+    this._lastMediaLoadedIndex = -1;
+
+    // Debounced media sources - templates should bind to these
+    this._debouncedVideoSrc = '';
+    this._debouncedBgUrl = '';
   }
 
   /**
@@ -654,6 +692,12 @@ export class RwlCarouselBase extends LitElement {
       this._resizeRaf = null;
     }
 
+    // Clear media debounce timer
+    if (this._mediaDebounceTimer) {
+      clearTimeout(this._mediaDebounceTimer);
+      this._mediaDebounceTimer = null;
+    }
+
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
     this._stopVideo();
@@ -670,6 +714,12 @@ export class RwlCarouselBase extends LitElement {
   }
 
   updated(changedProperties) {
+    // Skip expensive updates during scrolling - only update display properties
+    if (this._isScrolling) {
+      // During scroll, only update position-related display (handled by _updateSmoothDisplay)
+      return;
+    }
+
     if (changedProperties.has('_currentIndex') || changedProperties.has('_games') || changedProperties.has('_size') || changedProperties.has('_sizeMultiplier')) {
       this._updateDisplay();
     }
@@ -739,6 +789,10 @@ export class RwlCarouselBase extends LitElement {
         this._currentIndex = Math.max(0, this._games.length - 1);
       }
       this._visualOffset = this._currentIndex; // Sync after loading
+
+      // Initial media load is handled by _updateGameDetailsPanel() via updated() lifecycle
+      // Just ensure the index is ready to trigger a load
+      this._lastMediaLoadedIndex = -1;
     } catch (error) {
       console.error('Failed to load games:', error);
     } finally {
@@ -836,15 +890,77 @@ export class RwlCarouselBase extends LitElement {
   _navigate(delta) {
     if (this._games.length === 0) return;
 
+    // Mark as scrolling for performance optimization
+    this._isScrolling = true;
+
     // Update logical index immediately
     this._currentIndex = (this._currentIndex + delta + this._games.length) % this._games.length;
 
     // Start smooth animation to new index
     this._animateToIndex(this._currentIndex);
 
+    // Debounce expensive media loading - wait until scrolling stops
+    this._debouncedMediaLoad();
+
     const game = this.selectedGame;
     if (game) {
       state.emit('gameSelected', game);
+    }
+  }
+
+  /**
+   * Debounce media loading to avoid expensive operations during fast scrolling.
+   * Video and background image only load after scrolling stops for 150ms.
+   */
+  _debouncedMediaLoad() {
+    // Clear existing timer
+    if (this._mediaDebounceTimer) {
+      clearTimeout(this._mediaDebounceTimer);
+    }
+
+    // Set new timer - only load media after scroll stops
+    this._mediaDebounceTimer = setTimeout(() => {
+      this._isScrolling = false;
+      this._mediaDebounceTimer = null;
+
+      // Only load if index changed since last load
+      if (this._currentIndex !== this._lastMediaLoadedIndex) {
+        this._lastMediaLoadedIndex = this._currentIndex;
+        this._loadMediaForCurrentGame();
+
+        // Now that scrolling stopped, do full display update (game details, etc.)
+        this._updateDisplay();
+      }
+    }, 250); // 250ms delay after last scroll action
+  }
+
+  /**
+   * Load expensive media (video, background) for current game.
+   * Called after scrolling stops. Updates debounced properties that templates bind to.
+   */
+  _loadMediaForCurrentGame() {
+    const game = this.selectedGame;
+
+    if (game) {
+      const videoSrc = `/api/media/game/${game.id}/video`;
+      const bgUrl = `/api/media/game/${game.id}/fanart`;
+
+      // Only update if src actually changed (prevents unnecessary loads)
+      if (this._debouncedVideoSrc !== videoSrc) {
+        this._debouncedVideoSrc = videoSrc;
+
+        // For wheel-view which doesn't bind src in template, set directly
+        const videoPlayer = this.shadowRoot?.querySelector('rwl-video-player');
+        if (videoPlayer && videoPlayer.src !== videoSrc) {
+          videoPlayer.src = videoSrc;
+        }
+      }
+
+      // Load background with fallback (fanart -> screenshot -> none)
+      this._loadBackgroundWithFallback(game.id);
+    } else {
+      this._debouncedVideoSrc = '';
+      this._debouncedBgUrl = '';
     }
   }
 
@@ -912,9 +1028,20 @@ export class RwlCarouselBase extends LitElement {
         this._visualOffset = this._currentIndex;
         this._scrollRaf = null;
         this._updateSmoothDisplay();
+
+        // Mark as idle after short delay to remove will-change (perf optimization)
+        setTimeout(() => {
+          const container = this.shadowRoot?.querySelector('.carousel-container, .wheel-container, .spinner-container');
+          if (container) container.classList.add('carousel-idle');
+        }, 100);
+
         this.requestUpdate(); // Final update
       }
     };
+
+    // Remove idle class when starting animation
+    const container = this.shadowRoot?.querySelector('.carousel-container, .wheel-container, .spinner-container');
+    if (container) container.classList.remove('carousel-idle');
 
     this._scrollRaf = requestAnimationFrame(animate);
   }
@@ -1069,27 +1196,35 @@ export class RwlCarouselBase extends LitElement {
   }
 
   /**
-   * Load background image with graceful fallbacks.
-   * Tries: fanart -> screenshot -> solid color
+   * Load background with fallback chain: fanart -> screenshot -> none.
+   * Updates _debouncedBgUrl which templates bind to.
    */
-  _loadBackgroundImage(bgElement, gameId) {
+  _loadBackgroundWithFallback(gameId) {
     const fanartUrl = `/api/media/game/${gameId}/fanart`;
     const screenshotUrl = `/api/media/game/${gameId}/screenshot`;
 
+    // Track which game we're loading for (prevent stale updates)
+    const loadingForId = gameId;
+
     const fanartImg = new Image();
     fanartImg.onload = () => {
-      bgElement.style.backgroundImage = `url('${fanartUrl}')`;
-      bgElement.classList.add('visible');
+      // Only update if still on the same game
+      if (this.selectedGame?.id === loadingForId) {
+        this._debouncedBgUrl = fanartUrl;
+      }
     };
     fanartImg.onerror = () => {
+      // Try screenshot as fallback
       const screenshotImg = new Image();
       screenshotImg.onload = () => {
-        bgElement.style.backgroundImage = `url('${screenshotUrl}')`;
-        bgElement.classList.add('visible');
+        if (this.selectedGame?.id === loadingForId) {
+          this._debouncedBgUrl = screenshotUrl;
+        }
       };
       screenshotImg.onerror = () => {
-        bgElement.style.backgroundImage = 'none';
-        bgElement.classList.remove('visible');
+        if (this.selectedGame?.id === loadingForId) {
+          this._debouncedBgUrl = '';
+        }
       };
       screenshotImg.src = screenshotUrl;
     };
@@ -1134,20 +1269,15 @@ export class RwlCarouselBase extends LitElement {
   }
 
   /**
-   * Update the game details panel with current game info
-   * Note: This updates background and video only - details content should be rendered via Lit
+   * Update the game details panel with current game info.
+   * Note: Media (video, background) is loaded via debounce mechanism for performance.
+   * This only updates the text details.
    */
   _updateGameDetailsPanel() {
-    const game = this.selectedGame;
-    const bgImage = this.shadowRoot?.querySelector('.bg-image');
-    const videoPlayer = this.shadowRoot?.querySelector('rwl-video-player');
-
-    if (bgImage && game) {
-      this._loadBackgroundImage(bgImage, game.id);
-    }
-
-    if (videoPlayer && game) {
-      videoPlayer.src = `/api/media/game/${game.id}/video`;
+    // If this is the first load (not scrolling), load media immediately
+    if (!this._isScrolling && this._currentIndex !== this._lastMediaLoadedIndex) {
+      this._lastMediaLoadedIndex = this._currentIndex;
+      this._loadMediaForCurrentGame();
     }
 
     // Request update to re-render details via Lit template

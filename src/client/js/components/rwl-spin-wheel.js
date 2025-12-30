@@ -501,7 +501,7 @@ class RwlSpinWheel extends RwlCarouselBase {
     return html`
       <div class="spin-view">
         <div class="bg-layer">
-          <div class="bg-image"></div>
+          <div class="bg-image" style="background-image: ${this._debouncedBgUrl ? `url('${this._debouncedBgUrl}')` : 'none'}"></div>
           <div class="bg-gradient"></div>
         </div>
 
@@ -509,7 +509,7 @@ class RwlSpinWheel extends RwlCarouselBase {
           <div class="crt-container">
             <div class="crt-frame">
               <div class="crt-screen">
-                <rwl-video-player autoplay loop muted .src=${this.selectedGame ? `/api/media/game/${this.selectedGame.id}/video` : ''}></rwl-video-player>
+                <rwl-video-player autoplay loop muted .src=${this._debouncedVideoSrc || ''}></rwl-video-player>
               </div>
               <div class="crt-details">
                 <div class="crt-led"></div>

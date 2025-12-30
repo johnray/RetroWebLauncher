@@ -490,16 +490,18 @@ class RwlSpinnerView extends RwlCarouselBase {
 
   _handleWheelScroll(e) {
     e.preventDefault();
-    this._navigate(e.deltaY > 0 ? 1 : -1);
+    // Inverted: scroll down = previous, scroll up = next (natural wheel physics)
+    this._navigate(e.deltaY > 0 ? -1 : 1);
   }
 
   render() {
-    const videoSrc = this.selectedGame ? `/api/media/game/${this.selectedGame.id}/video` : '';
+    // Use debounced video src from base class - only updates after scroll stops
+    const videoSrc = this._debouncedVideoSrc || '';
 
     return html`
       <div class="spinner-view">
         <div class="bg-layer">
-          <div class="bg-image"></div>
+          <div class="bg-image" style="background-image: ${this._debouncedBgUrl ? `url('${this._debouncedBgUrl}')` : 'none'}"></div>
           <div class="bg-gradient"></div>
         </div>
 

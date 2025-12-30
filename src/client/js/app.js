@@ -230,6 +230,7 @@ class App {
       }
     });
   }
+
 }
 
 // Register service worker

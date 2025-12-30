@@ -26,6 +26,14 @@ class RwlSidebar extends LitElement {
       border-right: 1px solid var(--sidebar-border-color, rgba(255,255,255,0.1));
       overflow-y: auto;
       overflow-x: hidden;
+      /* Aggressive iOS zoom prevention */
+      touch-action: pan-y;
+      -webkit-touch-callout: none;
+    }
+
+    * {
+      /* Prevent iOS double-tap zoom on ALL elements */
+      touch-action: manipulation;
     }
 
     .sidebar-section {
@@ -47,6 +55,7 @@ class RwlSidebar extends LitElement {
       cursor: pointer;
       user-select: none;
       transition: color var(--transition-fast, 150ms);
+      touch-action: manipulation; /* Prevent iOS double-tap zoom */
     }
 
     .section-title:hover {
@@ -94,6 +103,7 @@ class RwlSidebar extends LitElement {
       border-radius: var(--radius-sm, 4px);
       transition: background var(--transition-fast, 150ms),
                   color var(--transition-fast, 150ms);
+      touch-action: manipulation; /* Prevent iOS double-tap zoom */
     }
 
     .group-header:hover {
@@ -133,6 +143,7 @@ class RwlSidebar extends LitElement {
       cursor: pointer;
       transition: all var(--transition-fast, 150ms);
       margin-bottom: 2px;
+      touch-action: manipulation; /* Prevent iOS double-tap zoom */
     }
 
     .system-item:hover,
@@ -345,7 +356,7 @@ class RwlSidebar extends LitElement {
       const isCollapsed = this._isSectionCollapsed(groupId);
       return html`
         <div class="system-group">
-          <div class="group-header" @click=${() => this._toggleSection(groupId)}>
+          <div class="group-header" data-group-id="${groupId}" @click=${() => this._toggleSection(groupId)}>
             <span>${hwLabels[hw] || hw}</span>
             <span class="group-toggle ${isCollapsed ? 'collapsed' : ''}">▼</span>
           </div>
@@ -353,6 +364,7 @@ class RwlSidebar extends LitElement {
             ${systems.map(sys => html`
               <div
                 class="system-item ${sys.id === this._selectedSystem ? 'selected' : ''}"
+                data-system-id="${sys.id}"
                 tabindex="0"
                 @click=${() => this._handleSystemClick(sys.id)}
                 @keydown=${(e) => e.key === 'Enter' && this._handleSystemClick(sys.id)}
@@ -375,6 +387,7 @@ class RwlSidebar extends LitElement {
     return this._collections.map(col => html`
       <div
         class="collection-item"
+        data-collection-id="${col.id}"
         tabindex="0"
         @click=${() => this._handleCollectionClick(col.id)}
         @keydown=${(e) => e.key === 'Enter' && this._handleCollectionClick(col.id)}
@@ -392,7 +405,7 @@ class RwlSidebar extends LitElement {
 
     return html`
       <div class="sidebar-section">
-        <div class="section-title" @click=${() => this._toggleSection('collections')}>
+        <div class="section-title" data-section-id="collections" @click=${() => this._toggleSection('collections')}>
           <span>Collections</span>
           <span class="section-toggle ${collectionsCollapsed ? 'collapsed' : ''}">▼</span>
         </div>
@@ -404,7 +417,7 @@ class RwlSidebar extends LitElement {
       </div>
 
       <div class="sidebar-section">
-        <div class="section-title" @click=${() => this._toggleSection('systems')}>
+        <div class="section-title" data-section-id="systems" @click=${() => this._toggleSection('systems')}>
           <span>Systems</span>
           <span class="section-toggle ${systemsCollapsed ? 'collapsed' : ''}">▼</span>
         </div>

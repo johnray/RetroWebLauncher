@@ -251,10 +251,23 @@
     min-width: 280px;
   }
 
-  /* Focus states more visible */
-  :focus {
+  /* Focus states more visible - only for interactive elements, not containers */
+  button:focus,
+  a:focus,
+  [role="button"]:focus,
+  [tabindex]:focus,
+  input:focus,
+  select:focus,
+  .clickable:focus,
+  .system-item:focus,
+  .game-card:focus {
     outline-width: 4px;
     outline-offset: 4px;
+  }
+
+  /* Scale effect only for specific game UI elements, not containers */
+  .game-card:focus,
+  .system-item:focus {
     transform: scale(1.05);
   }
 }
@@ -357,12 +370,8 @@ html.ios-device {
 html.ios-device body {
   /* Prevent elastic scrolling on body */
   overscroll-behavior: none;
-  /* Use fixed positioning to prevent viewport jumps */
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* NOTE: Removed position:fixed - it conflicts with rwl-app's position:fixed
+     causing iOS viewport desync and zoom issues on tap */
   height: 100%;
   overflow: hidden;
 }

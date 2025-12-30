@@ -242,7 +242,9 @@ export class KeyboardHandler {
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
       const elem = document.documentElement;
       if (elem.requestFullscreen) {
-        elem.requestFullscreen();
+        elem.requestFullscreen().catch(err => {
+          console.warn('Fullscreen request failed:', err);
+        });
       } else if (elem.webkitRequestFullscreen) {
         elem.webkitRequestFullscreen();
       }

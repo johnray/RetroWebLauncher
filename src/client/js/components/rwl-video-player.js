@@ -286,6 +286,9 @@ class RwlVideoPlayer extends LitElement {
     this._hasInteracted = false;
     this._observer = null;
     this._pendingRaf = null;
+    this._loadTimeout = null; // Timeout for detecting stuck videos (Safari codec issues)
+    this._isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
+                     /iPad|iPhone|iPod/.test(navigator.userAgent);
     // Pre-bind event handlers for proper cleanup
     this._boundHandlers = {
       canplay: () => this._onCanPlay(),
@@ -294,7 +297,9 @@ class RwlVideoPlayer extends LitElement {
       play: () => this._onPlay(),
       pause: () => this._onPause(),
       waiting: () => this._onWaiting(),
-      playing: () => this._onPlaying()
+      playing: () => this._onPlaying(),
+      stalled: () => this._onStalled(),
+      suspend: () => this._onSuspend()
     };
   }
 
@@ -304,6 +309,12 @@ class RwlVideoPlayer extends LitElement {
       if (this._pendingRaf) {
         cancelAnimationFrame(this._pendingRaf);
         this._pendingRaf = null;
+      }
+
+      // Cancel any pending load timeout
+      if (this._loadTimeout) {
+        clearTimeout(this._loadTimeout);
+        this._loadTimeout = null;
       }
 
       // Reset all state when source changes
@@ -319,6 +330,19 @@ class RwlVideoPlayer extends LitElement {
           this._video.pause();
           this._video.src = this.src;
           this._video.load(); // Force reload with new source
+
+          // Set a timeout for Safari/iOS - if video doesn't load within 5s, show placeholder
+          // This handles cases where codec isn't supported (white screen issue)
+          if (this._isSafari) {
+            this._loadTimeout = setTimeout(() => {
+              if (!this._loaded && !this._hasError && this.isConnected) {
+                console.warn('Video load timeout (possible codec issue):', this.src);
+                this._showPlaceholder = true;
+                this._hasError = true;
+                this.requestUpdate();
+              }
+            }, 5000);
+          }
 
           // Attempt to play if autoplay is enabled
           if (this.autoplay) {
@@ -360,6 +384,12 @@ class RwlVideoPlayer extends LitElement {
     if (this._pendingRaf) {
       cancelAnimationFrame(this._pendingRaf);
       this._pendingRaf = null;
+    }
+
+    // Cancel load timeout
+    if (this._loadTimeout) {
+      clearTimeout(this._loadTimeout);
+      this._loadTimeout = null;
     }
 
     // Disconnect intersection observer
@@ -417,6 +447,8 @@ class RwlVideoPlayer extends LitElement {
     this._video.addEventListener('pause', this._boundHandlers.pause);
     this._video.addEventListener('waiting', this._boundHandlers.waiting);
     this._video.addEventListener('playing', this._boundHandlers.playing);
+    this._video.addEventListener('stalled', this._boundHandlers.stalled);
+    this._video.addEventListener('suspend', this._boundHandlers.suspend);
   }
 
   _unbindVideoEvents() {
@@ -429,11 +461,19 @@ class RwlVideoPlayer extends LitElement {
     this._video.removeEventListener('pause', this._boundHandlers.pause);
     this._video.removeEventListener('waiting', this._boundHandlers.waiting);
     this._video.removeEventListener('playing', this._boundHandlers.playing);
+    this._video.removeEventListener('stalled', this._boundHandlers.stalled);
+    this._video.removeEventListener('suspend', this._boundHandlers.suspend);
   }
 
   _onCanPlay() {
     // Guard: ignore if component disconnected
     if (!this.isConnected) return;
+
+    // Clear load timeout since video can play
+    if (this._loadTimeout) {
+      clearTimeout(this._loadTimeout);
+      this._loadTimeout = null;
+    }
 
     // Batch state changes to minimize renders
     const needsUpdate = !this._loaded || this._hasError || this._showPlaceholder;
@@ -482,6 +522,52 @@ class RwlVideoPlayer extends LitElement {
     if (!this.isConnected) return;
     this._playing = true;
     this._loaded = true;
+
+    // Clear load timeout since video is playing
+    if (this._loadTimeout) {
+      clearTimeout(this._loadTimeout);
+      this._loadTimeout = null;
+    }
+  }
+
+  _onStalled() {
+    if (!this.isConnected) return;
+    // Video stalled - could be network or codec issue
+    // On Safari, this often happens with unsupported codecs
+    if (this._isSafari && !this._loaded) {
+      console.warn('Video stalled (possible codec issue on Safari):', this.src);
+      // Give it a bit more time, but reduce the timeout
+      if (this._loadTimeout) {
+        clearTimeout(this._loadTimeout);
+      }
+      this._loadTimeout = setTimeout(() => {
+        if (!this._loaded && !this._hasError && this.isConnected) {
+          this._showPlaceholder = true;
+          this._hasError = true;
+          this.requestUpdate();
+        }
+      }, 2000);
+    }
+  }
+
+  _onSuspend() {
+    if (!this.isConnected) return;
+    // Suspend is normal - browser stopped loading because it has enough data
+    // Only treat as error if we never got any data loaded
+    if (this._isSafari && !this._loaded && this._video) {
+      // Check if video has any data - readyState 0 means nothing loaded
+      if (this._video.readyState === 0) {
+        console.warn('Video suspended without loading (codec not supported?):', this.src);
+        // Short timeout to see if it recovers
+        setTimeout(() => {
+          if (this._video?.readyState === 0 && !this._hasError && this.isConnected) {
+            this._showPlaceholder = true;
+            this._hasError = true;
+            this.requestUpdate();
+          }
+        }, 1000);
+      }
+    }
   }
 
   async _playVideo() {
@@ -576,8 +662,8 @@ class RwlVideoPlayer extends LitElement {
         ></video>
 
         <div class="error-state ${this._hasError ? '' : 'hidden'}">
-          <span class="error-icon">⚠️</span>
-          <p>Video unavailable</p>
+          <span class="error-icon">📺</span>
+          <p>${this._isSafari ? 'Format not supported' : 'Video unavailable'}</p>
         </div>
 
         <div class="play-overlay ${this._playing ? 'hidden' : ''}" @click=${this._handlePlayClick}>

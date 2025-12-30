@@ -292,6 +292,7 @@ class RwlListView extends LitElement {
       bottom: 0;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden; /* Clip 110% bg-image for iOS viewport */
     }
 
     .bg-image {

@@ -19,12 +19,16 @@ class RwlHeader extends LitElement {
     :host {
       display: block;
       height: var(--header-height, 64px);
+      /* Add safe area padding for iOS PWA - status bar overlaps in standalone mode */
+      padding-top: env(safe-area-inset-top, 0px);
       background: var(--header-background, linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%));
       border-bottom: 2px solid var(--header-border-color, var(--color-primary, #ff0066));
       position: relative;
       z-index: var(--z-header, 200);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
+      /* Ensure the background extends behind the status bar */
+      box-sizing: content-box;
     }
 
     .header-container {
@@ -168,6 +172,9 @@ class RwlHeader extends LitElement {
     this._arcadeName = 'RetroWebLauncher';
     this._unsubscribers = [];
     this._boundFullscreenHandler = () => this._updateFullscreen();
+    // Detect Safari on iOS/iPadOS - limited fullscreen support
+    this._isSafariIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                        (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
   }
 
   connectedCallback() {
@@ -210,10 +217,23 @@ class RwlHeader extends LitElement {
   }
 
   _toggleFullscreen() {
+    // On iOS/iPadOS Safari, fullscreen API doesn't work for document
+    // Recommend using "Add to Home Screen" for PWA standalone mode instead
+    if (this._isSafariIOS && !document.fullscreenElement && !document.webkitFullscreenElement) {
+      // Check if running as PWA (standalone mode)
+      const isStandalone = window.navigator.standalone ||
+                           window.matchMedia('(display-mode: standalone)').matches;
+      if (!isStandalone) {
+        console.info('Fullscreen not fully supported on Safari. For best experience, add to Home Screen.');
+      }
+    }
+
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
       const elem = document.documentElement;
       if (elem.requestFullscreen) {
-        elem.requestFullscreen();
+        elem.requestFullscreen().catch(err => {
+          console.warn('Fullscreen request failed:', err);
+        });
       } else if (elem.webkitRequestFullscreen) {
         elem.webkitRequestFullscreen();
       }

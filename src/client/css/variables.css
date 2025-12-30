@@ -92,7 +92,7 @@
   --touch-target-min: 44px;
 }
 
-/* Safari-specific fixes */
+/* Safari/iOS-specific fixes */
 @supports (-webkit-touch-callout: none) {
   :root {
     /* iOS safe area insets */

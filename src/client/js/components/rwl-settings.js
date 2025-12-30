@@ -132,7 +132,8 @@ class RwlSettings extends LitElement {
       border: 2px solid var(--settings-input-border, rgba(255,255,255,0.2));
       border-radius: var(--radius-md, 8px);
       color: var(--settings-input-color, var(--color-text, #fff));
-      font-size: var(--font-size-sm, 0.75rem);
+      /* iOS requires 16px minimum to prevent zoom on focus */
+      font-size: max(var(--font-size-sm, 0.75rem), 16px);
       outline: none;
       transition: border-color var(--transition-fast, 150ms);
       box-shadow: var(--settings-input-shadow, none);

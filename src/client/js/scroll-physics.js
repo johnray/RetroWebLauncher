@@ -35,9 +35,9 @@ export class ScrollPhysics {
     this._snapVelocityThreshold = 50; // px/s - below this, start snapping
     this._snapDistanceThreshold = 0.3; // Within 0.3 items, snap immediately
 
-    // Spring constants for snap animation
-    this._springDamping = 20; // Damping coefficient
-    this._springStiffness = 300; // Spring stiffness (higher = snappier)
+    // Spring constants for snap animation (higher values = faster/snappier)
+    this._springDamping = 25; // Damping coefficient
+    this._springStiffness = 500; // Spring stiffness (higher = snappier)
 
     // State
     this._position = 0; // Current position (can be fractional)

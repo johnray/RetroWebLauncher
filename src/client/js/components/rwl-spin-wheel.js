@@ -413,8 +413,9 @@ class RwlSpinWheel extends RwlCarouselBase {
       // Apply card width
       item.style.width = `${itemWidth}px`;
 
-      // Active class based on logical selection
-      item.classList.toggle('active', i === this._currentIndex);
+      // Active class based on visual proximity to center (immediate feedback)
+      const isActive = absOffset < 0.5;
+      item.classList.toggle('active', isActive);
     });
   }
 

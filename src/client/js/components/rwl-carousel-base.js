@@ -820,10 +820,31 @@ export class RwlCarouselBase extends LitElement {
       this._games = response.games || [];
       this._buildLetterIndex();
 
+      // Try to restore selection from state (for view switching)
+      // Priority: state (cross-view) > sessionStorage (cross-session) > 0
+      const selectedGameId = state.get(`selectedGame:${this.systemId}`);
+      let restoredIndex = -1;
+
+      if (selectedGameId) {
+        restoredIndex = this._games.findIndex(g => g.id === selectedGameId);
+      }
+
+      if (restoredIndex >= 0) {
+        this._currentIndex = restoredIndex;
+      } else {
+        // Fall back to sessionStorage position
+        const savedPos = sessionStorage.getItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`);
+        if (savedPos) {
+          this._currentIndex = parseInt(savedPos, 10);
+        }
+      }
+
+      // Clamp to valid range
       if (this._currentIndex >= this._games.length) {
         this._currentIndex = Math.max(0, this._games.length - 1);
       }
       this._visualOffset = this._currentIndex; // Sync after loading
+      this._scrollPhysics.setPosition(this._currentIndex); // Sync physics
 
       // Initial media load is handled by _updateGameDetailsPanel() via updated() lifecycle
       // Just ensure the index is ready to trigger a load
@@ -1023,10 +1044,12 @@ export class RwlCarouselBase extends LitElement {
       this._loadMediaForCurrentGame();
     }
 
-    // Emit game selection event
+    // Emit game selection event and store in state for view switching
     const game = this.selectedGame;
     if (game) {
       state.emit('gameSelected', game);
+      // Store selected game ID per system for view switching
+      state.set(`selectedGame:${this.systemId}`, game.id);
     }
 
     this.requestUpdate();

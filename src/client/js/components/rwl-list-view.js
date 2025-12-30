@@ -555,6 +555,20 @@ class RwlListView extends LitElement {
         limit: 10000
       });
       this._games = response.games || [];
+
+      // Try to restore selection from state (for view switching)
+      const selectedGameId = state.get(`selectedGame:${this.systemId}`);
+      if (selectedGameId) {
+        const restoredIndex = this._games.findIndex(g => g.id === selectedGameId);
+        if (restoredIndex >= 0) {
+          this._selectedIndex = restoredIndex;
+        }
+      }
+
+      // Clamp to valid range
+      if (this._selectedIndex >= this._games.length) {
+        this._selectedIndex = Math.max(0, this._games.length - 1);
+      }
     } catch (error) {
       console.error('Failed to load games:', error);
       this._games = [];
@@ -693,6 +707,11 @@ class RwlListView extends LitElement {
     // Update background with selected game's screenshot
     const game = this._games[this._selectedIndex];
     this._updateBackground(game);
+
+    // Store selected game ID for view switching
+    if (game && this.systemId) {
+      state.set(`selectedGame:${this.systemId}`, game.id);
+    }
 
     // Update alphabet bar highlight
     this._updateCurrentLetter();

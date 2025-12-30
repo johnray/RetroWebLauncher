@@ -156,6 +156,13 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
     this._shapeMorphProgress = 0;
     this._shapeChangeTimer = 0;
 
+    // Texture rotation (twist effect)
+    this._textureRotation = 0; // Current rotation offset (0-1 = one full rotation)
+    this._rotationDirection = Math.random() > 0.5 ? 1 : -1; // Random initial direction
+    this._rotationSpeed = 0.015 + Math.random() * 0.015; // 0.015-0.03 rotations/sec (~33-67 sec per full rotation)
+    this._rotationChangeTimer = 0;
+    this._rotationChangeDuration = 30 + Math.random() * 30; // 30-60 seconds before direction change
+
     // Images loaded for texture
     this._loadedTextures = [];
     this._textureCanvas = null;
@@ -861,6 +868,9 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
       // Update shape morphing
       this._updateShapeMorph(delta);
 
+      // Update texture rotation (twist effect)
+      this._updateTextureRotation(delta);
+
       // Move camera along path
       this._pathProgress += this._currentSpeed * delta * 60;
 
@@ -937,6 +947,30 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
       if (Math.floor(this._shapeMorphProgress * 20) !== Math.floor((this._shapeMorphProgress - delta * 0.35) * 20)) {
         this._updateTunnelShape();
       }
+    }
+  }
+
+  _updateTextureRotation(delta) {
+    // Periodically change rotation direction
+    this._rotationChangeTimer += delta;
+
+    if (this._rotationChangeTimer >= this._rotationChangeDuration) {
+      // Flip direction (or occasionally keep same direction)
+      if (Math.random() > 0.3) {
+        this._rotationDirection *= -1;
+      }
+      // Slightly vary the rotation speed for organic feel
+      this._rotationSpeed = 0.015 + Math.random() * 0.015; // 0.015-0.03 rotations/sec
+      this._rotationChangeDuration = 30 + Math.random() * 30; // 30-60 seconds
+      this._rotationChangeTimer = 0;
+    }
+
+    // Update rotation - accumulates continuously
+    this._textureRotation += this._rotationDirection * this._rotationSpeed * delta;
+
+    // Apply rotation to texture offset (offset.y controls circumference position)
+    if (this._tunnelMesh && this._tunnelMesh.material && this._tunnelMesh.material.map) {
+      this._tunnelMesh.material.map.offset.y = this._textureRotation;
     }
   }
 

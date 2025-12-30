@@ -38,7 +38,7 @@ param(
 # ============================================================================
 
 $script:AppName = "RetroWebLauncher"
-$script:Version = "1.1.0"
+$script:Version = "2.1.0"
 $script:ConfigFile = "rwl.config.json"
 $script:LogFile = "rwl.log"
 $script:DefaultPort = 3000

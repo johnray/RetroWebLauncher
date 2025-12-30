@@ -73,46 +73,20 @@ class RwlSystemCarousel extends LitElement {
       border-radius: 16px;
       overflow: hidden;
       cursor: pointer;
-      transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-      transform: scale(0.75) rotateY(15deg);
-      opacity: 0.4;
-      filter: brightness(0.5) blur(2px);
+      /* No CSS transitions - inline styles from JS provide smooth physics-based animation */
       position: relative;
       transform-style: preserve-3d;
       perspective: 1000px;
+      will-change: transform, opacity, filter;
     }
 
-    .system-card.active {
-      transform: scale(1) rotateY(0deg);
-      opacity: 1;
-      filter: brightness(1) blur(0);
-      z-index: 10;
-    }
-
+    /* Active card gets glow effect - this class still used for border/shadow */
     .system-card.active .card-inner {
       border: var(--selection-border-width, 3px) solid var(--selection-border-color, #00c8ff);
       box-shadow:
         0 0 60px var(--selection-glow-rgba, rgba(0, 200, 255, 0.4)),
         0 0 100px var(--selection-glow-secondary, rgba(255, 0, 102, 0.2)),
         0 20px 40px rgba(0, 0, 0, 0.6);
-    }
-
-    .system-card.prev {
-      transform: scale(0.85) rotateY(8deg) translateX(20px);
-      opacity: 0.7;
-      filter: brightness(0.7) blur(1px);
-    }
-
-    .system-card.next {
-      transform: scale(0.85) rotateY(-8deg) translateX(-20px);
-      opacity: 0.7;
-      filter: brightness(0.7) blur(1px);
-    }
-
-    .system-card.far {
-      transform: scale(0.65) rotateY(25deg);
-      opacity: 0.3;
-      filter: brightness(0.4) blur(3px);
     }
 
     .system-card:hover:not(.active) {
@@ -754,14 +728,58 @@ class RwlSystemCarousel extends LitElement {
     this.style.setProperty('--card-inner-padding', `${cardPadding}px`);
     this.style.setProperty('--console-margin-bottom', `${consoleMargin}px`);
 
-    // Update active state based on current rounded index
-    const activeIndex = Math.round(this._visualOffset);
+    // Apply smooth visual styles based on continuous offset from _visualOffset
+    const totalSystems = this._systems.length;
     cards.forEach((card, i) => {
-      const offset = i - activeIndex;
-      card.classList.toggle('active', i === activeIndex);
-      card.classList.toggle('prev', offset === -1);
-      card.classList.toggle('next', offset === 1);
-      card.classList.toggle('far', Math.abs(offset) > 1);
+      // Calculate continuous offset from visual position
+      let offset = i - this._visualOffset;
+
+      // Handle wrapping for smooth animation at edges
+      if (totalSystems > 0) {
+        if (offset > totalSystems / 2) offset -= totalSystems;
+        if (offset < -totalSystems / 2) offset += totalSystems;
+      }
+
+      const absOffset = Math.abs(offset);
+
+      // Smooth interpolation of visual properties based on distance from center
+      // Scale: 1.0 at center, decreasing as we move away
+      const scale = absOffset < 0.5
+        ? 1.0 - absOffset * 0.3  // Near center: 1.0 to 0.85
+        : Math.max(0.65, 0.85 - (absOffset - 0.5) * 0.2);  // Further: 0.85 to 0.65
+
+      // Opacity: 1.0 at center, decreasing as we move away
+      const opacity = absOffset < 0.5
+        ? 1.0 - absOffset * 0.6  // Near center: 1.0 to 0.7
+        : Math.max(0.3, 0.7 - (absOffset - 0.5) * 0.4);  // Further: 0.7 to 0.3
+
+      // Brightness: 1.0 at center, decreasing as we move away
+      const brightness = absOffset < 0.5
+        ? 1.0 - absOffset * 0.6
+        : Math.max(0.4, 0.7 - (absOffset - 0.5) * 0.3);
+
+      // Blur: 0 at center, increasing as we move away
+      const blur = absOffset < 0.5
+        ? absOffset * 2  // Near center: 0 to 1px
+        : Math.min(3, 1 + (absOffset - 0.5) * 2);  // Further: 1px to 3px
+
+      // Rotation: 0 at center, increasing as we move away (direction based on side)
+      const rotateY = offset < 0
+        ? Math.min(25, absOffset * 15)  // Left side: positive rotation
+        : Math.max(-25, -absOffset * 15);  // Right side: negative rotation
+
+      // Z-index based on distance from center
+      const zIndex = Math.round(100 - absOffset * 10);
+
+      // Apply inline styles for smooth animation
+      card.style.transform = `scale(${scale}) rotateY(${rotateY}deg)`;
+      card.style.opacity = opacity;
+      card.style.filter = `brightness(${brightness}) blur(${blur}px)`;
+      card.style.zIndex = zIndex;
+
+      // Active class only for the glow effect (border/shadow)
+      const isActive = absOffset < 0.5;
+      card.classList.toggle('active', isActive);
     });
 
     // Calculate translation using _visualOffset for smooth scrolling

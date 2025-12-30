@@ -329,15 +329,34 @@ class RwlSpinnerView extends RwlCarouselBase {
   }
 
   /**
-   * Override touch direction for wheel of fortune UX.
+   * Override touch handlers for wheel of fortune UX.
    * Swipe up should move to next item (down the wheel),
    * swipe down should move to previous item (up the wheel).
+   * We invert the Y coordinate to achieve this.
    */
-  _getTouchDirection(direction, isVertical) {
-    // Invert vertical swipe direction for natural wheel physics
-    if (direction === 'up') return 'down';
-    if (direction === 'down') return 'up';
-    return direction;
+  _onCarouselTouchStart(e) {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    this._touchActive = true;
+    this._touchDragging = false;
+
+    // Invert Y for wheel of fortune UX (swipe up = next)
+    this._scrollPhysics.startDrag(-touch.clientY);
+  }
+
+  _onCarouselTouchMove(e) {
+    if (!this._touchActive || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+
+    // Invert Y for wheel of fortune UX
+    const isDragging = this._scrollPhysics.updateDrag(-touch.clientY);
+
+    if (isDragging) {
+      e.preventDefault();
+      this._touchDragging = true;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────

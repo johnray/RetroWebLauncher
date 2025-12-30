@@ -74,34 +74,18 @@ class RwlWheelView extends RwlCarouselBase {
       border-radius: 12px;
       overflow: hidden;
       cursor: pointer;
-      transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-      transform: scale(0.85);
+      /* No CSS transition - inline styles from JS provide smooth physics-based animation */
       transform-origin: bottom center;
-      opacity: 0.5;
-      filter: brightness(0.6);
       position: relative;
+      will-change: transform, opacity, filter;
     }
 
+    /* Active card gets border/glow effect */
     .card.active {
-      transform: scale(1.1);
-      opacity: 1;
-      filter: brightness(1);
-      z-index: 10;
       border: var(--selection-border-width, 3px) solid var(--selection-border-color, #ff0066);
       box-shadow:
         0 0 60px var(--selection-glow-rgba, rgba(255, 0, 102, 0.4)),
         0 20px 40px rgba(0, 0, 0, 0.6);
-    }
-
-    .card.prev, .card.next {
-      transform: scale(0.95);
-      opacity: 0.8;
-      filter: brightness(0.8);
-    }
-
-    .card:hover:not(.active) {
-      transform: scale(0.9);
-      opacity: 0.9;
     }
 
     .card-image {
@@ -241,7 +225,7 @@ class RwlWheelView extends RwlCarouselBase {
   }
 
   /**
-   * Update the carousel track position based on _visualOffset
+   * Update the carousel track position and card visual states based on _visualOffset
    */
   _updateTrackPosition() {
     const track = this.shadowRoot?.querySelector('.carousel-track');
@@ -258,22 +242,60 @@ class RwlWheelView extends RwlCarouselBase {
 
     track.style.transform = `translateX(${translateX}px)`;
     track.style.gap = `${gap}px`;
+
+    // Apply smooth visual styles to each card based on continuous offset
+    const cards = track.querySelectorAll('.card');
+    const totalGames = this._games.length;
+
+    cards.forEach((card, i) => {
+      // Calculate continuous offset from visual position
+      let offset = i - this._visualOffset;
+
+      // Handle wrapping for smooth animation at edges
+      if (totalGames > 0) {
+        if (offset > totalGames / 2) offset -= totalGames;
+        if (offset < -totalGames / 2) offset += totalGames;
+      }
+
+      const absOffset = Math.abs(offset);
+
+      // Smooth scale: 1.1 at center (for emphasis), decreasing as we move away
+      const scale = absOffset < 0.5
+        ? 1.1 - absOffset * 0.3  // Near center: 1.1 to 0.95
+        : Math.max(0.85, 0.95 - (absOffset - 0.5) * 0.1);  // Further: 0.95 to 0.85
+
+      // Smooth opacity: 1.0 at center, decreasing as we move away
+      const opacity = absOffset < 0.5
+        ? 1.0 - absOffset * 0.4  // Near center: 1.0 to 0.8
+        : Math.max(0.5, 0.8 - (absOffset - 0.5) * 0.3);  // Further: 0.8 to 0.5
+
+      // Smooth brightness: 1.0 at center, decreasing as we move away
+      const brightness = absOffset < 0.5
+        ? 1.0 - absOffset * 0.4
+        : Math.max(0.6, 0.8 - (absOffset - 0.5) * 0.2);
+
+      // Z-index based on distance from center
+      const zIndex = Math.round(100 - absOffset * 10);
+
+      // Apply inline styles for smooth animation
+      card.style.transform = `scale(${scale})`;
+      card.style.opacity = opacity;
+      card.style.filter = `brightness(${brightness})`;
+      card.style.zIndex = zIndex;
+
+      // Active class only for the border/glow effect
+      const isActive = absOffset < 0.5;
+      card.classList.toggle('active', isActive);
+    });
   }
 
   _renderCard(game, index) {
     const hasImage = game.thumbnail || game.image;
     const imageUrl = hasImage ? `/api/media/game/${game.id}/thumbnail` : '';
-    const isActive = index === this._currentIndex;
-    const isPrev = index === this._currentIndex - 1;
-    const isNext = index === this._currentIndex + 1;
 
-    const classes = ['card'];
-    if (isActive) classes.push('active');
-    if (isPrev) classes.push('prev');
-    if (isNext) classes.push('next');
-
+    // Active class will be toggled by _updateTrackPosition based on visual offset
     return html`
-      <div class="${classes.join(' ')}"
+      <div class="card"
            data-index="${index}"
            @click=${() => this._handleCardClick(index)}
            style="width: ${this._size}px; height: ${Math.round(this._size * 1.36)}px;">

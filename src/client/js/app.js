@@ -41,9 +41,9 @@ class App {
       state.set('config', this.config);
       state.set('connected', true);
 
-      // Initialize theme service
+      // Initialize theme service with server config theme as fallback
       this.updateLoadingStatus('Loading theme...');
-      await themeService.init();
+      await themeService.init(this.config.theme);
 
       // Load components
       this.updateLoadingStatus('Loading components...');

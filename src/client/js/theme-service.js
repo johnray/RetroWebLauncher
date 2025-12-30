@@ -15,20 +15,33 @@ class ThemeService {
     this._initPromise = null;
   }
 
-  async init() {
+  /**
+   * Initialize theme service
+   * @param {string} serverConfigTheme - Theme from server config (fallback if localStorage empty)
+   */
+  async init(serverConfigTheme = null) {
     // Return existing promise if init is already in progress
     if (this._initPromise) return this._initPromise;
     if (this._initialized) return;
 
     // Create and store the promise to prevent concurrent init calls
-    this._initPromise = this._doInit();
+    this._initPromise = this._doInit(serverConfigTheme);
     return this._initPromise;
   }
 
-  async _doInit() {
+  async _doInit(serverConfigTheme) {
     try {
-      // Get current theme from localStorage or default
-      this._currentTheme = localStorage.getItem('rwl-theme') || 'classic-arcade';
+      // Priority: localStorage > serverConfig > default
+      // This ensures the user's device preference is respected,
+      // but falls back to server config if localStorage is empty (e.g., iOS clears cache)
+      const localTheme = localStorage.getItem('rwl-theme');
+      this._currentTheme = localTheme || serverConfigTheme || 'classic-arcade';
+
+      // If we used server config, sync to localStorage for future loads
+      if (!localTheme && serverConfigTheme) {
+        localStorage.setItem('rwl-theme', serverConfigTheme);
+      }
+
       await this.loadThemeSettings(this._currentTheme);
       this._createBackgroundLayer();
       this._initialized = true;

@@ -401,6 +401,7 @@ class RwlListView extends LitElement {
     this._savedScrollPos = null;
     this._resizeObserver = null;
     this._pendingScrollToIndex = null; // For scrolling to selected game on view switch
+    this._boundKeydownHandler = this._handleKeydown.bind(this); // Bound handler for cleanup
   }
 
   /**
@@ -485,6 +486,9 @@ class RwlListView extends LitElement {
     super.disconnectedCallback();
     // Save scroll position before leaving
     this._saveScrollPosition();
+
+    // Remove keydown listener
+    this.removeEventListener('keydown', this._boundKeydownHandler);
 
     // Clean up resize observer
     if (this._resizeObserver) {
@@ -606,31 +610,8 @@ class RwlListView extends LitElement {
   }
 
   _bindEvents() {
-    // Keyboard navigation
-    this.addEventListener('keydown', (e) => {
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          this._selectNext();
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          this._selectPrev();
-          break;
-        case 'Enter':
-          e.preventDefault();
-          this._activateSelected();
-          break;
-        case 'Home':
-          e.preventDefault();
-          this._selectFirst();
-          break;
-        case 'End':
-          e.preventDefault();
-          this._selectLast();
-          break;
-      }
-    });
+    // Keyboard navigation (use bound handler for proper cleanup)
+    this.addEventListener('keydown', this._boundKeydownHandler);
 
     // Input manager events
     this._unsubscribers.push(
@@ -653,6 +634,31 @@ class RwlListView extends LitElement {
     this._unsubscribers.push(
       state.on('input:character', (char) => this._jumpToLetter(char.toUpperCase()))
     );
+  }
+
+  _handleKeydown(e) {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        this._selectNext();
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        this._selectPrev();
+        break;
+      case 'Enter':
+        e.preventDefault();
+        this._activateSelected();
+        break;
+      case 'Home':
+        e.preventDefault();
+        this._selectFirst();
+        break;
+      case 'End':
+        e.preventDefault();
+        this._selectLast();
+        break;
+    }
   }
 
   _jumpToPreviousLetter() {

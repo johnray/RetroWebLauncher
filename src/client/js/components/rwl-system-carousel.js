@@ -350,7 +350,11 @@ class RwlSystemCarousel extends LitElement {
     this._currentIndex = 0;
     this._loading = true;
     this._unsubscribers = [];
-    this._sizeMultiplier = parseFloat(localStorage.getItem('rwl-system-carousel-size') || '1.0');
+    try {
+      this._sizeMultiplier = parseFloat(localStorage.getItem('rwl-system-carousel-size') || '1.0');
+    } catch (e) {
+      this._sizeMultiplier = 1.0;
+    }
     this._maxMultiplier = 1.5; // Default, will be calculated dynamically
     this._resizeObserver = null;
     this._resizeRaf = null;
@@ -423,7 +427,11 @@ class RwlSystemCarousel extends LitElement {
       this._maxMultiplier = newMax;
       if (this._sizeMultiplier > this._maxMultiplier) {
         this._sizeMultiplier = this._maxMultiplier;
-        localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+        try {
+          localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+        } catch (e) {
+          // localStorage unavailable
+        }
       }
       this.requestUpdate();
     }
@@ -570,7 +578,11 @@ class RwlSystemCarousel extends LitElement {
 
   _onSliderChange(e) {
     this._sizeMultiplier = parseFloat(e.target.value);
-    localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+    try {
+      localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
+    } catch (err) {
+      // localStorage unavailable
+    }
     this._updateCarousel();
     // Update physics item size
     this._updatePhysicsItemSize();

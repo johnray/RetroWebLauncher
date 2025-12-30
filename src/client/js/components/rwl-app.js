@@ -336,6 +336,8 @@ class RwlApp extends LitElement {
     this._currentSystemName = null;
     this._currentGameName = null;
     this._unsubscribers = [];
+    this._breadcrumbListeners = []; // Track breadcrumb click listeners for cleanup
+    this._viewChangeHandler = null; // Track view change listener for cleanup
   }
 
   connectedCallback() {
@@ -347,6 +349,7 @@ class RwlApp extends LitElement {
     super.disconnectedCallback();
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
+    this._cleanupBreadcrumbListeners();
   }
 
   _bindEvents() {
@@ -510,6 +513,10 @@ class RwlApp extends LitElement {
     }
 
     breadcrumbs.style.display = 'flex';
+
+    // Remove old breadcrumb listeners before adding new ones (prevent memory leak)
+    this._cleanupBreadcrumbListeners();
+
     breadcrumbs.innerHTML = crumbs.map((crumb, i) => {
       if (crumb.path) {
         return `<button class="crumb" data-path="${crumb.path}">${crumb.label}</button>${i < crumbs.length - 1 ? '<span class="separator">›</span>' : ''}`;
@@ -517,13 +524,23 @@ class RwlApp extends LitElement {
       return `<span class="crumb current">${crumb.label}</span>`;
     }).join('');
 
-    // Add click handlers for breadcrumb navigation
+    // Add click handlers for breadcrumb navigation (track for cleanup)
     breadcrumbs.querySelectorAll('button.crumb').forEach(btn => {
-      btn.addEventListener('click', () => {
+      const handler = () => {
         const path = btn.dataset.path;
         if (path) router.navigate(path);
-      });
+      };
+      btn.addEventListener('click', handler);
+      this._breadcrumbListeners.push({ element: btn, handler });
     });
+  }
+
+  _cleanupBreadcrumbListeners() {
+    // Remove all tracked breadcrumb listeners
+    this._breadcrumbListeners.forEach(({ element, handler }) => {
+      element.removeEventListener('click', handler);
+    });
+    this._breadcrumbListeners = [];
   }
 
   _applyTheme() {

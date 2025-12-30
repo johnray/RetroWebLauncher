@@ -162,9 +162,73 @@ class StateManager {
    */
   clear() {
     this._state = {};
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear persisted state:', error);
+    }
   }
 }
+
+/**
+ * Safe localStorage helpers for use throughout the app
+ * These handle private browsing mode and quota exceeded errors gracefully
+ */
+export const storage = {
+  /**
+   * Safely get item from localStorage
+   * @param {string} key - Storage key
+   * @param {*} defaultValue - Default value if key doesn't exist or read fails
+   * @returns {*} Stored value or default
+   */
+  get(key, defaultValue = null) {
+    try {
+      const item = localStorage.getItem(key);
+      if (item === null) return defaultValue;
+      // Try to parse as JSON, fall back to raw string
+      try {
+        return JSON.parse(item);
+      } catch {
+        return item;
+      }
+    } catch (error) {
+      console.warn(`Failed to read localStorage key "${key}":`, error);
+      return defaultValue;
+    }
+  },
+
+  /**
+   * Safely set item in localStorage
+   * @param {string} key - Storage key
+   * @param {*} value - Value to store (will be JSON stringified if not string)
+   * @returns {boolean} Whether the operation succeeded
+   */
+  set(key, value) {
+    try {
+      const toStore = typeof value === 'string' ? value : JSON.stringify(value);
+      localStorage.setItem(key, toStore);
+      return true;
+    } catch (error) {
+      console.warn(`Failed to write localStorage key "${key}":`, error);
+      return false;
+    }
+  },
+
+  /**
+   * Safely remove item from localStorage
+   * @param {string} key - Storage key
+   * @returns {boolean} Whether the operation succeeded
+   */
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.warn(`Failed to remove localStorage key "${key}":`, error);
+      return false;
+    }
+  }
+};
 
 export const state = new StateManager();
 

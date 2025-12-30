@@ -527,6 +527,7 @@ class RwlGameDetail extends LitElement {
     this._activeMediaTab = 'video';
     this._currentImageIndex = 0;
     this._launchTimeout = null; // Track timeout for cleanup
+    this._boundKeydownHandler = this._handleKeydown.bind(this); // Bound handler for cleanup
   }
 
   connectedCallback() {
@@ -542,6 +543,9 @@ class RwlGameDetail extends LitElement {
       clearTimeout(this._launchTimeout);
       this._launchTimeout = null;
     }
+
+    // Remove keydown listener
+    this.removeEventListener('keydown', this._boundKeydownHandler);
 
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
@@ -576,22 +580,8 @@ class RwlGameDetail extends LitElement {
   }
 
   _bindEvents() {
-    // Keyboard shortcuts
-    this.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        this._launchGame();
-      } else if (e.key === 'Escape' || e.key === 'Backspace') {
-        e.preventDefault();
-        router.back();
-      } else if (e.key === 'ArrowLeft' && this._activeMediaTab === 'image') {
-        e.preventDefault();
-        this._navigateImage(-1);
-      } else if (e.key === 'ArrowRight' && this._activeMediaTab === 'image') {
-        e.preventDefault();
-        this._navigateImage(1);
-      }
-    });
+    // Keyboard shortcuts (use bound handler for proper cleanup)
+    this.addEventListener('keydown', this._boundKeydownHandler);
 
     // Listen for input manager
     this._unsubscribers.push(
@@ -600,6 +590,22 @@ class RwlGameDetail extends LitElement {
     this._unsubscribers.push(
       state.on('input:back', () => router.back())
     );
+  }
+
+  _handleKeydown(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this._launchGame();
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      e.preventDefault();
+      router.back();
+    } else if (e.key === 'ArrowLeft' && this._activeMediaTab === 'image') {
+      e.preventDefault();
+      this._navigateImage(-1);
+    } else if (e.key === 'ArrowRight' && this._activeMediaTab === 'image') {
+      e.preventDefault();
+      this._navigateImage(1);
+    }
   }
 
   async _launchGame() {

@@ -421,6 +421,27 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
     });
     this._loadedTextures = [];
 
+    // Dispose lights (they don't have .dispose() but should be dereferenced)
+    this._cameraLight = null;
+    this._light2 = null;
+    this._light3 = null;
+
+    // Clear tunnel path
+    this._tunnelPath = null;
+    this._pathPoints = [];
+
+    // Clear texture canvas
+    if (this._textureCanvas) {
+      // Clear canvas to free memory
+      const ctx = this._textureCanvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, this._textureCanvas.width, this._textureCanvas.height);
+      }
+      this._textureCanvas.width = 0;
+      this._textureCanvas.height = 0;
+      this._textureCanvas = null;
+    }
+
     this._scene = null;
     this._camera = null;
   }

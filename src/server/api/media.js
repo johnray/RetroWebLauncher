@@ -214,9 +214,18 @@ router.get('/game/:gameId/:type', (req, res) => {
       res.setHeader('Content-Length', chunkSize);
 
       const stream = fs.createReadStream(mediaPath, { start, end });
+      stream.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) res.status(500).end();
+      });
       stream.pipe(res);
     } else {
-      fs.createReadStream(mediaPath).pipe(res);
+      const stream = fs.createReadStream(mediaPath);
+      stream.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) res.status(500).end();
+      });
+      stream.pipe(res);
     }
   } catch (error) {
     console.error('Error serving game media:', error);
@@ -294,7 +303,12 @@ router.get('/system/:systemId/:type', (req, res) => {
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Length', stat.size);
 
-    fs.createReadStream(assetPath).pipe(res);
+    const stream = fs.createReadStream(assetPath);
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      if (!res.headersSent) res.status(500).end();
+    });
+    stream.pipe(res);
   } catch (error) {
     console.error('Error serving system asset:', error);
     res.status(500).json({ error: error.message });

@@ -341,12 +341,19 @@ class RwlSettings extends LitElement {
     this._screensaverTimeout = storedTimeout ? parseInt(storedTimeout, 10) : 60;
     // Load screensaver type
     this._screensaverType = RwlScreensaver.getCurrentScreensaver();
+    this._boundKeydownHandler = this._handleKeydown.bind(this); // Bound handler for cleanup
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._loadConfig();
     this._bindEvents();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Remove keydown listener
+    this.removeEventListener('keydown', this._boundKeydownHandler);
   }
 
   async _loadConfig() {
@@ -455,15 +462,17 @@ class RwlSettings extends LitElement {
       }
     });
 
-    // Keyboard
-    this.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        router.back();
-      } else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        this._saveConfig();
-      }
-    });
+    // Keyboard (use bound handler for proper cleanup)
+    this.addEventListener('keydown', this._boundKeydownHandler);
+  }
+
+  _handleKeydown(e) {
+    if (e.key === 'Escape') {
+      router.back();
+    } else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      this._saveConfig();
+    }
   }
 
   _handleInputChange(input) {

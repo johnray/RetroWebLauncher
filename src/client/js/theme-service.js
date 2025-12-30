@@ -34,12 +34,21 @@ class ThemeService {
       // Priority: localStorage > serverConfig > default
       // This ensures the user's device preference is respected,
       // but falls back to server config if localStorage is empty (e.g., iOS clears cache)
-      const localTheme = localStorage.getItem('rwl-theme');
+      let localTheme = null;
+      try {
+        localTheme = localStorage.getItem('rwl-theme');
+      } catch (e) {
+        console.warn('Failed to read theme from localStorage:', e);
+      }
       this._currentTheme = localTheme || serverConfigTheme || 'classic-arcade';
 
       // If we used server config, sync to localStorage for future loads
       if (!localTheme && serverConfigTheme) {
-        localStorage.setItem('rwl-theme', serverConfigTheme);
+        try {
+          localStorage.setItem('rwl-theme', serverConfigTheme);
+        } catch (e) {
+          console.warn('Failed to save theme to localStorage:', e);
+        }
       }
 
       await this.loadThemeSettings(this._currentTheme);
@@ -60,7 +69,11 @@ class ThemeService {
         const data = await response.json();
         this._settings = data.settings;
         this._currentTheme = themeName;
-        localStorage.setItem('rwl-theme', themeName);
+        try {
+          localStorage.setItem('rwl-theme', themeName);
+        } catch (e) {
+          console.warn('Failed to save theme preference:', e);
+        }
         this._notifySubscribers('settings', this._settings);
         this._applyThemeCSS(themeName);
         this._applyColors();

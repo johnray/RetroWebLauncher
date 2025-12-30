@@ -432,8 +432,8 @@ export class RwlScreensaverBase extends LitElement {
 
       let allGames = [];
 
-      // Fetch games from ALL systems with controlled concurrency
-      const gamesPerSystem = Math.max(10, Math.ceil(500 / systems.length));
+      // Fetch games from ALL systems with random sampling for variety
+      const gamesPerSystem = Math.max(15, Math.ceil(800 / systems.length));
       const maxConcurrent = 5; // Limit concurrent API requests
 
       // Process systems in batches to avoid overwhelming the server
@@ -441,7 +441,21 @@ export class RwlScreensaverBase extends LitElement {
         const batch = systems.slice(i, i + maxConcurrent);
         const batchPromises = batch.map(async (system) => {
           try {
-            const response = await api.getGames(system.id, { limit: gamesPerSystem });
+            // First get total count to pick a random page
+            const countResponse = await api.getGames(system.id, { limit: 1 });
+            const totalGames = countResponse.total || countResponse.games?.length || 0;
+
+            if (totalGames === 0) return [];
+
+            // Pick a random starting point for variety
+            const maxOffset = Math.max(0, totalGames - gamesPerSystem);
+            const randomOffset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
+
+            const response = await api.getGames(system.id, {
+              limit: gamesPerSystem,
+              offset: randomOffset
+            });
+
             if (response.games) {
               return response.games.map(g => ({
                 ...g,
@@ -463,8 +477,19 @@ export class RwlScreensaverBase extends LitElement {
         }
       }
 
+      // De-duplicate by game name (same game might appear in multiple systems)
+      const seenNames = new Set();
+      const uniqueGames = [];
+      for (const game of allGames) {
+        const normalizedName = (game.name || '').toLowerCase().trim();
+        if (!seenNames.has(normalizedName)) {
+          seenNames.add(normalizedName);
+          uniqueGames.push(game);
+        }
+      }
+
       // Filter to games with videos
-      const videoGames = allGames.filter(g => g.video);
+      const videoGames = uniqueGames.filter(g => g.video);
       const shuffledVideoGames = this._shuffle(videoGames);
 
       // Take games for screensaver pool
@@ -472,7 +497,7 @@ export class RwlScreensaverBase extends LitElement {
 
       // If not enough video games, include games with images
       if (this._games.length < 50) {
-        const imageGames = allGames
+        const imageGames = uniqueGames
           .filter(g => !g.video && (g.thumbnail || g.image));
         const shuffledImageGames = this._shuffle(imageGames).slice(0, 100);
         this._games = [...this._games, ...shuffledImageGames];
@@ -481,7 +506,7 @@ export class RwlScreensaverBase extends LitElement {
       this._recentlyShownGames = [];
       this._recentlyShownSet.clear();
 
-      console.log(`[Screensaver] Loaded ${this._games.length} games from ${systems.length} systems (${this._games.filter(g => g.video).length} with videos)`);
+      console.log(`[Screensaver] Loaded ${this._games.length} unique games from ${systems.length} systems (${this._games.filter(g => g.video).length} with videos, ${allGames.length} before dedup)`);
     } catch (error) {
       console.error('Failed to load games for screensaver:', error);
       this._games = [];

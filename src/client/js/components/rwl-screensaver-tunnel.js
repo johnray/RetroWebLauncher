@@ -436,8 +436,8 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
 
       let allGames = [];
 
-      // Fetch MORE games from ALL systems - we want variety
-      const gamesPerSystem = Math.max(20, Math.ceil(1000 / systems.length));
+      // Fetch games from ALL systems with random sampling for variety
+      const gamesPerSystem = Math.max(30, Math.ceil(1500 / systems.length));
       const maxConcurrent = 5;
 
       console.log(`[Tunnel Screensaver] Loading games from ${systems.length} systems...`);
@@ -447,7 +447,21 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
         const batch = systems.slice(i, i + maxConcurrent);
         const batchPromises = batch.map(async (system) => {
           try {
-            const response = await api.getGames(system.id, { limit: gamesPerSystem });
+            // First get total count to pick a random page
+            const countResponse = await api.getGames(system.id, { limit: 1 });
+            const totalGames = countResponse.total || countResponse.games?.length || 0;
+
+            if (totalGames === 0) return [];
+
+            // Pick a random starting point for variety
+            const maxOffset = Math.max(0, totalGames - gamesPerSystem);
+            const randomOffset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
+
+            const response = await api.getGames(system.id, {
+              limit: gamesPerSystem,
+              offset: randomOffset
+            });
+
             if (response.games) {
               return response.games.map(g => ({
                 ...g,
@@ -475,10 +489,21 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
         g.screenshot || g.image || g.fanart || g.thumbnail
       );
 
-      // Shuffle and take up to 500 games
-      this._games = this._shuffle(gamesWithImages).slice(0, 500);
+      // De-duplicate by game name (same game might appear in multiple systems)
+      const seenNames = new Set();
+      const uniqueGames = [];
+      for (const game of gamesWithImages) {
+        const normalizedName = (game.name || '').toLowerCase().trim();
+        if (!seenNames.has(normalizedName)) {
+          seenNames.add(normalizedName);
+          uniqueGames.push(game);
+        }
+      }
 
-      console.log(`[Tunnel Screensaver] Loaded ${this._games.length} games with images from ${systems.length} systems`);
+      // Shuffle and take up to 500 unique games
+      this._games = this._shuffle(uniqueGames).slice(0, 500);
+
+      console.log(`[Tunnel Screensaver] Loaded ${this._games.length} unique games with images from ${systems.length} systems (${gamesWithImages.length} total before dedup)`);
     } catch (error) {
       console.error('[Tunnel Screensaver] Failed to load games:', error);
       this._games = [];

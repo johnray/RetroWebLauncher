@@ -846,6 +846,13 @@ export class RwlCarouselBase extends LitElement {
       this._visualOffset = this._currentIndex; // Sync after loading
       this._scrollPhysics.setPosition(this._currentIndex); // Sync physics
 
+      // Store initial selection in state (for view switching)
+      // This ensures other views can find the selected game even if user doesn't scroll
+      const initialGame = this._games[this._currentIndex];
+      if (initialGame && this.systemId) {
+        state.set(`selectedGame:${this.systemId}`, initialGame.id);
+      }
+
       // Initial media load is handled by _updateGameDetailsPanel() via updated() lifecycle
       // Just ensure the index is ready to trigger a load
       this._lastMediaLoadedIndex = -1;

@@ -400,6 +400,7 @@ class RwlListView extends LitElement {
     this._iconSize = this._baseSize;
     this._savedScrollPos = null;
     this._resizeObserver = null;
+    this._pendingScrollToIndex = null; // For scrolling to selected game on view switch
   }
 
   /**
@@ -500,7 +501,7 @@ class RwlListView extends LitElement {
       const newId = this.systemId;
       const oldId = changedProperties.get('systemId');
       if (newId !== oldId && newId) {
-        // Restore scroll position if available
+        // Restore scroll position if available (will be overridden by pending scroll if set)
         const savedPos = sessionStorage.getItem(`rwl-list-scroll-${newId}`);
         if (savedPos) {
           this._savedScrollPos = parseInt(savedPos, 10);
@@ -514,8 +515,21 @@ class RwlListView extends LitElement {
       this._applyIconSize();
     }
 
-    // Restore scroll position after render
-    if (this._savedScrollPos !== null) {
+    // Handle pending scroll to selected game (from view switching)
+    // This takes priority over sessionStorage scroll position
+    if (changedProperties.has('_games') && this._pendingScrollToIndex !== null) {
+      const indexToScroll = this._pendingScrollToIndex;
+      this._pendingScrollToIndex = null;
+      this._savedScrollPos = null; // Clear saved pos since we're scrolling to selection
+
+      requestAnimationFrame(() => {
+        const rows = this.shadowRoot.querySelectorAll('.game-row');
+        if (rows[indexToScroll]) {
+          rows[indexToScroll].scrollIntoView({ behavior: 'instant', block: 'center' });
+        }
+      });
+    } else if (this._savedScrollPos !== null) {
+      // Restore scroll position after render
       requestAnimationFrame(() => this._restoreScrollPosition());
     }
   }
@@ -568,6 +582,11 @@ class RwlListView extends LitElement {
       // Clamp to valid range
       if (this._selectedIndex >= this._games.length) {
         this._selectedIndex = Math.max(0, this._games.length - 1);
+      }
+
+      // Mark for scroll to selected game after render (list view only reads, doesn't store on browse)
+      if (selectedGameId && this._selectedIndex >= 0) {
+        this._pendingScrollToIndex = this._selectedIndex;
       }
     } catch (error) {
       console.error('Failed to load games:', error);
@@ -691,6 +710,10 @@ class RwlListView extends LitElement {
   _activateSelected() {
     const game = this._games[this._selectedIndex];
     if (game) {
+      // Store selection when navigating to game detail
+      if (this.systemId) {
+        state.set(`selectedGame:${this.systemId}`, game.id);
+      }
       router.navigate(`/game/${game.id}`);
     }
   }
@@ -707,11 +730,6 @@ class RwlListView extends LitElement {
     // Update background with selected game's screenshot
     const game = this._games[this._selectedIndex];
     this._updateBackground(game);
-
-    // Store selected game ID for view switching
-    if (game && this.systemId) {
-      state.set(`selectedGame:${this.systemId}`, game.id);
-    }
 
     // Update alphabet bar highlight
     this._updateCurrentLetter();
@@ -787,6 +805,10 @@ class RwlListView extends LitElement {
     if (row) {
       const gameId = row.dataset.gameId;
       if (gameId) {
+        // Store selection when navigating to game detail
+        if (this.systemId) {
+          state.set(`selectedGame:${this.systemId}`, gameId);
+        }
         router.navigate(`/game/${gameId}`);
       }
     }

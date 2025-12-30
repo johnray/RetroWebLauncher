@@ -348,6 +348,7 @@ class RwlGridView extends LitElement {
     this._scrollHandler = null; // Store scroll handler reference to prevent duplicates
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
     this._resizeObserver = null; // For responsive sizing
+    this._pendingScrollToIndex = null; // For scrolling to selected game on view switch
   }
 
   /**
@@ -535,6 +536,18 @@ class RwlGridView extends LitElement {
       this._totalPages = response.totalPages || 1;
       console.log('[GridView] Loaded', this._games.length, 'games');
       this._buildLetterIndex();
+
+      // Scroll to selected game from state (for view switching)
+      // Grid view only reads selection, doesn't store on browse - only on click
+      const systemId = this._systemId || this._collectionId;
+      const selectedGameId = state.get(`selectedGame:${systemId}`);
+      if (selectedGameId) {
+        const selectedIndex = this._games.findIndex(g => g.id === selectedGameId);
+        if (selectedIndex >= 0) {
+          // Store index to scroll to - will be handled in updated() after render completes
+          this._pendingScrollToIndex = selectedIndex;
+        }
+      }
     } catch (error) {
       console.error('[GridView] Failed to load games:', error);
     } finally {
@@ -600,9 +613,26 @@ class RwlGridView extends LitElement {
 
     if (changedProperties.has('_games') || changedProperties.has('_cardSize')) {
       this._applySize();
-      this._restoreScrollPosition();
       this._setupCardEvents();
       this._setupScrollHandler();
+
+      // Handle pending scroll to selected game (from view switching)
+      // This takes priority over sessionStorage scroll position
+      if (this._pendingScrollToIndex !== undefined && this._pendingScrollToIndex !== null) {
+        const indexToScroll = this._pendingScrollToIndex;
+        this._pendingScrollToIndex = null; // Clear before scrolling
+
+        // Use requestAnimationFrame to ensure DOM is fully painted
+        requestAnimationFrame(() => {
+          const cards = this.shadowRoot.querySelectorAll('.card');
+          if (cards[indexToScroll]) {
+            cards[indexToScroll].scrollIntoView({ behavior: 'instant', block: 'center' });
+          }
+        });
+      } else {
+        // No pending scroll - restore from sessionStorage
+        this._restoreScrollPosition();
+      }
     }
   }
 
@@ -615,14 +645,25 @@ class RwlGridView extends LitElement {
         const id = card.dataset.id;
         console.log('[GridView] Card clicked:', id);
         this._saveScrollPosition();
+        // Store selection when navigating to game detail
+        const systemId = this._systemId || this._collectionId;
+        if (systemId) {
+          state.set(`selectedGame:${systemId}`, id);
+        }
         router.navigate(`/game/${id}`);
       };
       card.onkeydown = (e) => {
         if (e.key === 'Enter') {
           this._saveScrollPosition();
-          router.navigate(`/game/${card.dataset.id}`);
+          const id = card.dataset.id;
+          const systemId = this._systemId || this._collectionId;
+          if (systemId) {
+            state.set(`selectedGame:${systemId}`, id);
+          }
+          router.navigate(`/game/${id}`);
         }
       };
+      // Hover only updates background preview, doesn't store selection
       card.onmouseenter = () => this._updateBackground(card.dataset.id);
       card.onfocus = () => this._updateBackground(card.dataset.id);
     });

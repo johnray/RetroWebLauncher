@@ -1,12 +1,15 @@
 /**
  * RetroWebLauncher - Carousel Base Class
  * Shared functionality for wheel-view, spinner-view, and spin-wheel components
+ *
+ * Uses iOS-like scroll physics for smooth touch interactions.
  */
 
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { router } from '../router.js';
 import { themeService } from '../theme-service.js';
+import { ScrollPhysics } from '../scroll-physics.js';
 
 const { LitElement, css } = window.Lit;
 
@@ -451,14 +454,11 @@ export class RwlCarouselBase extends LitElement {
     this._baseSize = this._getDefaultSize();
     this._size = this._baseSize; // Computed from baseSize * multiplier
     this._pendingRaf = null; // Track requestAnimationFrame for cleanup
-    this._momentumRaf = null; // Track momentum scrolling RAF for cleanup
     this._resizeObserver = null; // For responsive sizing
     this._resizeRaf = null; // Track resize recalculation RAF for cleanup
 
-    // Smooth scrolling state
+    // Smooth scrolling state (physics-based)
     this._visualOffset = 0; // Float representing visual scroll position
-    this._scrollRaf = null; // Animation frame for smooth scrolling
-    this._lastScrollTime = 0; // For physics timing
 
     // Performance: debounce expensive operations
     this._mediaDebounceTimer = null;
@@ -468,6 +468,23 @@ export class RwlCarouselBase extends LitElement {
     // Debounced media sources - templates should bind to these
     this._debouncedVideoSrc = '';
     this._debouncedBgUrl = '';
+
+    // iOS-like scroll physics engine
+    this._scrollPhysics = new ScrollPhysics({
+      onPositionChange: (position) => this._onPhysicsPositionChange(position),
+      onScrollEnd: (index) => this._onPhysicsScrollEnd(index),
+      getItemCount: () => this._games.length,
+      wrapAround: true // Carousels wrap around
+    });
+
+    // Touch handling for physics-based drag
+    this._touchActive = false;
+    this._touchStartX = 0;
+    this._touchStartY = 0;
+    this._touchDragging = false;
+    this._boundTouchStart = this._onCarouselTouchStart.bind(this);
+    this._boundTouchMove = this._onCarouselTouchMove.bind(this);
+    this._boundTouchEnd = this._onCarouselTouchEnd.bind(this);
   }
 
   /**
@@ -579,6 +596,9 @@ export class RwlCarouselBase extends LitElement {
     this._baseSize = this._calculateBaseSize();
     this._size = this._effectiveSize;
 
+    // Update physics engine item size
+    this._scrollPhysics.setItemSize(this._effectiveSize);
+
     // Observe viewport changes for responsive sizing
     // Use RAF to debounce and ensure layout is complete before recalculating
     this._resizeObserver = new ResizeObserver(() => {
@@ -589,6 +609,8 @@ export class RwlCarouselBase extends LitElement {
       this._resizeRaf = requestAnimationFrame(() => {
         this._baseSize = this._calculateBaseSize();
         this._size = this._effectiveSize;
+        // Update physics item size
+        this._scrollPhysics.setItemSize(this._effectiveSize);
         // Recalculate max after a second RAF to ensure layout is complete
         requestAnimationFrame(() => {
           this._recalculateMaxMultiplier();
@@ -603,8 +625,15 @@ export class RwlCarouselBase extends LitElement {
       if (savedPos) {
         this._currentIndex = parseInt(savedPos, 10);
         this._visualOffset = this._currentIndex; // Sync visual offset
+        this._scrollPhysics.setPosition(this._currentIndex); // Sync physics
       }
     }
+
+    // Attach touch handlers for physics-based scrolling
+    this.addEventListener('touchstart', this._boundTouchStart, { passive: false });
+    this.addEventListener('touchmove', this._boundTouchMove, { passive: false });
+    this.addEventListener('touchend', this._boundTouchEnd, { passive: true });
+    this.addEventListener('touchcancel', this._boundTouchEnd, { passive: true });
   }
 
   firstUpdated() {
@@ -664,6 +693,17 @@ export class RwlCarouselBase extends LitElement {
       sessionStorage.setItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`, this._currentIndex);
     }
 
+    // Clean up touch handlers
+    this.removeEventListener('touchstart', this._boundTouchStart);
+    this.removeEventListener('touchmove', this._boundTouchMove);
+    this.removeEventListener('touchend', this._boundTouchEnd);
+    this.removeEventListener('touchcancel', this._boundTouchEnd);
+
+    // Clean up physics engine
+    if (this._scrollPhysics) {
+      this._scrollPhysics.destroy();
+    }
+
     // Clean up resize observers
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
@@ -678,14 +718,6 @@ export class RwlCarouselBase extends LitElement {
     if (this._pendingRaf) {
       cancelAnimationFrame(this._pendingRaf);
       this._pendingRaf = null;
-    }
-    if (this._momentumRaf) {
-      cancelAnimationFrame(this._momentumRaf);
-      this._momentumRaf = null;
-    }
-    if (this._scrollRaf) {
-      cancelAnimationFrame(this._scrollRaf);
-      this._scrollRaf = null;
     }
     if (this._resizeRaf) {
       cancelAnimationFrame(this._resizeRaf);
@@ -708,6 +740,7 @@ export class RwlCarouselBase extends LitElement {
       const savedPos = sessionStorage.getItem(`rwl-${this._getStoragePrefix()}-pos-${this.systemId}`);
       this._currentIndex = savedPos ? parseInt(savedPos, 10) : 0;
       this._visualOffset = this._currentIndex; // Sync visual offset
+      this._scrollPhysics.setPosition(this._currentIndex); // Sync physics
       this._loadSectionSize();
       this._loadGames();
     }
@@ -763,6 +796,8 @@ export class RwlCarouselBase extends LitElement {
   _onSliderChange(e) {
     this._sizeMultiplier = parseFloat(e.target.value);
     this._size = this._effectiveSize;
+    // Update physics item size for accurate drag calculations
+    this._scrollPhysics.setItemSize(this._effectiveSize);
     this._saveSectionSize();
     this._updateDisplay(); // Ensure display updates immediately
   }
@@ -808,23 +843,20 @@ export class RwlCarouselBase extends LitElement {
     const navKeys = this._getNavKeys();
     const isVertical = navKeys.prev === 'ArrowUp';
 
-    // Listen to centralized input events (keyboard, gamepad, touch all emit these)
+    // Listen to centralized input events (keyboard, gamepad)
+    // Touch input is now handled directly via physics engine
     this._unsubscribers.push(
       state.on('input:navigate', (data) => {
-        // Handle both string direction (keyboard/gamepad) and object with velocity (touch)
-        let direction, velocity = 0;
+        // Handle string direction (keyboard/gamepad) - touch is handled by physics
+        let direction;
         if (typeof data === 'string') {
           direction = data;
         } else if (data && typeof data === 'object') {
           direction = data.direction;
-          velocity = data.velocity || 0;
+          // Skip touch-originated events with velocity - physics handles these
+          if (data.velocity > 0) return;
         } else {
           return;
-        }
-
-        // Allow subclass to invert touch direction (e.g., spinner-view)
-        if (velocity > 0) {
-          direction = this._getTouchDirection(direction, isVertical);
         }
 
         let delta = 0;
@@ -837,14 +869,7 @@ export class RwlCarouselBase extends LitElement {
         }
 
         if (delta !== 0) {
-          // Apply momentum based on velocity
-          if (velocity > 0.5) {
-            // Fast swipe - use momentum scrolling
-            this._momentumScroll(delta, velocity);
-          } else {
-            // Slow swipe or keyboard/gamepad - single step
-            this._navigate(delta);
-          }
+          this._navigate(delta);
         }
       })
     );
@@ -862,18 +887,16 @@ export class RwlCarouselBase extends LitElement {
       state.on('input:pageRight', () => this._navigate(5))
     );
 
-    // Home/End navigation with smooth animation
+    // Home/End navigation with spring animation
     this._unsubscribers.push(
       state.on('input:home', () => {
-        this._currentIndex = 0;
-        this._animateToIndex(0);
+        this._scrollPhysics.snapTo(0);
       })
     );
 
     this._unsubscribers.push(
       state.on('input:end', () => {
-        this._currentIndex = this._games.length - 1;
-        this._animateToIndex(this._currentIndex);
+        this._scrollPhysics.snapTo(this._games.length - 1);
       })
     );
 
@@ -890,22 +913,8 @@ export class RwlCarouselBase extends LitElement {
   _navigate(delta) {
     if (this._games.length === 0) return;
 
-    // Mark as scrolling for performance optimization
-    this._isScrolling = true;
-
-    // Update logical index immediately
-    this._currentIndex = (this._currentIndex + delta + this._games.length) % this._games.length;
-
-    // Start smooth animation to new index
-    this._animateToIndex(this._currentIndex);
-
-    // Debounce expensive media loading - wait until scrolling stops
-    this._debouncedMediaLoad();
-
-    const game = this.selectedGame;
-    if (game) {
-      state.emit('gameSelected', game);
-    }
+    // Use physics engine for spring-animated navigation
+    this._scrollPhysics.navigateBy(delta);
   }
 
   /**
@@ -965,88 +974,6 @@ export class RwlCarouselBase extends LitElement {
   }
 
   /**
-   * Smoothly animate _visualOffset to target index using physics-based easing
-   * @param {number} targetIndex - The index to animate to
-   */
-  _animateToIndex(targetIndex) {
-    // Cancel existing animation
-    if (this._scrollRaf) {
-      cancelAnimationFrame(this._scrollRaf);
-    }
-
-    const startOffset = this._visualOffset;
-    const startTime = performance.now();
-
-    // Handle wrapping - find shortest path
-    const gameCount = this._games.length;
-    let targetOffset = targetIndex;
-
-    // If we need to wrap around, adjust target for shortest path
-    const directDist = Math.abs(targetOffset - startOffset);
-    const wrapDist = gameCount - directDist;
-
-    if (wrapDist < directDist) {
-      // Shorter to wrap
-      if (targetOffset > startOffset) {
-        targetOffset = targetOffset - gameCount; // Wrap backwards
-      } else {
-        targetOffset = targetOffset + gameCount; // Wrap forwards
-      }
-    }
-
-    const distance = targetOffset - startOffset;
-    const duration = Math.min(300, 100 + Math.abs(distance) * 50); // 100-300ms based on distance
-
-    const animate = (currentTime) => {
-      if (!this.isConnected) {
-        this._scrollRaf = null;
-        return;
-      }
-
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      // Ease-out cubic for smooth deceleration
-      const eased = 1 - Math.pow(1 - progress, 3);
-
-      // Calculate new visual offset
-      let newOffset = startOffset + distance * eased;
-
-      // Normalize to valid range
-      while (newOffset < 0) newOffset += gameCount;
-      while (newOffset >= gameCount) newOffset -= gameCount;
-
-      this._visualOffset = newOffset;
-
-      // Update display with smooth offset
-      this._updateSmoothDisplay();
-
-      if (progress < 1) {
-        this._scrollRaf = requestAnimationFrame(animate);
-      } else {
-        // Animation complete - snap to exact index
-        this._visualOffset = this._currentIndex;
-        this._scrollRaf = null;
-        this._updateSmoothDisplay();
-
-        // Mark as idle after short delay to remove will-change (perf optimization)
-        setTimeout(() => {
-          const container = this.shadowRoot?.querySelector('.carousel-container, .wheel-container, .spinner-container');
-          if (container) container.classList.add('carousel-idle');
-        }, 100);
-
-        this.requestUpdate(); // Final update
-      }
-    };
-
-    // Remove idle class when starting animation
-    const container = this.shadowRoot?.querySelector('.carousel-container, .wheel-container, .spinner-container');
-    if (container) container.classList.remove('carousel-idle');
-
-    this._scrollRaf = requestAnimationFrame(animate);
-  }
-
-  /**
    * Update the visual display during smooth scrolling.
    * Subclasses should override this to position items based on _visualOffset.
    * Default implementation calls _updateDisplay().
@@ -1055,67 +982,126 @@ export class RwlCarouselBase extends LitElement {
     this._updateDisplay();
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Physics Engine Callbacks
+  // ─────────────────────────────────────────────────────────────
+
   /**
-   * Get touch direction - subclasses can override to invert
-   * @param {string} direction - Original direction from touch handler
-   * @param {boolean} isVertical - Whether this is a vertical carousel
-   * @returns {string} - Possibly modified direction
+   * Called by physics engine when position changes during scroll/animation
+   * @param {number} position - Current position (can be fractional)
    */
-  _getTouchDirection(direction, isVertical) {
-    // Default: keep direction as-is
-    return direction;
+  _onPhysicsPositionChange(position) {
+    this._visualOffset = position;
+    this._isScrolling = true;
+
+    // Remove idle class when scrolling
+    const container = this.shadowRoot?.querySelector('.carousel-container, .wheel-container, .spinner-container');
+    if (container) container.classList.remove('carousel-idle');
+
+    // Update visual display
+    this._updateSmoothDisplay();
   }
 
   /**
-   * Momentum scroll - animate through multiple items based on swipe velocity
-   * @param {number} direction - +1 or -1
-   * @param {number} velocity - Swipe velocity in px/ms
+   * Called by physics engine when scroll/animation completes
+   * @param {number} index - Final snapped index
    */
-  _momentumScroll(direction, velocity) {
-    // Cancel any existing momentum
-    if (this._momentumRaf) {
-      cancelAnimationFrame(this._momentumRaf);
-      this._momentumRaf = null;
+  _onPhysicsScrollEnd(index) {
+    this._isScrolling = false;
+    this._currentIndex = index;
+    this._visualOffset = index;
+
+    // Mark as idle after short delay to remove will-change (perf optimization)
+    setTimeout(() => {
+      const container = this.shadowRoot?.querySelector('.carousel-container, .wheel-container, .spinner-container');
+      if (container) container.classList.add('carousel-idle');
+    }, 100);
+
+    // Load media now that scrolling stopped
+    if (this._currentIndex !== this._lastMediaLoadedIndex) {
+      this._lastMediaLoadedIndex = this._currentIndex;
+      this._loadMediaForCurrentGame();
     }
 
-    // Calculate number of items to scroll based on velocity
-    // velocity is in px/ms, typical fast swipe is 1-3 px/ms
-    const itemCount = Math.min(Math.floor(velocity * 5), 10); // Max 10 items
-    let remaining = itemCount;
-    let currentVelocity = velocity;
-    const friction = 0.85; // Deceleration factor
-    const minInterval = 50; // Minimum ms between scrolls
-
-    const animate = () => {
-      if (remaining <= 0 || !this.isConnected) {
-        this._momentumRaf = null;
-        return;
-      }
-
-      this._navigate(direction);
-      remaining--;
-      currentVelocity *= friction;
-
-      // Calculate delay based on current velocity (faster = shorter delay)
-      const delay = Math.max(minInterval, 150 / currentVelocity);
-
-      // Use setTimeout for variable timing, then RAF for smooth animation
-      setTimeout(() => {
-        if (remaining > 0 && this.isConnected) {
-          this._momentumRaf = requestAnimationFrame(animate);
-        } else {
-          this._momentumRaf = null;
-        }
-      }, delay);
-    };
-
-    // Start with first navigation immediately
-    this._navigate(direction);
-    remaining--;
-
-    if (remaining > 0) {
-      this._momentumRaf = requestAnimationFrame(animate);
+    // Emit game selection event
+    const game = this.selectedGame;
+    if (game) {
+      state.emit('gameSelected', game);
     }
+
+    this.requestUpdate();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Touch Handlers for Physics-Based Scrolling
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Get the drag axis for this carousel ('x' or 'y')
+   * Subclasses can override for vertical carousels
+   */
+  _getDragAxis() {
+    const navKeys = this._getNavKeys();
+    return navKeys.prev === 'ArrowUp' ? 'y' : 'x';
+  }
+
+  /**
+   * Touch start handler for physics-based scrolling
+   */
+  _onCarouselTouchStart(e) {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    this._touchActive = true;
+    this._touchStartX = touch.clientX;
+    this._touchStartY = touch.clientY;
+    this._touchDragging = false;
+
+    // Get the drag position based on axis
+    const axis = this._getDragAxis();
+    const position = axis === 'x' ? touch.clientX : touch.clientY;
+
+    // Start physics drag
+    this._scrollPhysics.startDrag(position);
+  }
+
+  /**
+   * Touch move handler for physics-based scrolling
+   */
+  _onCarouselTouchMove(e) {
+    if (!this._touchActive || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const axis = this._getDragAxis();
+    const position = axis === 'x' ? touch.clientX : touch.clientY;
+
+    // Update physics drag - returns true if threshold exceeded
+    const isDragging = this._scrollPhysics.updateDrag(position);
+
+    if (isDragging) {
+      // Prevent page scroll when carousel is dragging
+      e.preventDefault();
+      this._touchDragging = true;
+    }
+  }
+
+  /**
+   * Touch end handler for physics-based scrolling
+   */
+  _onCarouselTouchEnd(e) {
+    if (!this._touchActive) return;
+
+    this._touchActive = false;
+
+    if (this._touchDragging) {
+      // End physics drag - will trigger momentum and snap
+      this._scrollPhysics.endDrag();
+    } else {
+      // Was a tap, not a drag - cancel physics and let click handler work
+      this._scrollPhysics.cancelDrag();
+    }
+
+    this._touchDragging = false;
   }
 
   _selectCurrent() {
@@ -1130,8 +1116,8 @@ export class RwlCarouselBase extends LitElement {
     if (index === this._currentIndex) {
       this._selectCurrent();
     } else {
-      this._currentIndex = index;
-      this._animateToIndex(index);
+      // Use physics spring snap to clicked card
+      this._scrollPhysics.snapTo(index);
     }
   }
 
@@ -1158,9 +1144,10 @@ export class RwlCarouselBase extends LitElement {
 
   _jumpToLetter(letter) {
     if (letter in this._letterIndex) {
-      this._currentIndex = this._letterIndex[letter];
+      const targetIndex = this._letterIndex[letter];
       this._currentLetter = letter;
-      this._animateToIndex(this._currentIndex);
+      // Use physics spring snap for smooth animation
+      this._scrollPhysics.snapTo(targetIndex);
     }
   }
 

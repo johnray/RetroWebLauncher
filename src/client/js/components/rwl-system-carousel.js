@@ -1,11 +1,14 @@
 /**
  * RetroWebLauncher - System Carousel Component
  * Graphical horizontal carousel for system selection using RetroBat theme assets
+ *
+ * Uses iOS-like scroll physics for smooth touch interactions.
  */
 
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { router } from '../router.js';
+import { ScrollPhysics } from '../scroll-physics.js';
 
 const { LitElement, html, css } = window.Lit;
 
@@ -15,7 +18,8 @@ class RwlSystemCarousel extends LitElement {
     _currentIndex: { state: true },
     _loading: { state: true },
     _sizeMultiplier: { type: Number, state: true },
-    _maxMultiplier: { type: Number, state: true }
+    _maxMultiplier: { type: Number, state: true },
+    _visualOffset: { type: Number, state: true }
   };
 
   static styles = css`
@@ -55,10 +59,11 @@ class RwlSystemCarousel extends LitElement {
     .carousel-track {
       display: flex;
       gap: 30px;
-      transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+      /* No CSS transition - physics engine handles smooth animation */
       height: 100%;
       align-items: center;
       padding: 20px 0;
+      will-change: transform;
     }
 
     .system-card {
@@ -375,6 +380,22 @@ class RwlSystemCarousel extends LitElement {
     this._maxMultiplier = 1.5; // Default, will be calculated dynamically
     this._resizeObserver = null;
     this._resizeRaf = null;
+    this._visualOffset = 0; // For smooth physics-based scrolling
+
+    // iOS-like scroll physics engine
+    this._scrollPhysics = new ScrollPhysics({
+      onPositionChange: (position) => this._onPhysicsPositionChange(position),
+      onScrollEnd: (index) => this._onPhysicsScrollEnd(index),
+      getItemCount: () => this._systems.length,
+      wrapAround: true // System carousel wraps around
+    });
+
+    // Touch handling for physics-based drag
+    this._touchActive = false;
+    this._touchDragging = false;
+    this._boundTouchStart = this._onTouchStart.bind(this);
+    this._boundTouchMove = this._onTouchMove.bind(this);
+    this._boundTouchEnd = this._onTouchEnd.bind(this);
   }
 
   connectedCallback() {
@@ -392,10 +413,18 @@ class RwlSystemCarousel extends LitElement {
         requestAnimationFrame(() => {
           this._recalculateMaxMultiplier();
           this._updateCarousel();
+          // Update physics item size based on card width
+          this._updatePhysicsItemSize();
         });
       });
     });
     this._resizeObserver.observe(document.body);
+
+    // Attach touch handlers for physics-based scrolling
+    this.addEventListener('touchstart', this._boundTouchStart, { passive: false });
+    this.addEventListener('touchmove', this._boundTouchMove, { passive: false });
+    this.addEventListener('touchend', this._boundTouchEnd, { passive: true });
+    this.addEventListener('touchcancel', this._boundTouchEnd, { passive: true });
   }
 
   firstUpdated() {
@@ -404,6 +433,8 @@ class RwlSystemCarousel extends LitElement {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this._recalculateMaxMultiplier();
+        // Initialize physics item size after layout is complete
+        this._updatePhysicsItemSize();
       });
     });
   }
@@ -429,6 +460,18 @@ class RwlSystemCarousel extends LitElement {
     this._unsubscribers.forEach(unsub => unsub());
     this._unsubscribers = [];
     document.removeEventListener('keydown', this._keyHandler);
+
+    // Clean up touch handlers
+    this.removeEventListener('touchstart', this._boundTouchStart);
+    this.removeEventListener('touchmove', this._boundTouchMove);
+    this.removeEventListener('touchend', this._boundTouchEnd);
+    this.removeEventListener('touchcancel', this._boundTouchEnd);
+
+    // Clean up physics engine
+    if (this._scrollPhysics) {
+      this._scrollPhysics.destroy();
+    }
+
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
       this._resizeObserver = null;
@@ -491,12 +534,10 @@ class RwlSystemCarousel extends LitElement {
         this._selectCurrent();
       } else if (e.key === 'Home') {
         e.preventDefault();
-        this._currentIndex = 0;
-        this.requestUpdate();
+        this._scrollPhysics.snapTo(0);
       } else if (e.key === 'End') {
         e.preventDefault();
-        this._currentIndex = this._systems.length - 1;
-        this.requestUpdate();
+        this._scrollPhysics.snapTo(this._systems.length - 1);
       }
     };
     document.addEventListener('keydown', this._keyHandler);
@@ -528,13 +569,8 @@ class RwlSystemCarousel extends LitElement {
   _navigate(delta) {
     if (this._systems.length === 0) return;
 
-    this._currentIndex = (this._currentIndex + delta + this._systems.length) % this._systems.length;
-    this.requestUpdate();
-
-    const system = this.selectedSystem;
-    if (system) {
-      state.emit('systemHighlighted', system);
-    }
+    // Use physics engine for spring-animated navigation
+    this._scrollPhysics.navigateBy(delta);
   }
 
   _selectCurrent() {
@@ -548,8 +584,8 @@ class RwlSystemCarousel extends LitElement {
     if (index === this._currentIndex) {
       this._selectCurrent();
     } else {
-      this._currentIndex = index;
-      this.requestUpdate();
+      // Use physics spring snap to clicked card
+      this._scrollPhysics.snapTo(index);
     }
   }
 
@@ -562,6 +598,8 @@ class RwlSystemCarousel extends LitElement {
     this._sizeMultiplier = parseFloat(e.target.value);
     localStorage.setItem('rwl-system-carousel-size', this._sizeMultiplier);
     this._updateCarousel();
+    // Update physics item size
+    this._updatePhysicsItemSize();
   }
 
   _handleImageError(e, showFallback) {
@@ -571,8 +609,100 @@ class RwlSystemCarousel extends LitElement {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Physics Engine Callbacks
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Update the physics item size based on current card dimensions
+   */
+  _updatePhysicsItemSize() {
+    // Get card width + gap for physics calculations
+    const consoleImgMaxHeight = Math.round(160 * this._sizeMultiplier);
+    const consoleImgWidth = Math.round(consoleImgMaxHeight * 1.3);
+    const minMultiplier = 0.5;
+    const maxMultiplier = this._maxMultiplier || 2.0;
+    const marginProgress = (this._sizeMultiplier - minMultiplier) / (maxMultiplier - minMultiplier);
+    const cardPadding = Math.round(15 + (10 * marginProgress));
+    const cardWidth = consoleImgWidth + (cardPadding * 2);
+    const gap = Math.round(20 + (20 * marginProgress));
+
+    this._scrollPhysics.setItemSize(cardWidth + gap);
+  }
+
+  /**
+   * Called by physics engine when position changes during scroll/animation
+   */
+  _onPhysicsPositionChange(position) {
+    this._visualOffset = position;
+    // Direct update without waiting for Lit (performance)
+    this._updateCarousel();
+  }
+
+  /**
+   * Called by physics engine when scroll/animation completes
+   */
+  _onPhysicsScrollEnd(index) {
+    this._currentIndex = index;
+    this._visualOffset = index;
+
+    // Emit system selection event
+    const system = this.selectedSystem;
+    if (system) {
+      state.emit('systemHighlighted', system);
+    }
+
+    this.requestUpdate();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Touch Handlers for Physics-Based Scrolling
+  // ─────────────────────────────────────────────────────────────
+
+  _onTouchStart(e) {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    this._touchActive = true;
+    this._touchDragging = false;
+
+    // Start physics drag (horizontal for system carousel)
+    this._scrollPhysics.startDrag(touch.clientX);
+  }
+
+  _onTouchMove(e) {
+    if (!this._touchActive || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+
+    // Update physics drag - returns true if threshold exceeded
+    const isDragging = this._scrollPhysics.updateDrag(touch.clientX);
+
+    if (isDragging) {
+      // Prevent page scroll when carousel is dragging
+      e.preventDefault();
+      this._touchDragging = true;
+    }
+  }
+
+  _onTouchEnd() {
+    if (!this._touchActive) return;
+
+    this._touchActive = false;
+
+    if (this._touchDragging) {
+      // End physics drag - will trigger momentum and snap
+      this._scrollPhysics.endDrag();
+    } else {
+      // Was a tap, not a drag - cancel physics and let click handler work
+      this._scrollPhysics.cancelDrag();
+    }
+
+    this._touchDragging = false;
+  }
+
   updated(changedProperties) {
-    if (changedProperties.has('_currentIndex') || changedProperties.has('_systems') || changedProperties.has('_sizeMultiplier')) {
+    if (changedProperties.has('_currentIndex') || changedProperties.has('_systems') || changedProperties.has('_sizeMultiplier') || changedProperties.has('_visualOffset')) {
       this._updateCarousel();
     }
   }
@@ -624,19 +754,20 @@ class RwlSystemCarousel extends LitElement {
     this.style.setProperty('--card-inner-padding', `${cardPadding}px`);
     this.style.setProperty('--console-margin-bottom', `${consoleMargin}px`);
 
-    // Update active state
+    // Update active state based on current rounded index
+    const activeIndex = Math.round(this._visualOffset);
     cards.forEach((card, i) => {
-      const offset = i - this._currentIndex;
-      card.classList.toggle('active', i === this._currentIndex);
+      const offset = i - activeIndex;
+      card.classList.toggle('active', i === activeIndex);
       card.classList.toggle('prev', offset === -1);
       card.classList.toggle('next', offset === 1);
       card.classList.toggle('far', Math.abs(offset) > 1);
     });
 
-    // Calculate translation - center the current card
+    // Calculate translation using _visualOffset for smooth scrolling
     const containerWidth = this.shadowRoot.querySelector('.carousel')?.offsetWidth || 900;
     const centerOffset = (containerWidth / 2) - (cardWidth / 2);
-    const translateX = centerOffset - (this._currentIndex * (cardWidth + gap));
+    const translateX = centerOffset - (this._visualOffset * (cardWidth + gap));
 
     track.style.transform = `translateX(${translateX}px)`;
   }

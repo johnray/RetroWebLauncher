@@ -1912,16 +1912,20 @@ function Invoke-Setup {
                 $startupPath = [Environment]::GetFolderPath('Startup')
                 $shortcutPath = Join-Path $startupPath "RetroWebLauncher.lnk"
 
+                # Use VBScript launcher for completely hidden startup (no windows at all)
+                $vbsLauncher = Join-Path $script:ScriptDir "rwl-silent.vbs"
+
                 $shell = New-Object -ComObject WScript.Shell
                 $shortcut = $shell.CreateShortcut($shortcutPath)
-                $shortcut.TargetPath = Join-Path $script:ScriptDir "rwl.bat"
-                $shortcut.Arguments = "start -Silent"
+                $shortcut.TargetPath = "wscript.exe"
+                $shortcut.Arguments = "`"$vbsLauncher`""
                 $shortcut.WorkingDirectory = $script:ScriptDir
-                $shortcut.WindowStyle = 7
-                $shortcut.Description = "RetroWebLauncher Auto-Start"
+                $shortcut.WindowStyle = 0  # Hidden
+                $shortcut.Description = "RetroWebLauncher Auto-Start (Silent)"
                 $shortcut.Save()
 
-                Write-Success "Added to Windows startup"
+                Write-Success "Added to Windows startup (runs silently in background)"
+                Write-Info "To stop: double-click rwl-stop.bat or run .\rwl.ps1 stop"
             }
             catch {
                 Write-Warning2 "Could not add to startup: $($_.Exception.Message)"

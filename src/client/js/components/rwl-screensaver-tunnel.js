@@ -196,6 +196,16 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
     this._isActivating = true;
     this._loadingImages = true;
 
+    // Generate a unique cache-buster for this activation session
+    // This ensures we get fresh images each time the screensaver starts
+    this._cacheBuster = Date.now();
+
+    // Clear any previous texture data to ensure fresh images
+    this._loadedTextures = [];
+    if (this._textureCanvas) {
+      this._textureCanvas = null;
+    }
+
     // Wait for Three.js and SimplexNoise to be available
     await this._waitForDependencies();
 
@@ -452,6 +462,9 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
 
   async _loadGames() {
     // Override base class to load games with IMAGES from ALL systems
+    // Clear previous games to ensure fresh selection
+    this._games = [];
+
     try {
       const systemsResponse = await api.getSystems();
       const systems = systemsResponse.systems || [];
@@ -531,7 +544,10 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
       // Shuffle and take up to 500 unique games
       this._games = this._shuffle(uniqueGames).slice(0, 500);
 
-      console.log(`[Tunnel Screensaver] Loaded ${this._games.length} unique games with images from ${systems.length} systems (${gamesWithImages.length} total before dedup)`);
+      // Log first few game names to verify variety
+      const sampleNames = this._games.slice(0, 5).map(g => g.name).join(', ');
+      console.log(`[Tunnel Screensaver] Loaded ${this._games.length} unique games with images from ${systems.length} systems`);
+      console.log(`[Tunnel Screensaver] Sample games: ${sampleNames}`);
     } catch (error) {
       console.error('[Tunnel Screensaver] Failed to load games:', error);
       this._games = [];
@@ -683,23 +699,25 @@ class RwlScreensaverTunnel extends RwlScreensaverBase {
 
       // Prioritize higher-resolution images for legibility
       // screenshot and image (box art) are usually higher quality than thumbnail (wheel logos)
+      // Add cache-buster to force fresh loads each session
+      const cb = this._cacheBuster || Date.now();
       const sources = [];
 
       // Screenshot - actual game screenshots, usually high res
       if (game.screenshot) {
-        sources.push(`/api/media/game/${game.id}/screenshot`);
+        sources.push(`/api/media/game/${game.id}/screenshot?_=${cb}`);
       }
       // Image/box art - good quality promotional art
       if (game.image) {
-        sources.push(`/api/media/game/${game.id}/image`);
+        sources.push(`/api/media/game/${game.id}/image?_=${cb}`);
       }
       // Fanart - promotional art, can be high res
       if (game.fanart) {
-        sources.push(`/api/media/game/${game.id}/fanart`);
+        sources.push(`/api/media/game/${game.id}/fanart?_=${cb}`);
       }
       // Thumbnail last - often small wheel logos
       if (game.thumbnail) {
-        sources.push(`/api/media/game/${game.id}/thumbnail`);
+        sources.push(`/api/media/game/${game.id}/thumbnail?_=${cb}`);
       }
 
       if (sources.length === 0) {

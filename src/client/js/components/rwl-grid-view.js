@@ -382,12 +382,27 @@ class RwlGridView extends LitElement {
    */
   _loadSectionSize() {
     const key = this._getSectionKey();
-    // Load multiplier (new) or legacy size (old)
+    const minMultiplier = 0.5;
+    const maxMultiplier = 2.0;
+
+    // Priority 1: Check for zoom percentage (from bulk settings)
+    const storedPercent = localStorage.getItem(`rwl-grid-zoom-percent-${key}`);
+    if (storedPercent) {
+      const percent = parseFloat(storedPercent);
+      // Convert percentage to multiplier: min + (percent/100) * (max - min)
+      this._sizeMultiplier = minMultiplier + (percent / 100) * (maxMultiplier - minMultiplier);
+      this._sizeMultiplier = Math.max(minMultiplier, Math.min(maxMultiplier, this._sizeMultiplier));
+      this._cardSize = this._effectiveSize;
+      this._updateSlider();
+      return;
+    }
+
+    // Priority 2: Load multiplier directly
     const storedMultiplier = localStorage.getItem(`rwl-grid-multiplier-${key}`);
     if (storedMultiplier) {
       this._sizeMultiplier = parseFloat(storedMultiplier);
     } else {
-      // Check for legacy size value and convert to multiplier
+      // Priority 3: Check for legacy size value and convert to multiplier
       const storedSize = localStorage.getItem(`rwl-grid-size-${key}`);
       if (storedSize) {
         const legacySize = parseInt(storedSize, 10);
@@ -395,7 +410,7 @@ class RwlGridView extends LitElement {
         const defaultSize = gridSettings?.defaultCardSize || 150;
         this._sizeMultiplier = legacySize / defaultSize;
         // Clamp to valid range
-        this._sizeMultiplier = Math.max(0.5, Math.min(2.0, this._sizeMultiplier));
+        this._sizeMultiplier = Math.max(minMultiplier, Math.min(maxMultiplier, this._sizeMultiplier));
       } else {
         this._sizeMultiplier = 1.0;
       }
@@ -409,7 +424,10 @@ class RwlGridView extends LitElement {
    */
   _saveSectionSize() {
     const key = this._getSectionKey();
+    // Save as multiplier (direct value)
     localStorage.setItem(`rwl-grid-multiplier-${key}`, this._sizeMultiplier);
+    // Remove any zoom-percent key since user manually adjusted the slider
+    localStorage.removeItem(`rwl-grid-zoom-percent-${key}`);
   }
 
   /**

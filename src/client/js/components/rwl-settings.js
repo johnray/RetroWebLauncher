@@ -529,7 +529,7 @@ class RwlSettings extends LitElement {
     // Bulk View Settings
     this._systems = [];
     this._bulkGameCountRange = 0;  // >0 games (all)
-    this._bulkZoomPercent = 100;   // 100% = 1.0 multiplier (default)
+    this._bulkZoomPercent = 50;    // 50% = middle of slider (default)
     this._bulkViewType = 'wheel';  // Default view
     this._bulkPreviewCount = 0;
     this._applyingBulk = false;
@@ -878,15 +878,11 @@ class RwlSettings extends LitElement {
   }
 
   /**
-   * Convert zoom percentage to multiplier
-   * 50% = 0.5, 100% = 1.0, 200% = 2.0
-   */
-  _zoomPercentToMultiplier(percent) {
-    return percent / 100;
-  }
-
-  /**
    * Apply bulk settings to all matching sections
+   *
+   * Zoom percentage (0-100%) represents the slider position.
+   * Views will convert this to their actual multiplier range when loading,
+   * since min/max multipliers are calculated dynamically based on container size.
    */
   async _applyBulkSettings() {
     if (this._applyingBulk) return;
@@ -900,8 +896,6 @@ class RwlSettings extends LitElement {
     this._applyingBulk = true;
 
     try {
-      const multiplier = this._zoomPercentToMultiplier(this._bulkZoomPercent);
-
       // View type prefixes for different views
       const viewPrefixes = {
         grid: 'grid',
@@ -917,10 +911,14 @@ class RwlSettings extends LitElement {
         // Set view type
         localStorage.setItem(`rwl-view-type-${key}`, this._bulkViewType);
 
-        // Set zoom multiplier for the selected view type
-        // The carousel views store multiplier per-view, so we set it for the selected view
+        // Store zoom as percentage (0-100) for the selected view type
+        // Views will convert this to their actual multiplier range when loading
+        // Key pattern: rwl-{viewPrefix}-zoom-percent-{systemId}
         const prefix = viewPrefixes[this._bulkViewType] || this._bulkViewType;
-        localStorage.setItem(`rwl-${prefix}-multiplier-${key}`, multiplier.toString());
+        localStorage.setItem(`rwl-${prefix}-zoom-percent-${key}`, this._bulkZoomPercent.toString());
+
+        // Remove any existing multiplier key so percentage takes precedence
+        localStorage.removeItem(`rwl-${prefix}-multiplier-${key}`);
       }
 
       this._showToast(`Applied settings to ${sections.length} sections`, 'success');
@@ -954,7 +952,12 @@ class RwlSettings extends LitElement {
           key.startsWith('rwl-wheel-multiplier-') ||
           key.startsWith('rwl-spin-multiplier-') ||
           key.startsWith('rwl-spinner-multiplier-') ||
-          key.startsWith('rwl-list-multiplier-')
+          key.startsWith('rwl-list-multiplier-') ||
+          key.startsWith('rwl-grid-zoom-percent-') ||
+          key.startsWith('rwl-wheel-zoom-percent-') ||
+          key.startsWith('rwl-spin-zoom-percent-') ||
+          key.startsWith('rwl-spinner-zoom-percent-') ||
+          key.startsWith('rwl-list-zoom-percent-')
         )) {
           keysToRemove.push(key);
         }
@@ -1211,9 +1214,9 @@ class RwlSettings extends LitElement {
                       <input
                         type="range"
                         class="zoom-slider"
-                        min="50"
-                        max="200"
-                        step="10"
+                        min="0"
+                        max="100"
+                        step="5"
                         .value="${this._bulkZoomPercent}"
                         @input="${this._handleBulkZoomChange}"
                       />

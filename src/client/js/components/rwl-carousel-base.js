@@ -669,6 +669,10 @@ export class RwlCarouselBase extends LitElement {
     // Only update if we got a valid result (>= minimum clamp value)
     if (newMax >= 0.5 && isFinite(newMax)) {
       this._maxMultiplier = newMax;
+
+      // Apply any pending zoom percentage now that we know the max
+      this._applyPendingZoomPercent();
+
       // Clamp current multiplier if needed
       if (this._sizeMultiplier > this._maxMultiplier) {
         this._sizeMultiplier = this._maxMultiplier;
@@ -768,13 +772,27 @@ export class RwlCarouselBase extends LitElement {
 
   _loadSectionSize() {
     const key = this._getSectionKey();
-    // Load multiplier (new) or legacy size (old)
-    const storedMultiplier = localStorage.getItem(`rwl-${this._getStoragePrefix()}-multiplier-${key}`);
+    const prefix = this._getStoragePrefix();
+
+    // Priority 1: Check for zoom percentage (from bulk settings)
+    // This is stored as 0-100 and will be converted to multiplier after max is calculated
+    const storedPercent = localStorage.getItem(`rwl-${prefix}-zoom-percent-${key}`);
+    if (storedPercent) {
+      // Store the percentage for later conversion (after _maxMultiplier is calculated)
+      this._pendingZoomPercent = parseFloat(storedPercent);
+      // Use a reasonable default until max is calculated
+      this._sizeMultiplier = 1.0;
+      this._size = this._effectiveSize;
+      return;
+    }
+
+    // Priority 2: Load multiplier directly
+    const storedMultiplier = localStorage.getItem(`rwl-${prefix}-multiplier-${key}`);
     if (storedMultiplier) {
       this._sizeMultiplier = parseFloat(storedMultiplier);
     } else {
-      // Check for legacy size value and convert to multiplier
-      const storedSize = localStorage.getItem(`rwl-${this._getStoragePrefix()}-size-${key}`);
+      // Priority 3: Check for legacy size value and convert to multiplier
+      const storedSize = localStorage.getItem(`rwl-${prefix}-size-${key}`);
       if (storedSize) {
         const legacySize = parseInt(storedSize, 10);
         const defaultSize = this._getDefaultSize();
@@ -785,12 +803,43 @@ export class RwlCarouselBase extends LitElement {
         this._sizeMultiplier = 1.0;
       }
     }
+    this._pendingZoomPercent = null;
     this._size = this._effectiveSize;
+  }
+
+  /**
+   * Apply pending zoom percentage after max multiplier is known.
+   * Converts percentage (0-100) to actual multiplier based on dynamic min/max range.
+   */
+  _applyPendingZoomPercent() {
+    if (this._pendingZoomPercent == null) return;
+
+    const minMultiplier = 0.5; // Fixed minimum
+    const maxMultiplier = this._maxMultiplier;
+    const percent = this._pendingZoomPercent;
+
+    // Convert percentage to multiplier: min + (percent/100) * (max - min)
+    this._sizeMultiplier = minMultiplier + (percent / 100) * (maxMultiplier - minMultiplier);
+
+    // Clamp to valid range
+    this._sizeMultiplier = Math.max(minMultiplier, Math.min(maxMultiplier, this._sizeMultiplier));
+
+    this._size = this._effectiveSize;
+    this._pendingZoomPercent = null;
+
+    // Update physics item size
+    this._scrollPhysics.setItemSize(this._effectiveSize);
   }
 
   _saveSectionSize() {
     const key = this._getSectionKey();
-    localStorage.setItem(`rwl-${this._getStoragePrefix()}-multiplier-${key}`, this._sizeMultiplier);
+    const prefix = this._getStoragePrefix();
+
+    // Save as multiplier (direct value)
+    localStorage.setItem(`rwl-${prefix}-multiplier-${key}`, this._sizeMultiplier);
+
+    // Remove any zoom-percent key since user manually adjusted the slider
+    localStorage.removeItem(`rwl-${prefix}-zoom-percent-${key}`);
   }
 
   _onSliderChange(e) {

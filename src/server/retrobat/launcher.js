@@ -176,7 +176,7 @@ async function launchGame(game, options = {}) {
         currentGameInfo = null;
       });
 
-      // After 5 seconds, bring the foreground window to front (Windows only)
+      // After 15 seconds, bring the foreground window to front (Windows only)
       // This ensures the emulator window gets focus after it loads
       if (process.platform === 'win32') {
         setTimeout(() => {
@@ -204,7 +204,7 @@ async function launchGame(game, options = {}) {
               console.log('[Launcher] Activated emulator window');
             }
           });
-        }, 5000);
+        }, 15000);
       }
 
       resolve({

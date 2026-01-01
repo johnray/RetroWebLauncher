@@ -102,6 +102,24 @@ async function launchGame(game, options = {}) {
   console.log(`[Launcher]   Command: ${commandLine}`);
   console.log(`[Launcher] ========================================`);
 
+  // Minimize all windows before launching (Windows only)
+  if (process.platform === 'win32') {
+    try {
+      // Use PowerShell to minimize all windows via Shell.Application COM object
+      await new Promise((resolveMinimize) => {
+        exec('powershell -Command "(New-Object -ComObject Shell.Application).MinimizeAll()"', (err) => {
+          if (err) {
+            console.warn('[Launcher] Failed to minimize windows:', err.message);
+          }
+          // Small delay to let windows animate
+          setTimeout(resolveMinimize, 300);
+        });
+      });
+    } catch (err) {
+      console.warn('[Launcher] Error minimizing windows:', err.message);
+    }
+  }
+
   return new Promise((resolve, reject) => {
     try {
       // Quote the launcher path too in case it has spaces

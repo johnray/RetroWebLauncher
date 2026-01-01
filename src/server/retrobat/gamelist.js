@@ -16,7 +16,7 @@ const { loadConfig } = require('../config');
  * @returns {Promise<Array>} Array of game objects
  */
 async function parseGamelist(romPath, systemName) {
-  // Follow symlink to get real path
+  // Follow symlink to get real path FOR READING FILES
   const resolvedPath = followSymlink(romPath);
   const gamelistPath = path.join(resolvedPath, 'gamelist.xml');
 
@@ -26,6 +26,10 @@ async function parseGamelist(romPath, systemName) {
 
   const config = loadConfig();
   const showHidden = config.showHiddenGames || false;
+
+  // IMPORTANT: Use the original symlink path for ROM paths!
+  // emulatorLauncher.exe expects paths relative to RetroBat installation
+  const romBasePath = path.normalize(romPath);
 
   let xmlContent;
   try {
@@ -61,8 +65,9 @@ async function parseGamelist(romPath, systemName) {
 
   for (const gameData of result.gameList.game) {
     try {
+      // Use symlink path (romBasePath) for ROM paths - emulatorLauncher.exe needs this
       // Skip file existence check (false) - checking each file over network is too slow
-      const game = parseGameEntry(gameData, resolvedPath, systemName, false);
+      const game = parseGameEntry(gameData, romBasePath, systemName, false);
       if (game) {
         // Filter hidden games unless showHidden is enabled
         if (game.hidden && !showHidden) {
@@ -95,8 +100,11 @@ async function parseGamelistFromFile(cachedFilePath, originalRomPath, systemName
   const config = loadConfig();
   const showHidden = config.showHiddenGames || false;
 
-  // Resolve the original ROM path for media path resolution
-  const resolvedRomPath = followSymlink(originalRomPath);
+  // IMPORTANT: Do NOT follow symlinks for ROM paths!
+  // emulatorLauncher.exe expects paths relative to RetroBat installation (symlink paths)
+  // not the resolved/real paths that symlinks point to.
+  // We normalize the path but keep the symlink intact.
+  const romBasePath = path.normalize(originalRomPath);
 
   let xmlContent;
   try {
@@ -132,9 +140,9 @@ async function parseGamelistFromFile(cachedFilePath, originalRomPath, systemName
 
   for (const gameData of result.gameList.game) {
     try {
-      // Use the original ROM path for resolving game and media paths
+      // Use the symlink path (romBasePath) for ROM paths - emulatorLauncher.exe needs this
       // Skip file existence check (false) - checking each file over network is too slow
-      const game = parseGameEntry(gameData, resolvedRomPath, systemName, false);
+      const game = parseGameEntry(gameData, romBasePath, systemName, false);
       if (game) {
         if (game.hidden && !showHidden) {
           continue;

@@ -208,7 +208,9 @@ async function fullScan(progressCallback = null) {
 
       try {
         // Parse from LOCAL CACHE only - never reads from network
-        const games = await parseGamelistFromFile(cachedPath, system.resolvedPath || system.path, system.id);
+        // IMPORTANT: Use system.path (symlink path), NOT resolvedPath!
+        // emulatorLauncher.exe expects paths relative to RetroBat installation
+        const games = await parseGamelistFromFile(cachedPath, system.path, system.id);
         return { systemId, system, games, success: true };
       } catch (error) {
         console.error(`Error scanning ${system.id}:`, error.message);
@@ -288,8 +290,9 @@ async function scanSystem(systemId) {
     }
     allGames = allGames.filter(g => g.systemId !== systemId);
 
-    // Parse gamelist
-    const games = await parseGamelist(system.resolvedPath || system.path, system.id);
+    // Parse gamelist - use system.path (symlink path) for ROM paths
+    // emulatorLauncher.exe expects paths relative to RetroBat installation
+    const games = await parseGamelist(system.path, system.id);
 
     // Store new games
     const systemGames = [];

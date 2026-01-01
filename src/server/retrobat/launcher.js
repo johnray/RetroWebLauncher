@@ -178,7 +178,7 @@ async function launchGame(game, options = {}) {
 
       // After 15 seconds, bring the foreground window to front (Windows only)
       // This ensures the emulator window gets focus after it loads
-      // Uses the "Alt key trick" to bypass Windows focus-stealing prevention
+      // Simulates a mouse click to reliably give input focus
       if (process.platform === 'win32') {
         setTimeout(() => {
           const focusScript = `
@@ -190,30 +190,26 @@ async function launchGame(game, options = {}) {
                 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
                 [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
                 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-                [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-                [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
-                [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
-                public const byte VK_MENU = 0x12;
-                public const uint KEYEVENTF_EXTENDEDKEY = 0x1;
-                public const uint KEYEVENTF_KEYUP = 0x2;
+                [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
+                [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+                [DllImport("user32.dll")] public static extern int GetSystemMetrics(int nIndex);
+                public const uint MOUSEEVENTF_LEFTDOWN = 0x2;
+                public const uint MOUSEEVENTF_LEFTUP = 0x4;
+                public const int SM_CXSCREEN = 0;
+                public const int SM_CYSCREEN = 1;
               }
 "@
             \\$hwnd = [FocusHelper]::GetForegroundWindow()
-            # Simulate Alt key press/release to allow focus stealing
-            [FocusHelper]::keybd_event([FocusHelper]::VK_MENU, 0, [FocusHelper]::KEYEVENTF_EXTENDEDKEY, [UIntPtr]::Zero)
-            [FocusHelper]::keybd_event([FocusHelper]::VK_MENU, 0, [FocusHelper]::KEYEVENTF_EXTENDEDKEY -bor [FocusHelper]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
-            # Attach to the window's thread for focus permissions
-            \\$foreThread = [FocusHelper]::GetWindowThreadProcessId(\\$hwnd, [IntPtr]::Zero)
-            \\$curThread = [FocusHelper]::GetCurrentThreadId()
-            [FocusHelper]::AttachThreadInput(\\$curThread, \\$foreThread, \\$true)
-            # Bring window to top and set focus
             [FocusHelper]::BringWindowToTop(\\$hwnd)
-            [FocusHelper]::ShowWindow(\\$hwnd, 5)  # SW_SHOW
-            [FocusHelper]::ShowWindow(\\$hwnd, 3)  # SW_MAXIMIZE
+            [FocusHelper]::ShowWindow(\\$hwnd, 3)
             [FocusHelper]::SetForegroundWindow(\\$hwnd)
-            # Detach thread
-            [FocusHelper]::AttachThreadInput(\\$curThread, \\$foreThread, \\$false)
+            # Move mouse to center of screen and click to give input focus
+            \\$centerX = [FocusHelper]::GetSystemMetrics([FocusHelper]::SM_CXSCREEN) / 2
+            \\$centerY = [FocusHelper]::GetSystemMetrics([FocusHelper]::SM_CYSCREEN) / 2
+            [FocusHelper]::SetCursorPos(\\$centerX, \\$centerY)
+            Start-Sleep -Milliseconds 50
+            [FocusHelper]::mouse_event([FocusHelper]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, [UIntPtr]::Zero)
+            [FocusHelper]::mouse_event([FocusHelper]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero)
           `;
           exec(`powershell -Command "${focusScript.replace(/\n/g, ' ')}"`, (err) => {
             if (err) {

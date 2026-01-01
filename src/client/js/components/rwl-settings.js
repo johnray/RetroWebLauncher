@@ -17,7 +17,14 @@ class RwlSettings extends LitElement {
     _saving: { type: Boolean, state: true },
     _dirty: { type: Boolean, state: true },
     _screensaverTimeout: { type: Number, state: true },
-    _screensaverType: { type: String, state: true }
+    _screensaverType: { type: String, state: true },
+    // Bulk View Settings
+    _systems: { type: Array, state: true },
+    _bulkGameCountRange: { type: Number, state: true },
+    _bulkZoomPercent: { type: Number, state: true },
+    _bulkViewType: { type: String, state: true },
+    _bulkPreviewCount: { type: Number, state: true },
+    _applyingBulk: { type: Boolean, state: true }
   };
 
   static styles = css`
@@ -313,6 +320,172 @@ class RwlSettings extends LitElement {
       border-radius: 4px;
     }
 
+    /* Bulk View Settings */
+    .bulk-controls {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md, 1rem);
+    }
+
+    .bulk-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md, 1rem);
+      flex-wrap: wrap;
+    }
+
+    .bulk-label {
+      min-width: 100px;
+      font-size: var(--font-size-sm, 0.75rem);
+      color: var(--settings-label-color, var(--color-text, #fff));
+    }
+
+    .bulk-range-select {
+      flex: 1;
+      max-width: 200px;
+    }
+
+    .zoom-slider-container {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm, 0.5rem);
+      flex: 1;
+    }
+
+    .zoom-slider {
+      flex: 1;
+      max-width: 200px;
+      accent-color: var(--color-primary, #ff0066);
+    }
+
+    .zoom-value {
+      min-width: 45px;
+      font-size: var(--font-size-sm, 0.75rem);
+      color: var(--color-text-muted, #888);
+    }
+
+    /* View type selector buttons */
+    .view-type-selector {
+      display: flex;
+      gap: 4px;
+    }
+
+    .view-type-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--button-secondary-bg, rgba(255, 255, 255, 0.05));
+      border: 1px solid var(--button-secondary-border, rgba(255, 255, 255, 0.1));
+      border-radius: 6px;
+      color: var(--color-text-muted, #888);
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .view-type-btn:hover {
+      background: var(--button-secondary-hover, rgba(255, 255, 255, 0.1));
+      color: var(--color-text, #fff);
+    }
+
+    .view-type-btn.active {
+      background: var(--button-active-bg, rgba(255, 0, 102, 0.2));
+      border-color: var(--button-active-border, rgba(255, 0, 102, 0.5));
+      color: var(--color-primary, #ff0066);
+    }
+
+    .preview-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      background: var(--color-primary, #ff0066);
+      color: var(--color-text, #fff);
+      border-radius: 12px;
+      font-size: var(--font-size-xs, 0.625rem);
+      font-weight: 600;
+    }
+
+    .bulk-actions {
+      display: flex;
+      gap: var(--spacing-sm, 0.5rem);
+      margin-top: var(--spacing-sm, 0.5rem);
+    }
+
+    .apply-btn {
+      padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+      background: var(--color-primary, #ff0066);
+      border: none;
+      border-radius: var(--radius-md, 8px);
+      color: var(--color-text, #fff);
+      font-size: var(--font-size-sm, 0.75rem);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast, 150ms);
+    }
+
+    .apply-btn:hover:not(:disabled) {
+      background: var(--color-primary-hover, #ff3388);
+    }
+
+    .apply-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .reset-btn {
+      padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+      background: transparent;
+      border: 1px solid var(--color-danger, #dc3545);
+      border-radius: var(--radius-md, 8px);
+      color: var(--color-danger, #dc3545);
+      font-size: var(--font-size-sm, 0.75rem);
+      cursor: pointer;
+      transition: all var(--transition-fast, 150ms);
+    }
+
+    .reset-btn:hover:not(:disabled) {
+      background: var(--color-danger, #dc3545);
+      color: #fff;
+    }
+
+    .reset-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: var(--spacing-sm, 0.5rem) var(--spacing-lg, 1.5rem);
+      background: var(--toast-bg, rgba(0, 0, 0, 0.9));
+      border: 1px solid var(--toast-border, rgba(255, 255, 255, 0.2));
+      border-radius: var(--radius-md, 8px);
+      color: var(--color-text, #fff);
+      font-size: var(--font-size-sm, 0.75rem);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      border-color: var(--color-success, #28a745);
+    }
+
+    .toast.error {
+      border-color: var(--color-danger, #dc3545);
+    }
+
     /* Mobile */
     @media (max-width: 640px) {
       .setting-item {
@@ -328,6 +501,16 @@ class RwlSettings extends LitElement {
       .toggle {
         align-self: flex-start;
       }
+
+      .bulk-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .bulk-range-select,
+      .zoom-slider-container {
+        max-width: none;
+      }
     }
   `;
 
@@ -342,6 +525,35 @@ class RwlSettings extends LitElement {
     // Load screensaver type
     this._screensaverType = RwlScreensaver.getCurrentScreensaver();
     this._boundKeydownHandler = this._handleKeydown.bind(this); // Bound handler for cleanup
+
+    // Bulk View Settings
+    this._systems = [];
+    this._bulkGameCountRange = 0;  // >0 games (all)
+    this._bulkZoomPercent = 100;   // 100% = 1.0 multiplier (default)
+    this._bulkViewType = 'wheel';  // Default view
+    this._bulkPreviewCount = 0;
+    this._applyingBulk = false;
+
+    // View types with icons (same as rwl-view-toggle)
+    this._viewTypes = [
+      { id: 'grid', icon: '⊞', label: 'Grid' },
+      { id: 'wheel', icon: '◎', label: 'Carousel' },
+      { id: 'spin', icon: '🎡', label: 'Spin Wheel' },
+      { id: 'spinner', icon: '◔', label: 'Wheel of Fortune' },
+      { id: 'list', icon: '☰', label: 'List' }
+    ];
+
+    // Game count ranges
+    this._gameCountRanges = [
+      { value: 0, label: 'All (>0 games)' },
+      { value: 5, label: '>5 games' },
+      { value: 10, label: '>10 games' },
+      { value: 25, label: '>25 games' },
+      { value: 50, label: '>50 games' },
+      { value: 100, label: '>100 games' },
+      { value: 500, label: '>500 games' },
+      { value: 1000, label: '>1000 games' }
+    ];
   }
 
   connectedCallback() {
@@ -367,9 +579,24 @@ class RwlSettings extends LitElement {
 
       // Load themes into dropdown
       await this._loadThemesDropdown();
+
+      // Load systems for bulk view settings
+      await this._loadSystems();
     } catch (error) {
       console.error('Failed to load config:', error);
       this._showError('Failed to load settings');
+    }
+  }
+
+  async _loadSystems() {
+    try {
+      const response = await api.getSystems();
+      // Filter to only systems with games
+      this._systems = (response.systems || []).filter(s => s.gameCount > 0);
+      this._updateBulkPreviewCount();
+    } catch (error) {
+      console.error('Failed to load systems:', error);
+      this._systems = [];
     }
   }
 
@@ -590,12 +817,189 @@ class RwlSettings extends LitElement {
     }
   }
 
+  // ==========================================
+  // Bulk View Settings Methods
+  // ==========================================
+
+  /**
+   * Get matching systems/collections based on game count range
+   */
+  _getMatchingSections() {
+    const sections = [];
+
+    // Add systems that match the game count filter
+    for (const system of this._systems) {
+      if (system.gameCount > this._bulkGameCountRange) {
+        sections.push({
+          id: system.id,
+          name: system.fullname || system.name,
+          gameCount: system.gameCount,
+          type: 'system'
+        });
+      }
+    }
+
+    // Add special collections (they always match >0)
+    if (this._bulkGameCountRange === 0) {
+      sections.push({ id: 'favorites', name: 'Favorites', type: 'collection' });
+      sections.push({ id: 'recent', name: 'Recently Played', type: 'collection' });
+    }
+
+    return sections;
+  }
+
+  /**
+   * Update the preview count when settings change
+   */
+  _updateBulkPreviewCount() {
+    this._bulkPreviewCount = this._getMatchingSections().length;
+  }
+
+  /**
+   * Handle game count range change
+   */
+  _handleBulkRangeChange(e) {
+    this._bulkGameCountRange = parseInt(e.target.value, 10);
+    this._updateBulkPreviewCount();
+  }
+
+  /**
+   * Handle zoom slider change
+   */
+  _handleBulkZoomChange(e) {
+    this._bulkZoomPercent = parseInt(e.target.value, 10);
+  }
+
+  /**
+   * Handle view type selection
+   */
+  _handleBulkViewTypeSelect(viewId) {
+    this._bulkViewType = viewId;
+  }
+
+  /**
+   * Convert zoom percentage to multiplier
+   * 50% = 0.5, 100% = 1.0, 200% = 2.0
+   */
+  _zoomPercentToMultiplier(percent) {
+    return percent / 100;
+  }
+
+  /**
+   * Apply bulk settings to all matching sections
+   */
+  async _applyBulkSettings() {
+    if (this._applyingBulk) return;
+
+    const sections = this._getMatchingSections();
+    if (sections.length === 0) {
+      this._showToast('No matching systems found', 'error');
+      return;
+    }
+
+    this._applyingBulk = true;
+
+    try {
+      const multiplier = this._zoomPercentToMultiplier(this._bulkZoomPercent);
+
+      // View type prefixes for different views
+      const viewPrefixes = {
+        grid: 'grid',
+        wheel: 'wheel',
+        spin: 'spin',
+        spinner: 'spinner',
+        list: 'list'
+      };
+
+      for (const section of sections) {
+        const key = section.id;
+
+        // Set view type
+        localStorage.setItem(`rwl-view-type-${key}`, this._bulkViewType);
+
+        // Set zoom multiplier for the selected view type
+        // The carousel views store multiplier per-view, so we set it for the selected view
+        const prefix = viewPrefixes[this._bulkViewType] || this._bulkViewType;
+        localStorage.setItem(`rwl-${prefix}-multiplier-${key}`, multiplier.toString());
+      }
+
+      this._showToast(`Applied settings to ${sections.length} sections`, 'success');
+
+      // Emit event so other components can refresh if needed
+      state.emit('bulkViewSettingsApplied');
+    } catch (error) {
+      console.error('Failed to apply bulk settings:', error);
+      this._showToast('Failed to apply settings', 'error');
+    } finally {
+      this._applyingBulk = false;
+    }
+  }
+
+  /**
+   * Reset all view settings to defaults
+   */
+  _resetAllViewSettings() {
+    if (!confirm('Reset all view preferences to defaults? This will clear all custom view types and zoom levels for all systems and collections.')) {
+      return;
+    }
+
+    try {
+      // Find and remove all view-related localStorage keys
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith('rwl-view-type-') ||
+          key.startsWith('rwl-grid-multiplier-') ||
+          key.startsWith('rwl-wheel-multiplier-') ||
+          key.startsWith('rwl-spin-multiplier-') ||
+          key.startsWith('rwl-spinner-multiplier-') ||
+          key.startsWith('rwl-list-multiplier-')
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+
+      for (const key of keysToRemove) {
+        localStorage.removeItem(key);
+      }
+
+      this._showToast(`Reset ${keysToRemove.length} view preferences`, 'success');
+
+      // Emit event so other components can refresh
+      state.emit('viewSettingsReset');
+    } catch (error) {
+      console.error('Failed to reset view settings:', error);
+      this._showToast('Failed to reset settings', 'error');
+    }
+  }
+
+  /**
+   * Show a toast notification
+   */
+  _showToast(message, type = 'success') {
+    const toast = this.shadowRoot.querySelector('.toast');
+    if (toast) {
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  }
+
   _showSuccess(message) {
     state.emit('notification', { type: 'success', message });
+    // Also show toast for settings
+    this._showToast(message, 'success');
   }
 
   _showError(message) {
     state.emit('notification', { type: 'error', message });
+    // Also show toast for errors
+    this._showToast(message, 'error');
   }
 
   render() {
@@ -771,6 +1175,89 @@ class RwlSettings extends LitElement {
                 </div>
               </section>
 
+              <!-- Bulk View Settings -->
+              <section class="settings-section">
+                <h3 class="section-title">Bulk View Settings</h3>
+
+                <div class="setting-item">
+                  <label class="setting-label">
+                    <span class="label-text">Set Default View & Zoom</span>
+                    <span class="label-desc">Apply view preferences to multiple systems at once</span>
+                  </label>
+                </div>
+
+                <div class="bulk-controls">
+                  <!-- Game Count Range -->
+                  <div class="bulk-row">
+                    <span class="bulk-label">Systems with:</span>
+                    <select
+                      class="setting-select bulk-range-select"
+                      @change="${this._handleBulkRangeChange}"
+                    >
+                      ${this._gameCountRanges.map(range => html`
+                        <option
+                          value="${range.value}"
+                          ?selected="${this._bulkGameCountRange === range.value}"
+                        >${range.label}</option>
+                      `)}
+                    </select>
+                    <span class="preview-badge">${this._bulkPreviewCount} matching</span>
+                  </div>
+
+                  <!-- Zoom Slider -->
+                  <div class="bulk-row">
+                    <span class="bulk-label">Zoom:</span>
+                    <div class="zoom-slider-container">
+                      <input
+                        type="range"
+                        class="zoom-slider"
+                        min="50"
+                        max="200"
+                        step="10"
+                        .value="${this._bulkZoomPercent}"
+                        @input="${this._handleBulkZoomChange}"
+                      />
+                      <span class="zoom-value">${this._bulkZoomPercent}%</span>
+                    </div>
+                  </div>
+
+                  <!-- View Type Selector -->
+                  <div class="bulk-row">
+                    <span class="bulk-label">View Type:</span>
+                    <div class="view-type-selector">
+                      ${this._viewTypes.map(v => html`
+                        <button
+                          type="button"
+                          class="view-type-btn ${v.id === this._bulkViewType ? 'active' : ''}"
+                          @click="${() => this._handleBulkViewTypeSelect(v.id)}"
+                          title="${v.label}"
+                          aria-label="${v.label} view"
+                        >${v.icon}</button>
+                      `)}
+                    </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="bulk-actions">
+                    <button
+                      type="button"
+                      class="apply-btn"
+                      ?disabled="${this._applyingBulk || this._bulkPreviewCount === 0}"
+                      @click="${this._applyBulkSettings}"
+                    >
+                      ${this._applyingBulk ? 'Applying...' : `Apply to ${this._bulkPreviewCount} Systems`}
+                    </button>
+                    <button
+                      type="button"
+                      class="reset-btn"
+                      @click="${this._resetAllViewSettings}"
+                    >
+                      Reset All to Defaults
+                    </button>
+                  </div>
+                </div>
+              </section>
+
               <!-- About -->
               <section class="settings-section about">
                 <h3 class="section-title">About</h3>
@@ -789,6 +1276,9 @@ class RwlSettings extends LitElement {
             ${this._saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
+
+        <!-- Toast notification -->
+        <div class="toast"></div>
       </div>
     `;
   }

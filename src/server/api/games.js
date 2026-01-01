@@ -127,12 +127,27 @@ router.post('/:id/launch', async (req, res) => {
     // Emit via Socket.io if available
     const io = req.app.get('io');
     if (io) {
-      io.emit('game:launched', { gameId: game.id, gameName: game.name });
+      io.emit('game:launched', {
+        gameId: game.id,
+        gameName: game.name,
+        systemId: game.systemId,
+        launchDetails: result.launchDetails
+      });
     }
 
     res.json(result);
   } catch (error) {
-    console.error('Error launching game:', error);
+    console.error('[Launcher] Error launching game:', error);
+
+    // Emit launch failure via Socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('game:launch-failed', {
+        gameId: req.params.id,
+        error: error.message || 'Failed to launch game'
+      });
+    }
+
     res.status(500).json({ error: error.message || 'Failed to launch game' });
   }
 });

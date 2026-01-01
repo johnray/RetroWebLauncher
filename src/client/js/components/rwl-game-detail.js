@@ -614,7 +614,17 @@ class RwlGameDetail extends LitElement {
     this._launching = true;
 
     try {
-      await api.launchGame(this._game.id);
+      const result = await api.launchGame(this._game.id);
+
+      // Log launch details for debugging
+      if (result.launchDetails) {
+        console.log('%c[Game Launch]', 'color: #4CAF50; font-weight: bold', this._game.name);
+        console.log('  Command:', result.launchDetails.command);
+        console.log('  Emulator:', result.launchDetails.emulator);
+        console.log('  Core:', result.launchDetails.core || 'none');
+        console.log('  ROM:', result.launchDetails.romPath);
+      }
+
       state.emit('gameLaunched', this._game);
 
       // Reset button after delay - track timeout for cleanup
@@ -628,7 +638,8 @@ class RwlGameDetail extends LitElement {
         }
       }, 3000);
     } catch (error) {
-      console.error('Failed to launch game:', error);
+      console.error('%c[Game Launch Failed]', 'color: #f44336; font-weight: bold', this._game?.name);
+      console.error('  Error:', error.message || error);
       this._launching = false;
       state.emit('error', { message: 'Failed to launch game' });
     }

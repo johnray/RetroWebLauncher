@@ -64,8 +64,17 @@ async function launchGame(game, options = {}) {
     }
   }
 
-  // Build launch arguments - quote paths with spaces
-  const quotedRomPath = `"${romPath}"`;
+  // Warn if no emulator configured for this system
+  if (!emulatorName) {
+    console.warn(`[Launcher] No emulator configured for system: ${system.name}`);
+    console.warn(`[Launcher] emulatorLauncher.exe will use auto-detection`);
+  }
+
+  // Build launch arguments
+  // When using shell:true on Windows, paths with spaces MUST be quoted
+  // Also escape any existing double quotes in the path
+  const escapedRomPath = romPath.replace(/"/g, '\\"');
+  const quotedRomPath = `"${escapedRomPath}"`;
   const args = [
     '-system', system.name,
     '-rom', quotedRomPath
@@ -81,12 +90,17 @@ async function launchGame(game, options = {}) {
     args.push('-core', coreName);
   }
 
-  console.log(`Launching: ${game.name}`);
-  console.log(`  System: ${system.name}`);
-  console.log(`  Emulator: ${emulatorName || 'auto'}`);
-  console.log(`  Core: ${coreName || 'none'}`);
-  console.log(`  ROM: ${romPath}`);
-  console.log(`  Command: ${launcherPath} ${args.join(' ')}`);
+  // Build the full command string for logging
+  const commandLine = `${launcherPath} ${args.join(' ')}`;
+
+  console.log(`[Launcher] ========================================`);
+  console.log(`[Launcher] Launching: ${game.name}`);
+  console.log(`[Launcher]   System: ${system.name}`);
+  console.log(`[Launcher]   Emulator: ${emulatorName || 'auto'}`);
+  console.log(`[Launcher]   Core: ${coreName || 'none'}`);
+  console.log(`[Launcher]   ROM: ${romPath}`);
+  console.log(`[Launcher]   Command: ${commandLine}`);
+  console.log(`[Launcher] ========================================`);
 
   return new Promise((resolve, reject) => {
     try {
@@ -155,6 +169,13 @@ async function launchGame(game, options = {}) {
         system: {
           id: system.id,
           name: system.name
+        },
+        // Include launch details for debugging
+        launchDetails: {
+          command: commandLine,
+          emulator: emulatorName || 'auto',
+          core: coreName || null,
+          romPath: romPath
         }
       });
     } catch (error) {

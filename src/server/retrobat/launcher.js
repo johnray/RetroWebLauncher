@@ -176,6 +176,37 @@ async function launchGame(game, options = {}) {
         currentGameInfo = null;
       });
 
+      // After 5 seconds, bring the foreground window to front (Windows only)
+      // This ensures the emulator window gets focus after it loads
+      if (process.platform === 'win32') {
+        setTimeout(() => {
+          const focusScript = `
+            Add-Type @"
+              using System;
+              using System.Runtime.InteropServices;
+              public class FocusHelper {
+                [DllImport("user32.dll")]
+                public static extern IntPtr GetForegroundWindow();
+                [DllImport("user32.dll")]
+                public static extern bool SetForegroundWindow(IntPtr hWnd);
+                [DllImport("user32.dll")]
+                public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+              }
+"@
+            $hwnd = [FocusHelper]::GetForegroundWindow()
+            [FocusHelper]::ShowWindow($hwnd, 3)
+            [FocusHelper]::SetForegroundWindow($hwnd)
+          `;
+          exec(`powershell -Command "${focusScript.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, (err) => {
+            if (err) {
+              console.warn('[Launcher] Failed to focus emulator window:', err.message);
+            } else {
+              console.log('[Launcher] Activated emulator window');
+            }
+          });
+        }, 5000);
+      }
+
       resolve({
         success: true,
         message: `Launched ${game.name}`,

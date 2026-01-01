@@ -447,9 +447,8 @@ export class RwlScreensaverBase extends LitElement {
 
             if (totalGames === 0) return [];
 
-            // Pick a random starting point for variety
-            const maxOffset = Math.max(0, totalGames - gamesPerSystem);
-            const randomOffset = maxOffset > 0 ? Math.floor(Math.random() * maxOffset) : 0;
+            // Pick a random starting point anywhere in the library
+            const randomOffset = Math.floor(Math.random() * totalGames);
 
             const response = await api.getGames(system.id, {
               limit: gamesPerSystem,

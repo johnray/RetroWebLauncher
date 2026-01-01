@@ -178,6 +178,7 @@ async function launchGame(game, options = {}) {
 
       // After 15 seconds, bring the foreground window to front (Windows only)
       // This ensures the emulator window gets focus after it loads
+      // Uses the "Alt key trick" to bypass Windows focus-stealing prevention
       if (process.platform === 'win32') {
         setTimeout(() => {
           const focusScript = `
@@ -185,19 +186,36 @@ async function launchGame(game, options = {}) {
               using System;
               using System.Runtime.InteropServices;
               public class FocusHelper {
-                [DllImport("user32.dll")]
-                public static extern IntPtr GetForegroundWindow();
-                [DllImport("user32.dll")]
-                public static extern bool SetForegroundWindow(IntPtr hWnd);
-                [DllImport("user32.dll")]
-                public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+                [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+                [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+                [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+                [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+                [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+                [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+                public const byte VK_MENU = 0x12;
+                public const uint KEYEVENTF_EXTENDEDKEY = 0x1;
+                public const uint KEYEVENTF_KEYUP = 0x2;
               }
 "@
-            $hwnd = [FocusHelper]::GetForegroundWindow()
-            [FocusHelper]::ShowWindow($hwnd, 3)
-            [FocusHelper]::SetForegroundWindow($hwnd)
+            \\$hwnd = [FocusHelper]::GetForegroundWindow()
+            # Simulate Alt key press/release to allow focus stealing
+            [FocusHelper]::keybd_event([FocusHelper]::VK_MENU, 0, [FocusHelper]::KEYEVENTF_EXTENDEDKEY, [UIntPtr]::Zero)
+            [FocusHelper]::keybd_event([FocusHelper]::VK_MENU, 0, [FocusHelper]::KEYEVENTF_EXTENDEDKEY -bor [FocusHelper]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+            # Attach to the window's thread for focus permissions
+            \\$foreThread = [FocusHelper]::GetWindowThreadProcessId(\\$hwnd, [IntPtr]::Zero)
+            \\$curThread = [FocusHelper]::GetCurrentThreadId()
+            [FocusHelper]::AttachThreadInput(\\$curThread, \\$foreThread, \\$true)
+            # Bring window to top and set focus
+            [FocusHelper]::BringWindowToTop(\\$hwnd)
+            [FocusHelper]::ShowWindow(\\$hwnd, 5)  # SW_SHOW
+            [FocusHelper]::ShowWindow(\\$hwnd, 3)  # SW_MAXIMIZE
+            [FocusHelper]::SetForegroundWindow(\\$hwnd)
+            # Detach thread
+            [FocusHelper]::AttachThreadInput(\\$curThread, \\$foreThread, \\$false)
           `;
-          exec(`powershell -Command "${focusScript.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, (err) => {
+          exec(`powershell -Command "${focusScript.replace(/\n/g, ' ')}"`, (err) => {
             if (err) {
               console.warn('[Launcher] Failed to focus emulator window:', err.message);
             } else {

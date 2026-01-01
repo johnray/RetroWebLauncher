@@ -443,7 +443,7 @@ export class RwlScreensaverBase extends LitElement {
           try {
             // First get total count to pick a random page
             const countResponse = await api.getGames(system.id, { limit: 1 });
-            const totalGames = countResponse.total || countResponse.games?.length || 0;
+            const totalGames = countResponse.totalCount || countResponse.total || countResponse.games?.length || 0;
 
             if (totalGames === 0) return [];
 

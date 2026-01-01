@@ -176,46 +176,18 @@ async function launchGame(game, options = {}) {
         currentGameInfo = null;
       });
 
-      // After 15 seconds, bring the foreground window to front (Windows only)
-      // This ensures the emulator window gets focus after it loads
-      // Simulates a mouse click to reliably give input focus
+      // After 15 seconds, simulate mouse movement and click to give input focus
+      // This helps emulators like RetroArch that don't receive input until mouse moves
       if (process.platform === 'win32') {
         setTimeout(() => {
-          const focusScript = `
-            Add-Type @"
-              using System;
-              using System.Runtime.InteropServices;
-              public class FocusHelper {
-                [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-                [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-                [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
-                [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
-                [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
-                [DllImport("user32.dll")] public static extern int GetSystemMetrics(int nIndex);
-                public const uint MOUSEEVENTF_LEFTDOWN = 0x2;
-                public const uint MOUSEEVENTF_LEFTUP = 0x4;
-                public const int SM_CXSCREEN = 0;
-                public const int SM_CYSCREEN = 1;
-              }
-"@
-            \\$hwnd = [FocusHelper]::GetForegroundWindow()
-            [FocusHelper]::BringWindowToTop(\\$hwnd)
-            [FocusHelper]::ShowWindow(\\$hwnd, 3)
-            [FocusHelper]::SetForegroundWindow(\\$hwnd)
-            # Move mouse to center of screen and click to give input focus
-            \\$centerX = [FocusHelper]::GetSystemMetrics([FocusHelper]::SM_CXSCREEN) / 2
-            \\$centerY = [FocusHelper]::GetSystemMetrics([FocusHelper]::SM_CYSCREEN) / 2
-            [FocusHelper]::SetCursorPos(\\$centerX, \\$centerY)
-            Start-Sleep -Milliseconds 50
-            [FocusHelper]::mouse_event([FocusHelper]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, [UIntPtr]::Zero)
-            [FocusHelper]::mouse_event([FocusHelper]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero)
-          `;
-          exec(`powershell -Command "${focusScript.replace(/\n/g, ' ')}"`, (err) => {
+          // Simple approach: use PowerShell to move mouse and click
+          const cmd = `powershell -Command "Add-Type -AssemblyName System.Windows.Forms; $p = [System.Windows.Forms.Cursor]::Position; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(($p.X + 1), $p.Y); Start-Sleep -Milliseconds 50; [System.Windows.Forms.Cursor]::Position = $p; Start-Sleep -Milliseconds 50; Add-Type -MemberDefinition '[DllImport(\\\"user32.dll\\\")] public static extern void mouse_event(int f,int x,int y,int d,int e);' -Name U -Namespace W; [W.U]::mouse_event(2,0,0,0,0); [W.U]::mouse_event(4,0,0,0,0)"`;
+          exec(cmd, (err, stdout, stderr) => {
             if (err) {
-              console.warn('[Launcher] Failed to focus emulator window:', err.message);
+              console.warn('[Launcher] Failed to simulate mouse:', err.message);
+              if (stderr) console.warn('[Launcher] stderr:', stderr);
             } else {
-              console.log('[Launcher] Activated emulator window');
+              console.log('[Launcher] Simulated mouse movement and click');
             }
           });
         }, 15000);

@@ -366,9 +366,18 @@ class RwlSpinWheel extends RwlCarouselBase {
       pointer.style.left = `${Math.max(0, arrowLeft)}px`;
     }
 
+    const totalGames = this._games.length;
+
     items.forEach((item, i) => {
       // Use _visualOffset for smooth animation
-      const offset = i - this._visualOffset;
+      let offset = i - this._visualOffset;
+
+      // Handle wrapping for smooth animation at edges
+      if (totalGames > 0) {
+        if (offset > totalGames / 2) offset -= totalGames;
+        if (offset < -totalGames / 2) offset += totalGames;
+      }
+
       const absOffset = Math.abs(offset);
 
       // Hide items outside visible arc

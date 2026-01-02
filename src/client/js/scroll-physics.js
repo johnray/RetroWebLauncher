@@ -265,8 +265,20 @@ export class ScrollPhysics {
 
       // Check if we should snap
       const absVelocity = Math.abs(this._velocity);
-      const nearestItem = Math.round(this._position);
-      const distanceToNearest = Math.abs(this._position - nearestItem);
+      let nearestItem = Math.round(this._position);
+
+      // Ensure nearestItem is within bounds for wrap-around
+      if (this.wrapAround && itemCount > 0) {
+        nearestItem = ((nearestItem % itemCount) + itemCount) % itemCount;
+      }
+
+      // Calculate distance considering wrap-around
+      let distanceToNearest = Math.abs(this._position - nearestItem);
+      if (this.wrapAround && itemCount > 0) {
+        // Also check wrap-around distance
+        const wrapDistance = itemCount - distanceToNearest;
+        distanceToNearest = Math.min(distanceToNearest, wrapDistance);
+      }
 
       if (absVelocity < this._snapVelocityThreshold / this._itemSize ||
           distanceToNearest < this._snapDistanceThreshold) {
@@ -288,10 +300,31 @@ export class ScrollPhysics {
     this._isAnimating = true;
     this._lastFrameTime = performance.now();
 
-    // Spring state
+    const itemCount = this.getItemCount();
+
+    // Calculate the effective target considering wrap-around
+    // We need to find the shortest path to the target
+    let effectiveTarget = targetIndex;
+    if (this.wrapAround && itemCount > 0) {
+      const normalizedTarget = ((targetIndex % itemCount) + itemCount) % itemCount;
+      const directDistance = normalizedTarget - this._position;
+      const wrapForwardDistance = directDistance - itemCount; // Go backwards via wrap
+      const wrapBackwardDistance = directDistance + itemCount; // Go forwards via wrap
+
+      // Pick the shortest path
+      if (Math.abs(wrapForwardDistance) < Math.abs(directDistance)) {
+        effectiveTarget = this._position + wrapForwardDistance;
+      } else if (Math.abs(wrapBackwardDistance) < Math.abs(directDistance)) {
+        effectiveTarget = this._position + wrapBackwardDistance;
+      } else {
+        effectiveTarget = this._position + directDistance;
+      }
+    }
+
+    // Spring state - use unwrapped position for smooth animation
     let position = this._position;
     let velocity = this._velocity;
-    const target = targetIndex;
+    const target = effectiveTarget;
 
     const animate = () => {
       if (!this._isAnimating) return;
@@ -312,11 +345,11 @@ export class ScrollPhysics {
       position += velocity * deltaTime;
 
       // Handle wrap-around for position display
-      const itemCount = this.getItemCount();
+      const currentItemCount = this.getItemCount();
       let displayPosition = position;
-      if (this.wrapAround && itemCount > 0) {
-        while (displayPosition < 0) displayPosition += itemCount;
-        while (displayPosition >= itemCount) displayPosition -= itemCount;
+      if (this.wrapAround && currentItemCount > 0) {
+        while (displayPosition < 0) displayPosition += currentItemCount;
+        while (displayPosition >= currentItemCount) displayPosition -= currentItemCount;
       }
 
       this._position = displayPosition;
@@ -326,9 +359,9 @@ export class ScrollPhysics {
       // Check if spring has settled
       if (Math.abs(displacement) < 0.001 && Math.abs(velocity) < 0.001) {
         // Snap to exact target
-        this._position = this.wrapAround && itemCount > 0
-          ? ((target % itemCount) + itemCount) % itemCount
-          : Math.max(0, Math.min(itemCount - 1, target));
+        this._position = this.wrapAround && currentItemCount > 0
+          ? ((targetIndex % currentItemCount) + currentItemCount) % currentItemCount
+          : Math.max(0, Math.min(currentItemCount - 1, targetIndex));
         this._velocity = 0;
         this._isAnimating = false;
         this.onPositionChange(this._position);
